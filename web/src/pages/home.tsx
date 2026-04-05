@@ -1,5 +1,4 @@
 import { postServiceGetPost, useUserServiceGetMe } from "@/api/generated"
-import { PostListSkeleton } from "@/components/loading-skeleton"
 import { PostCard } from "@/components/post-card"
 import { PostComposerCard } from "@/components/post-composer"
 import { VirtualList } from "@/components/virtual-list"
@@ -8,15 +7,12 @@ import { toast } from "sonner"
 
 export function Home() {
   const { data: userData } = useUserServiceGetMe()
-  const { posts, fetchNextPage, isFetchingNextPage, hasNextPage, isPending, addPostLocal, updatePostLocal, removePostLocal } =
-    useHomePostsFeed()
+  const { posts, fetchNextPage, isFetchingNextPage, hasNextPage, addPostLocal, updatePostLocal, removePostLocal } = useHomePostsFeed()
   const handlePosted = (uid: string) => {
     void postServiceGetPost(uid)
       .then((data) => addPostLocal(data.post))
       .catch(() => toast.error("Failed to load created post.", { position: "top-center" }))
   }
-
-  if (isPending && !posts.length) return <HomeSkeleton />
   return (
     <div className="h-full w-full">
       <VirtualList
@@ -35,14 +31,6 @@ export function Home() {
           />
         )}
       />
-    </div>
-  )
-}
-
-function HomeSkeleton() {
-  return (
-    <div className="h-full w-full overflow-y-auto">
-      <PostListSkeleton count={3} />
     </div>
   )
 }

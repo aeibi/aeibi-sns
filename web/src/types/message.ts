@@ -22,3 +22,5 @@ export interface FollowMessage {
   actor: MessageActor
   createdAt: string
 }
+
+export type InboxMessage = FollowMessage | CommentMessage

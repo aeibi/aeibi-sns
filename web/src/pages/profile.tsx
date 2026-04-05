@@ -7,10 +7,8 @@ import {
   type UserGetUserResponse,
 } from "@/api/generated"
 import { useQueryClient } from "@tanstack/react-query"
-import { ProfilePageSkeleton } from "@/components/loading-skeleton"
 import { PostCard } from "@/components/post-card"
 import { ProfileCard } from "@/components/profile-card"
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { VirtualList } from "@/components/virtual-list"
 import { toast } from "sonner"
 import type { User } from "@/types/user"
@@ -22,17 +20,9 @@ export function Profile() {
   const [searchParams] = useSearchParams()
   const { data: meData } = useUserServiceGetMe()
   const uid = searchParams.get("uid") || meData?.user.uid || ""
-  const { data: userData, isPending: isUserPending } = useUserServiceGetUser(uid)
+  const { data: userData } = useUserServiceGetUser(uid)
   const { mutate: followUser, isPending: isFollowPending } = useFollowServiceFollow()
-  const {
-    posts,
-    fetchNextPage,
-    isFetchingNextPage,
-    hasNextPage,
-    isPending: isPostsPending,
-    updatePostLocal,
-    removePostLocal,
-  } = useAuthorPostsFeed(uid)
+  const { posts, fetchNextPage, isFetchingNextPage, hasNextPage, updatePostLocal, removePostLocal } = useAuthorPostsFeed(uid)
 
   const handleFollow = () => {
     const user = userData?.user
@@ -61,22 +51,12 @@ export function Profile() {
       }
     )
   }
-
-  if (!!uid && (isUserPending || isPostsPending)) return <ProfileSkeleton />
-
-  if (!uid && !meData?.user.uid) return <ProfileEmpty isLogged={false} />
-  if (!userData) return <ProfileEmpty isLogged={!!uid} />
+  if (!userData) return null
   return (
     <div className="h-full w-full">
       <VirtualList
         header={
-          <ProfileCard
-            className="w-full"
-            user={userData.user}
-            me={meData?.user}
-            onFollow={handleFollow}
-            followPending={isFollowPending}
-          />
+          <ProfileCard className="w-full" user={userData?.user} me={meData?.user} onFollow={handleFollow} followPending={isFollowPending} />
         }
         items={posts}
         getItemKey={(post) => post.uid}
@@ -92,31 +72,6 @@ export function Profile() {
           />
         )}
       />
-    </div>
-  )
-}
-
-function ProfileSkeleton() {
-  return (
-    <div className="h-full w-full overflow-y-auto">
-      <ProfilePageSkeleton count={2} />
-    </div>
-  )
-}
-
-function ProfileEmpty(isLogged: { isLogged: boolean }) {
-  return (
-    <div className="h-full w-full p-4">
-      <div className="mx-auto h-full w-full max-w-4xl px-4 py-4">
-        <Empty className="h-full border">
-          <EmptyHeader>
-            <EmptyTitle>{isLogged ? "User Not Found" : "Profile Unavailable"}</EmptyTitle>
-            <EmptyDescription>
-              {isLogged ? "The requested user does not exist or is unavailable." : "Please log in to view your profile."}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </div>
     </div>
   )
 }

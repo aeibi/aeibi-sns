@@ -17,7 +17,6 @@ import { BookmarkIcon, HeartIcon, MessageCircleIcon } from "lucide-react"
 import { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { PostActionButton } from "@/components/post-action"
-import { PostCommentsPreviewSkeleton } from "@/components/loading-skeleton"
 import { PostComment } from "@/components/post-comment"
 import { PostCommentsComposer } from "@/components/post-comment-composer"
 import { PostHeader } from "@/components/post-header"
@@ -49,12 +48,7 @@ export function PostCard({ post, user, onUpdatePost, onRemovePost, disableCommen
   const { mutate: followUser, isPending: isFollowPending } = useFollowServiceFollow()
 
   const previewCommentsQueryKey = [...getCommentServiceListTopCommentsQueryKey(post.uid), "preview"] as const
-  const {
-    data,
-    refetch,
-    queryKey,
-    isPending: isCommentsPending,
-  } = useCommentServiceListTopComments(post.uid, undefined, {
+  const { data, refetch, queryKey } = useCommentServiceListTopComments(post.uid, undefined, {
     query: {
       enabled: canExpandComments && commentActive,
       queryKey: previewCommentsQueryKey,
@@ -217,7 +211,6 @@ export function PostCard({ post, user, onUpdatePost, onRemovePost, disableCommen
         {canExpandComments && commentActive && (
           <div className="flex flex-col gap-4">
             {!!user && <PostCommentsComposer user={user} postUid={post.uid} onPosted={handleCommentPosted} />}
-            {isCommentsPending && !comments.length && <PostCommentsPreviewSkeleton />}
             {comments.length > 0 && (
               <>
                 {comments.slice(0, 5).map((comment) => (

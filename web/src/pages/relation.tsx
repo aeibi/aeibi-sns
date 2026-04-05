@@ -10,10 +10,8 @@ import {
 } from "@/api/generated"
 import { RelationCategorySidenav, type RelationCategory } from "@/components/relation-category-sidenav"
 import { RelationSearchCard } from "@/components/relation-search-card"
-import { RelationListSkeleton } from "@/components/loading-skeleton"
 import { VirtualList } from "@/components/virtual-list"
 import { RelationUserCard } from "@/components/relation-user-card"
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import type { User } from "@/types/user"
 
 export function Relation() {
@@ -26,7 +24,6 @@ export function Relation() {
     fetchNextPage: fetchFollowingNextPage,
     isFetchingNextPage: isFetchingFollowingNextPage,
     hasNextPage: hasFollowingNextPage,
-    isPending: isFollowingPending,
   } = useInfiniteQuery({
     queryKey: getFollowServiceListMyFollowingQueryKey({ query: query.trim() }),
     initialPageParam: { query: query.trim() } as FollowServiceListMyFollowingParams,
@@ -47,7 +44,6 @@ export function Relation() {
     fetchNextPage: fetchFollowerNextPage,
     isFetchingNextPage: isFetchingFollowerNextPage,
     hasNextPage: hasFollowerNextPage,
-    isPending: isFollowerPending,
   } = useInfiniteQuery({
     queryKey: getFollowServiceListMyFollowersQueryKey({ query: query.trim() }),
     initialPageParam: { query: query.trim() } as FollowServiceListMyFollowersParams,
@@ -70,7 +66,6 @@ export function Relation() {
   const fetchNextPage = isFollowingCategory ? fetchFollowingNextPage : fetchFollowerNextPage
   const isFetchingNextPage = isFollowingCategory ? isFetchingFollowingNextPage : isFetchingFollowerNextPage
   const hasNextPage = isFollowingCategory ? hasFollowingNextPage : hasFollowerNextPage
-  const isPending = isFollowingCategory ? isFollowingPending : isFollowerPending
 
   const handleCategoryChange = (nextCategory: RelationCategory) => {
     const nextSearchParams = new URLSearchParams(searchParams)
@@ -93,41 +88,21 @@ export function Relation() {
       <RelationCategorySidenav selectedCategory={category} onCategoryChange={handleCategoryChange} className="h-full w-56" />
       <div className="flex min-h-0 w-full max-w-4xl flex-col gap-4">
         <RelationSearchCard query={query.trim()} onQueryChange={handleQueryChange} />
-        {!activeUsers.length && !isPending ? (
-          <div className="min-h-0 flex-1">
-            <Empty className="h-full border">
-              <EmptyHeader>
-                <EmptyTitle>No Users</EmptyTitle>
-                <EmptyDescription>No matching users were found.</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          </div>
-        ) : (
-          <>
-            {!activeUsers.length && isPending && (
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <RelationListSkeleton />
-              </div>
-            )}
-            {!!activeUsers.length && (
-              <VirtualList
-                key={`${category}-${query.trim()}`}
-                items={activeUsers}
-                getItemKey={(user) => user.uid}
-                hasNextPage={hasNextPage}
-                isFetchingNextPage={isFetchingNextPage}
-                onLoadMore={fetchNextPage}
-                estimateSize={() => 150}
-                gap={8}
-                paddingStart={4}
-                paddingEnd={4}
-                className="min-h-0 flex-1 overflow-y-auto"
-                innerClassName="w-full"
-                renderItem={(user) => <RelationUserCard user={user} relation={category} />}
-              />
-            )}
-          </>
-        )}
+        <VirtualList
+          key={`${category}-${query.trim()}`}
+          items={activeUsers}
+          getItemKey={(user) => user.uid}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          onLoadMore={fetchNextPage}
+          estimateSize={() => 150}
+          gap={8}
+          paddingStart={4}
+          paddingEnd={4}
+          className="min-h-0 flex-1 overflow-y-auto"
+          innerClassName="w-full"
+          renderItem={(user) => <RelationUserCard user={user} relation={category} />}
+        />
       </div>
     </div>
   )

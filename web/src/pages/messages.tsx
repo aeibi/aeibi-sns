@@ -2,9 +2,9 @@ import { useInfiniteQuery } from "@tanstack/react-query"
 import { MessageCategorySidenav, type MessageCategory } from "@/components/message-category-sidenav"
 import { MessageCommentCard } from "@/components/message-comment-card"
 import { MessageFollowCard } from "@/components/message-follow-card"
-import { MessageListSkeleton } from "@/components/loading-skeleton"
 import { MessageStatusTabs, type MessageStatus } from "@/components/message-status-tabs"
 import { VirtualList } from "@/components/virtual-list"
+import type { CommentMessage, FollowMessage, InboxMessage } from "@/types/message"
 import {
   getMessageServiceListCommentInboxMessagesQueryKey,
   getMessageServiceListFollowInboxMessagesQueryKey,
@@ -15,13 +15,21 @@ import {
   type MessageServiceListFollowInboxMessagesParams,
 } from "@/api/generated"
 import { useSearchParams } from "react-router-dom"
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 
 const InboxMessageReadFilter = {
   UNSPECIFIED: 0,
   UNREAD: 1,
   READ: 2,
 } as const
+
+const buildNextPageParam = (lastPage: { nextCursorId: string; nextCursorCreatedAt: string }, readFilter: number) => {
+  if (!lastPage.nextCursorId || !lastPage.nextCursorCreatedAt) return
+  return {
+    cursorId: lastPage.nextCursorId,
+    cursorCreatedAt: lastPage.nextCursorCreatedAt,
+    readFilter,
+  }
+}
 
 export function Messages() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -36,20 +44,12 @@ export function Messages() {
     fetchNextPage: fetchFollowNextPage,
     isFetchingNextPage: isFetchingFollowNextPage,
     hasNextPage: hasFollowNextPage,
-    isPending: isFollowPending,
     refetch: refetchFollowMessages,
   } = useInfiniteQuery({
     queryKey: getMessageServiceListFollowInboxMessagesQueryKey({ readFilter }),
     initialPageParam: { readFilter } as MessageServiceListFollowInboxMessagesParams,
     queryFn: ({ pageParam, signal }) => messageServiceListFollowInboxMessages(pageParam, undefined, signal),
-    getNextPageParam: (lastPage) => {
-      if (!lastPage.nextCursorId || !lastPage.nextCursorCreatedAt) return
-      return {
-        cursorId: lastPage.nextCursorId,
-        cursorCreatedAt: lastPage.nextCursorCreatedAt,
-        readFilter,
-      }
-    },
+    getNextPageParam: (lastPage) => buildNextPageParam(lastPage, readFilter),
     enabled: category === "follow",
   })
 
@@ -58,51 +58,45 @@ export function Messages() {
     fetchNextPage: fetchCommentNextPage,
     isFetchingNextPage: isFetchingCommentNextPage,
     hasNextPage: hasCommentNextPage,
-    isPending: isCommentPending,
     refetch: refetchCommentMessages,
   } = useInfiniteQuery({
     queryKey: getMessageServiceListCommentInboxMessagesQueryKey({ readFilter }),
     initialPageParam: { readFilter } as MessageServiceListCommentInboxMessagesParams,
     queryFn: ({ pageParam, signal }) => messageServiceListCommentInboxMessages(pageParam, undefined, signal),
-    getNextPageParam: (lastPage) => {
-      if (!lastPage.nextCursorId || !lastPage.nextCursorCreatedAt) return
-      return {
-        cursorId: lastPage.nextCursorId,
-        cursorCreatedAt: lastPage.nextCursorCreatedAt,
-        readFilter,
-      }
-    },
+    getNextPageParam: (lastPage) => buildNextPageParam(lastPage, readFilter),
     enabled: category === "comment",
   })
 
-  const followMessages = followData?.pages.flatMap((page) => page.messages) ?? []
-  const commentMessages = commentData?.pages.flatMap((page) => page.messages) ?? []
+  const followMessages: FollowMessage[] = followData?.pages.flatMap((page) => page.messages) ?? []
+  const commentMessages: CommentMessage[] = commentData?.pages.flatMap((page) => page.messages) ?? []
   const isFollowCategory = category === "follow"
-  const activeMessages = isFollowCategory ? followMessages : commentMessages
+  const activeMessages: InboxMessage[] = isFollowCategory ? followMessages : commentMessages
   const fetchNextPage = isFollowCategory ? fetchFollowNextPage : fetchCommentNextPage
   const isFetchingNextPage = isFollowCategory ? isFetchingFollowNextPage : isFetchingCommentNextPage
   const hasNextPage = isFollowCategory ? hasFollowNextPage : hasCommentNextPage
-  const isPending = isFollowCategory ? isFollowPending : isCommentPending
   const refetchMessages = isFollowCategory ? refetchFollowMessages : refetchCommentMessages
 
-  const handleCategoryChange = (nextCategory: MessageCategory) => {
+  const updateSearchParam = (key: "category" | "status", value: MessageCategory | MessageStatus) => {
     const nextSearchParams = new URLSearchParams(searchParams)
-    nextSearchParams.set("category", nextCategory)
+    nextSearchParams.set(key, value)
     setSearchParams(nextSearchParams)
+  }
+
+  const handleCategoryChange = (nextCategory: MessageCategory) => {
+    updateSearchParam("category", nextCategory)
   }
 
   const handleStatusChange = (nextStatus: MessageStatus) => {
-    const nextSearchParams = new URLSearchParams(searchParams)
-    nextSearchParams.set("status", nextStatus)
-    setSearchParams(nextSearchParams)
+    updateSearchParam("status", nextStatus)
   }
 
   const handleMarkAllAsRead = () => {
-    markAllInboxMessagesRead()
-    const nextSearchParams = new URLSearchParams(searchParams)
-    nextSearchParams.set("status", "all")
-    setSearchParams(nextSearchParams)
-    void refetchMessages()
+    markAllInboxMessagesRead(undefined, {
+      onSuccess: () => {
+        updateSearchParam("status", "all")
+        void refetchMessages()
+      },
+    })
   }
 
   return (
@@ -110,58 +104,27 @@ export function Messages() {
       <MessageCategorySidenav selectedCategory={category} onCategoryChange={handleCategoryChange} className="h-full w-56" />
       <div className="flex min-h-0 w-full max-w-4xl flex-col gap-4">
         <MessageStatusTabs selectedStatus={status} onStatusChange={handleStatusChange} onMarkAllAsRead={handleMarkAllAsRead} />
-        {!activeMessages.length && !isPending ? (
-          <div className="min-h-0 flex-1">
-            <Empty className="h-full border">
-              <EmptyHeader>
-                <EmptyTitle>No Messages</EmptyTitle>
-                <EmptyDescription>Your inbox is clear for now.</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          </div>
-        ) : (
-          <>
-            {!activeMessages.length && isPending && (
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <MessageListSkeleton />
-              </div>
-            )}
-            {!!activeMessages.length &&
-              (isFollowCategory ? (
-                <VirtualList
-                  key={`follow-${status}`}
-                  items={followMessages}
-                  getItemKey={(message) => message.uid}
-                  hasNextPage={hasNextPage}
-                  isFetchingNextPage={isFetchingNextPage}
-                  onLoadMore={fetchNextPage}
-                  estimateSize={() => 150}
-                  gap={8}
-                  paddingStart={4}
-                  paddingEnd={4}
-                  className="min-h-0 flex-1 overflow-y-auto"
-                  innerClassName="w-full"
-                  renderItem={(message) => <MessageFollowCard message={message} />}
-                />
-              ) : (
-                <VirtualList
-                  key={`comment-${status}`}
-                  items={commentMessages}
-                  getItemKey={(message) => message.uid}
-                  hasNextPage={hasNextPage}
-                  isFetchingNextPage={isFetchingNextPage}
-                  onLoadMore={fetchNextPage}
-                  estimateSize={() => 150}
-                  gap={8}
-                  paddingStart={4}
-                  paddingEnd={4}
-                  className="min-h-0 flex-1 overflow-y-auto"
-                  innerClassName="w-full"
-                  renderItem={(message) => <MessageCommentCard message={message} />}
-                />
-              ))}
-          </>
-        )}
+        <VirtualList
+          key={`${category}-${status}`}
+          items={activeMessages}
+          getItemKey={(message) => message.uid}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          onLoadMore={fetchNextPage}
+          estimateSize={() => 150}
+          gap={8}
+          paddingStart={4}
+          paddingEnd={4}
+          className="min-h-0 flex-1 overflow-y-auto"
+          innerClassName="w-full"
+          renderItem={(message) =>
+            isFollowCategory ? (
+              <MessageFollowCard message={message as FollowMessage} />
+            ) : (
+              <MessageCommentCard message={message as CommentMessage} />
+            )
+          }
+        />
       </div>
     </div>
   )

@@ -15,7 +15,6 @@ import { ChevronLeftIcon, ChevronRightIcon, FlagIcon, MoreHorizontalIcon, Thumbs
 import { useState } from "react"
 import { PostReplyComposer } from "@/components/post-reply-composer"
 import { PostReply } from "@/components/post-reply"
-import { PostRepliesSkeleton } from "@/components/loading-skeleton"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Spinner } from "@/components/ui/spinner"
@@ -40,7 +39,6 @@ export function PostComment({ comment, user, onUpdateComment, onRemoveComment }:
   const {
     data,
     queryKey,
-    isPending: isRepliesPending,
     isFetching: isRepliesFetching,
     isPlaceholderData: isRepliesPlaceholderData,
   } = useCommentServiceListReplies(
@@ -239,7 +237,6 @@ export function PostComment({ comment, user, onUpdateComment, onRemoveComment }:
         <Card className="relative ml-8 flex flex-col gap-4 bg-muted/20 py-2">
           <CardContent className="px-2">
             <>
-              {isRepliesPending && !replies.length && <PostRepliesSkeleton />}
               {replies.map((reply) => (
                 <PostReply key={reply.uid} comment={reply} user={user} onPosted={handleReplyPosted} onRemoveComment={handleRemoveReply} />
               ))}

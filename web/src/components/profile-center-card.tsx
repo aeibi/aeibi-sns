@@ -1,20 +1,17 @@
 import { useUserServiceChangePassword, useUserServiceGetMe, useUserServiceUpdateMe, type UserUpdateMeUser } from "@/api/generated"
-import { ProfileCenterCardSkeleton } from "@/components/loading-skeleton"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { useUploadFiles } from "@/hooks/use-upload-files"
-import { cn } from "@/lib/utils"
 import { useState, type ChangeEvent, type SubmitEvent } from "react"
 import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 
 export function ProfileCenterCard({ className, ...props }: React.ComponentProps<typeof Card>) {
-  const { data: userData, refetch, isPending: isUserPending } = useUserServiceGetMe()
+  const { data: userData, refetch } = useUserServiceGetMe()
   const { mutate: updateMe, isPending: isUpdating, error: updateError } = useUserServiceUpdateMe()
   const { mutate: changePassword, isPending: isChangingPassword, error: changePasswordError } = useUserServiceChangePassword()
   const { mutate: uploadFiles, isPending: isUploadingAvatar, error: uploadError } = useUploadFiles()
@@ -88,21 +85,7 @@ export function ProfileCenterCard({ className, ...props }: React.ComponentProps<
     )
   }
 
-  if (isUserPending) return <ProfileCenterCardSkeleton className={className} {...props} />
-  if (!userData) {
-    return (
-      <Card className={cn("h-full", className)} {...props}>
-        <CardContent className="h-full">
-          <Empty className="h-full">
-            <EmptyHeader>
-              <EmptyTitle>Profile Unavailable</EmptyTitle>
-              <EmptyDescription>Please log in to access profile settings.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </CardContent>
-      </Card>
-    )
-  }
+  if (!userData) return null
   return (
     <Card className={className} {...props}>
       <CardHeader>
