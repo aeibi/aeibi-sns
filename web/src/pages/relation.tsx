@@ -1,6 +1,4 @@
-import { useEffect, useRef } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
-import { useVirtualizer } from "@tanstack/react-virtual"
 import { useSearchParams } from "react-router-dom"
 import {
   followServiceListMyFollowers,
@@ -13,6 +11,7 @@ import {
 import { RelationCategorySidenav, type RelationCategory } from "@/components/relation-category-sidenav"
 import { RelationSearchCard } from "@/components/relation-search-card"
 import { RelationListSkeleton } from "@/components/loading-skeleton"
+import { VirtualList } from "@/components/virtual-list"
 import { RelationUserCard } from "@/components/relation-user-card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import type { User } from "@/types/user"
@@ -73,37 +72,6 @@ export function Relation() {
   const hasNextPage = isFollowingCategory ? hasFollowingNextPage : hasFollowerNextPage
   const isPending = isFollowingCategory ? isFollowingPending : isFollowerPending
 
-  const listRef = useRef<HTMLDivElement>(null)
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const virtualizer = useVirtualizer({
-    count: activeUsers.length,
-    estimateSize: () => 150,
-    getScrollElement: () => listRef.current,
-    getItemKey: (index) => activeUsers[index]?.uid ?? index,
-    gap: 8,
-    paddingStart: 4,
-    paddingEnd: 4,
-  })
-  useEffect(() => {
-    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance) => {
-      const scrollOffset = instance.scrollOffset ?? 0
-      return item.end <= scrollOffset
-    }
-  }, [virtualizer])
-  const virtualItems = virtualizer.getVirtualItems()
-
-  useEffect(() => {
-    const lastVirtualItem = virtualItems.at(-1)
-    if (!lastVirtualItem) return
-    if (!hasNextPage || isFetchingNextPage) return
-    if (lastVirtualItem.index < activeUsers.length - 1) return
-    fetchNextPage()
-  }, [activeUsers.length, fetchNextPage, hasNextPage, isFetchingNextPage, virtualItems])
-
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: 0 })
-  }, [category, query])
-
   const handleCategoryChange = (nextCategory: RelationCategory) => {
     const nextSearchParams = new URLSearchParams(searchParams)
     nextSearchParams.set("tab", nextCategory)
@@ -135,24 +103,30 @@ export function Relation() {
             </Empty>
           </div>
         ) : (
-          <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
-            {!activeUsers.length && isPending && <RelationListSkeleton />}
-            {!!activeUsers.length && (
-              <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
-                {virtualItems.map((virtualItem) => (
-                  <div
-                    key={virtualItem.key}
-                    ref={virtualizer.measureElement}
-                    data-index={virtualItem.index}
-                    className="absolute top-0 left-0 w-full"
-                    style={{ transform: `translateY(${virtualItem.start}px)` }}
-                  >
-                    <RelationUserCard user={activeUsers[virtualItem.index]} relation={category} />
-                  </div>
-                ))}
+          <>
+            {!activeUsers.length && isPending && (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <RelationListSkeleton />
               </div>
             )}
-          </div>
+            {!!activeUsers.length && (
+              <VirtualList
+                key={`${category}-${query.trim()}`}
+                items={activeUsers}
+                getItemKey={(user) => user.uid}
+                hasNextPage={hasNextPage}
+                isFetchingNextPage={isFetchingNextPage}
+                onLoadMore={fetchNextPage}
+                estimateSize={() => 150}
+                gap={8}
+                paddingStart={4}
+                paddingEnd={4}
+                className="min-h-0 flex-1 overflow-y-auto"
+                innerClassName="w-full"
+                renderItem={(user) => <RelationUserCard user={user} relation={category} />}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

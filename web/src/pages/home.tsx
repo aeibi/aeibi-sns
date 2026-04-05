@@ -1,7 +1,8 @@
 import { postServiceGetPost, useUserServiceGetMe } from "@/api/generated"
 import { PostListSkeleton } from "@/components/loading-skeleton"
+import { PostCard } from "@/components/post-card"
 import { PostComposerCard } from "@/components/post-composer"
-import { PostFeedList } from "@/components/post-feed-list"
+import { VirtualList } from "@/components/virtual-list"
 import { useHomePostsFeed } from "@/hooks/use-post-infinite-feed"
 import { toast } from "sonner"
 
@@ -17,17 +18,24 @@ export function Home() {
 
   if (isPending && !posts.length) return <HomeSkeleton />
   return (
-    <PostFeedList
-      posts={posts}
-      user={userData?.user}
-      headerKey="composer"
-      header={!!userData?.user && <PostComposerCard onPosted={handlePosted} className="w-full" />}
-      hasNextPage={hasNextPage}
-      isFetchingNextPage={isFetchingNextPage}
-      onLoadMore={fetchNextPage}
-      onRemovePost={removePostLocal}
-      onUpdatePost={updatePostLocal}
-    />
+    <div className="h-full w-full">
+      <VirtualList
+        header={!!userData?.user && <PostComposerCard onPosted={handlePosted} className="w-full" />}
+        items={posts}
+        getItemKey={(post) => post.uid}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        onLoadMore={fetchNextPage}
+        renderItem={(post) => (
+          <PostCard
+            user={userData?.user}
+            post={post}
+            onUpdatePost={(patch) => updatePostLocal(post.uid, patch)}
+            onRemovePost={() => removePostLocal(post.uid)}
+          />
+        )}
+      />
+    </div>
   )
 }
 

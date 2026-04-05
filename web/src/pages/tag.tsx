@@ -2,8 +2,9 @@ import { SearchForm } from "@/components/search-form"
 import { useSearchParams } from "react-router-dom"
 import { useUserServiceGetMe } from "@/api/generated"
 import { PostListSkeleton } from "@/components/loading-skeleton"
-import { PostFeedList } from "@/components/post-feed-list"
+import { PostCard } from "@/components/post-card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { VirtualList } from "@/components/virtual-list"
 import { useTagPostsFeed } from "@/hooks/use-post-infinite-feed"
 
 export function Tag() {
@@ -16,17 +17,24 @@ export function Tag() {
   if (isPending && !posts.length) return <TagSkeleton tagName={tagName} />
   if (!posts.length) return <TagEmpty tagName={tagName} />
   return (
-    <PostFeedList
-      posts={posts}
-      user={userData?.user}
-      headerKey="search-form"
-      header={<SearchForm className="w-full" searchText={tagName} />}
-      hasNextPage={hasNextPage}
-      isFetchingNextPage={isFetchingNextPage}
-      onLoadMore={fetchNextPage}
-      onRemovePost={removePostLocal}
-      onUpdatePost={updatePostLocal}
-    />
+    <div className="h-full w-full">
+      <VirtualList
+        header={<SearchForm className="w-full" searchText={tagName} />}
+        items={posts}
+        getItemKey={(post) => post.uid}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        onLoadMore={fetchNextPage}
+        renderItem={(post) => (
+          <PostCard
+            user={userData?.user}
+            post={post}
+            onUpdatePost={(patch) => updatePostLocal(post.uid, patch)}
+            onRemovePost={() => removePostLocal(post.uid)}
+          />
+        )}
+      />
+    </div>
   )
 }
 

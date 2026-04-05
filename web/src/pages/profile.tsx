@@ -8,9 +8,10 @@ import {
 } from "@/api/generated"
 import { useQueryClient } from "@tanstack/react-query"
 import { ProfilePageSkeleton } from "@/components/loading-skeleton"
-import { PostFeedList } from "@/components/post-feed-list"
+import { PostCard } from "@/components/post-card"
 import { ProfileCard } from "@/components/profile-card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { VirtualList } from "@/components/virtual-list"
 import { toast } from "sonner"
 import type { User } from "@/types/user"
 import { useAuthorPostsFeed } from "@/hooks/use-post-infinite-feed"
@@ -66,19 +67,32 @@ export function Profile() {
   if (!uid && !meData?.user.uid) return <ProfileEmpty isLogged={false} />
   if (!userData) return <ProfileEmpty isLogged={!!uid} />
   return (
-    <PostFeedList
-      posts={posts}
-      user={meData?.user}
-      headerKey="profile"
-      header={
-        <ProfileCard className="w-full" user={userData.user} me={meData?.user} onFollow={handleFollow} followPending={isFollowPending} />
-      }
-      hasNextPage={hasNextPage}
-      isFetchingNextPage={isFetchingNextPage}
-      onLoadMore={fetchNextPage}
-      onRemovePost={removePostLocal}
-      onUpdatePost={updatePostLocal}
-    />
+    <div className="h-full w-full">
+      <VirtualList
+        header={
+          <ProfileCard
+            className="w-full"
+            user={userData.user}
+            me={meData?.user}
+            onFollow={handleFollow}
+            followPending={isFollowPending}
+          />
+        }
+        items={posts}
+        getItemKey={(post) => post.uid}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        onLoadMore={fetchNextPage}
+        renderItem={(post) => (
+          <PostCard
+            user={meData?.user}
+            post={post}
+            onUpdatePost={(patch) => updatePostLocal(post.uid, patch)}
+            onRemovePost={() => removePostLocal(post.uid)}
+          />
+        )}
+      />
+    </div>
   )
 }
 

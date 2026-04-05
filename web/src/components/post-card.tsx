@@ -33,11 +33,13 @@ type PostCardProps = {
   user?: User
   onUpdatePost: (patch: Partial<Post>) => void
   onRemovePost: () => void
+  disableCommentExpand?: boolean
 }
 
-export function PostCard({ post, user, onUpdatePost, onRemovePost }: PostCardProps) {
+export function PostCard({ post, user, onUpdatePost, onRemovePost, disableCommentExpand = false }: PostCardProps) {
   const isOwnPost = !!user && user.uid === post.author.uid
   const [commentActive, setCommentActive] = useState(false)
+  const canExpandComments = !disableCommentExpand
   const queryClient = useQueryClient()
   const { search } = useLocation()
 
@@ -54,7 +56,7 @@ export function PostCard({ post, user, onUpdatePost, onRemovePost }: PostCardPro
     isPending: isCommentsPending,
   } = useCommentServiceListTopComments(post.uid, undefined, {
     query: {
-      enabled: commentActive,
+      enabled: canExpandComments && commentActive,
       queryKey: previewCommentsQueryKey,
     },
   })
@@ -93,6 +95,7 @@ export function PostCard({ post, user, onUpdatePost, onRemovePost }: PostCardPro
   }
 
   const handleCommentClick = () => {
+    if (!canExpandComments) return
     setCommentActive((active) => !active)
   }
 
@@ -192,7 +195,8 @@ export function PostCard({ post, user, onUpdatePost, onRemovePost }: PostCardPro
           <PostActionButton
             icon={<MessageCircleIcon />}
             count={post.commentCount}
-            active={commentActive}
+            active={canExpandComments && commentActive}
+            disabled={!canExpandComments}
             onClick={() => handleCommentClick()}
           />
           <PostActionButton
@@ -210,7 +214,7 @@ export function PostCard({ post, user, onUpdatePost, onRemovePost }: PostCardPro
             onClick={handleCollect}
           />
         </div>
-        {commentActive && (
+        {canExpandComments && commentActive && (
           <div className="flex flex-col gap-4">
             {!!user && <PostCommentsComposer user={user} postUid={post.uid} onPosted={handleCommentPosted} />}
             {isCommentsPending && !comments.length && <PostCommentsPreviewSkeleton />}

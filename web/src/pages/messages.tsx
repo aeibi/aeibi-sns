@@ -1,11 +1,10 @@
-import { useEffect, useRef } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
-import { useVirtualizer } from "@tanstack/react-virtual"
 import { MessageCategorySidenav, type MessageCategory } from "@/components/message-category-sidenav"
 import { MessageCommentCard } from "@/components/message-comment-card"
 import { MessageFollowCard } from "@/components/message-follow-card"
 import { MessageListSkeleton } from "@/components/loading-skeleton"
 import { MessageStatusTabs, type MessageStatus } from "@/components/message-status-tabs"
+import { VirtualList } from "@/components/virtual-list"
 import {
   getMessageServiceListCommentInboxMessagesQueryKey,
   getMessageServiceListFollowInboxMessagesQueryKey,
@@ -86,37 +85,6 @@ export function Messages() {
   const isPending = isFollowCategory ? isFollowPending : isCommentPending
   const refetchMessages = isFollowCategory ? refetchFollowMessages : refetchCommentMessages
 
-  const listRef = useRef<HTMLDivElement>(null)
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const virtualizer = useVirtualizer({
-    count: activeMessages.length,
-    estimateSize: () => 150,
-    getScrollElement: () => listRef.current,
-    getItemKey: (index) => activeMessages[index]?.uid ?? index,
-    gap: 8,
-    paddingStart: 4,
-    paddingEnd: 4,
-  })
-  useEffect(() => {
-    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance) => {
-      const scrollOffset = instance.scrollOffset ?? 0
-      return item.end <= scrollOffset
-    }
-  }, [virtualizer])
-  const virtualItems = virtualizer.getVirtualItems()
-
-  useEffect(() => {
-    const lastVirtualItem = virtualItems.at(-1)
-    if (!lastVirtualItem) return
-    if (!hasNextPage || isFetchingNextPage) return
-    if (lastVirtualItem.index < activeMessages.length - 1) return
-    fetchNextPage()
-  }, [activeMessages.length, fetchNextPage, hasNextPage, isFetchingNextPage, virtualItems])
-
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: 0 })
-  }, [category, status])
-
   const handleCategoryChange = (nextCategory: MessageCategory) => {
     const nextSearchParams = new URLSearchParams(searchParams)
     nextSearchParams.set("category", nextCategory)
@@ -152,28 +120,47 @@ export function Messages() {
             </Empty>
           </div>
         ) : (
-          <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
-            {!activeMessages.length && isPending && <MessageListSkeleton />}
-            {!!activeMessages.length && (
-              <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
-                {virtualItems.map((virtualItem) => (
-                  <div
-                    key={virtualItem.key}
-                    ref={virtualizer.measureElement}
-                    data-index={virtualItem.index}
-                    className="absolute top-0 left-0 w-full"
-                    style={{ transform: `translateY(${virtualItem.start}px)` }}
-                  >
-                    {isFollowCategory ? (
-                      <MessageFollowCard message={followMessages[virtualItem.index]} />
-                    ) : (
-                      <MessageCommentCard message={commentMessages[virtualItem.index]} />
-                    )}
-                  </div>
-                ))}
+          <>
+            {!activeMessages.length && isPending && (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <MessageListSkeleton />
               </div>
             )}
-          </div>
+            {!!activeMessages.length &&
+              (isFollowCategory ? (
+                <VirtualList
+                  key={`follow-${status}`}
+                  items={followMessages}
+                  getItemKey={(message) => message.uid}
+                  hasNextPage={hasNextPage}
+                  isFetchingNextPage={isFetchingNextPage}
+                  onLoadMore={fetchNextPage}
+                  estimateSize={() => 150}
+                  gap={8}
+                  paddingStart={4}
+                  paddingEnd={4}
+                  className="min-h-0 flex-1 overflow-y-auto"
+                  innerClassName="w-full"
+                  renderItem={(message) => <MessageFollowCard message={message} />}
+                />
+              ) : (
+                <VirtualList
+                  key={`comment-${status}`}
+                  items={commentMessages}
+                  getItemKey={(message) => message.uid}
+                  hasNextPage={hasNextPage}
+                  isFetchingNextPage={isFetchingNextPage}
+                  onLoadMore={fetchNextPage}
+                  estimateSize={() => 150}
+                  gap={8}
+                  paddingStart={4}
+                  paddingEnd={4}
+                  className="min-h-0 flex-1 overflow-y-auto"
+                  innerClassName="w-full"
+                  renderItem={(message) => <MessageCommentCard message={message} />}
+                />
+              ))}
+          </>
         )}
       </div>
     </div>
