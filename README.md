@@ -1,16 +1,39 @@
-# AeiBi
-
-An lightweight community platform. AeiBi focuses on core social flows like posting, discussion, relationships, and inbox notifications, with a clean and extensible architecture.
-
-> Live Demo: https://aeibi.com
+<div align="center">
+  <img src="./docs/images/aeibi.svg" alt="AeiBi Logo" width="180" />
+  <h1>AeiBi</h1>
+  <p>
+    A lightweight community platform focused on posting, discussion,
+    relationships, and inbox notifications.
+  </p>
+  <p>
+    <a href="https://aeibi.com">
+      <img alt="Live Demo" src="https://img.shields.io/badge/Live%20Demo-aeibi.com-0ea5e9?logo=vercel&logoColor=white&style=flat-square" />
+    </a>
+    <a href="https://github.com/aeibi/aeibi-sns/graphs/contributors">
+      <img alt="Contributors" src="https://img.shields.io/github/contributors/aeibi/aeibi-sns.svg?style=flat-square" />
+    </a>
+    <a href="https://github.com/aeibi/aeibi-sns/network/members">
+      <img alt="Forks" src="https://img.shields.io/github/forks/aeibi/aeibi-sns.svg?style=flat-square" />
+    </a>
+    <a href="https://github.com/aeibi/aeibi-sns/stargazers">
+      <img alt="Stars" src="https://img.shields.io/github/stars/aeibi/aeibi-sns.svg?style=flat-square" />
+    </a>
+    <img alt="Status" src="https://img.shields.io/badge/Status-Early%20Stage-f59e0b?style=flat-square" />
+    <img alt="Backend" src="https://img.shields.io/badge/Backend-Go%201.25-00ADD8?logo=go&logoColor=white&style=flat-square" />
+    <img alt="Frontend" src="https://img.shields.io/badge/Frontend-React%2019-61DAFB?logo=react&logoColor=0A0A0A&style=flat-square" />
+    <img alt="Database" src="https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white&style=flat-square" />
+    <img alt="API" src="https://img.shields.io/badge/API-gRPC-244c5a?logo=grpc&logoColor=white&style=flat-square" />
+  </p>
+</div>
 
 ![AeiBi Home Screenshot](./docs/images/home.png)
+> Live Demo: https://aeibi.com
 
 ## Project Status
 
 The project is in an early stage. Core community flows are already in place, and features are being actively iterated.
 
-## Current Features
+## Features
 
 - Account system: sign up, log in, token refresh, logout, profile updates, password change
 - Content publishing: create posts (text, images, tags), edit/delete posts, public/private visibility
@@ -21,15 +44,20 @@ The project is in an early stage. Core community flows are already in place, and
 - Moderation: report posts, comments, and users
 - File service: upload files, query metadata, retrieve file content (S3-compatible object storage)
 
-## Tech Stack
+## Star History
 
-- Frontend: React 19, TypeScript, Vite, React Router, TanStack Query, Tailwind CSS v4, shadcn/ui
-- Backend: Go, gRPC, gRPC-Gateway, PostgreSQL, sqlc, JWT auth
-- Search: PGroonga (fuzzy search for posts/tags, prefix search for users/tags)
-- Storage: S3-compatible object storage
-- API pipeline: Protocol Buffers + Buf for gRPC/OpenAPI generation, Orval for type-safe frontend API clients
+<a href="https://www.star-history.com/?repos=aeibi%2Faeibi-sns&type=date&legend=bottom-right">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=aeibi/aeibi-sns&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=aeibi/aeibi-sns&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=aeibi/aeibi-sns&type=date&legend=top-left" />
+ </picture>
+</a>
 
-## Repository Layout
+## License
 
-- Backend (main): repository root (`api/`, `cmd/`, `internal/`, `proto/`, etc.)
-- Frontend: [`web/`](./web)
+MIT
+
+## Contributing
+
+Contributions of all kinds are welcome, such as bug fixes, new features, documentation improvements, etc.
