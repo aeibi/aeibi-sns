@@ -1,18 +1,12 @@
 import { useSearchParams } from "react-router-dom"
-import {
-  getUserServiceGetUserQueryKey,
-  useFollowServiceFollow,
-  useUserServiceGetMe,
-  useUserServiceGetUser,
-  type UserGetUserResponse,
-} from "@/api/generated"
+import { useFollowServiceFollow, useUserServiceGetMe, useUserServiceGetUser } from "@/api/generated"
 import { useQueryClient } from "@tanstack/react-query"
 import { PostCard } from "@/components/post-card"
 import { ProfileCard } from "@/components/profile-card"
 import { VirtualList } from "@/components/virtual-list"
 import { toast } from "sonner"
-import type { User } from "@/types/user"
 import { useAuthorPostsFeed } from "@/hooks/use-post-infinite-feed"
+import { EmptyState } from "@/components/empty"
 
 export function Profile() {
   const queryClient = useQueryClient()
@@ -20,18 +14,12 @@ export function Profile() {
   const [searchParams] = useSearchParams()
   const { data: meData } = useUserServiceGetMe()
   const uid = searchParams.get("uid") || meData?.user.uid || ""
-  const { data: userData } = useUserServiceGetUser(uid)
+  const { data: userData, queryKey, isPending: isUserPending } = useUserServiceGetUser(uid)
   const { mutate: followUser, isPending: isFollowPending } = useFollowServiceFollow()
   const { posts, fetchNextPage, isFetchingNextPage, hasNextPage, updatePostLocal, removePostLocal } = useAuthorPostsFeed(uid)
-
   const handleFollow = () => {
     const user = userData?.user
     if (!user || !meData?.user || meData.user.uid === user.uid || isFollowPending) return
-    const nextUser: User = {
-      ...user,
-      isFollowing: !user.isFollowing,
-      followersCount: Math.max(0, user.followersCount + (user.isFollowing ? -1 : 1)),
-    }
     followUser(
       {
         uid: user.uid,
@@ -39,11 +27,15 @@ export function Profile() {
       },
       {
         onSuccess: () => {
-          queryClient.setQueryData<UserGetUserResponse | undefined>(getUserServiceGetUserQueryKey(user.uid), (oldData) => {
+          queryClient.setQueryData(queryKey, (oldData) => {
             if (!oldData) return oldData
             return {
               ...oldData,
-              user: nextUser,
+              user: {
+                ...oldData.user,
+                isFollowing: !user.isFollowing,
+                followersCount: Math.max(0, user.followersCount + (user.isFollowing ? -1 : 1)),
+              },
             }
           })
         },
@@ -51,7 +43,8 @@ export function Profile() {
       }
     )
   }
-  if (!userData) return null
+  if (isUserPending) return null
+  if (!userData) return <EmptyState />
   return (
     <div className="h-full w-full">
       <VirtualList

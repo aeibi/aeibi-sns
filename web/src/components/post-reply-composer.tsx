@@ -42,6 +42,9 @@ export function PostReplyComposer({
           onPosted?.(data.uid)
           setOpen(false)
         },
+        onError: () => {
+          toast.error("Failed to create the reply.", { position: "top-center" })
+        },
       }
     )
   }

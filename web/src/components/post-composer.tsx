@@ -57,6 +57,9 @@ export function PostComposerCard({ onPosted, ...props }: PostComposerProps) {
           setImages([])
           onPosted(data.uid)
         },
+        onError: () => {
+          toast.error("Failed to create the post.", { position: "top-center" })
+        },
       }
     )
   }

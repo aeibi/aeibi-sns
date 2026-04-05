@@ -11,6 +11,7 @@ import { ChevronLeftIcon } from "lucide-react"
 import { useNavigate, useOutlet, useParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+import { EmptyState } from "@/components/empty"
 
 type PostDetailHostRouteProps = {
   children: ReactNode
@@ -32,7 +33,7 @@ export function PostDetail() {
   const { id = "" } = useParams()
 
   const { data: userData } = useUserServiceGetMe()
-  const { post, updatePostLocal } = usePostFeed(id)
+  const { post, updatePostLocal, isPending: isPostPending } = usePostFeed(id)
   const { comments, fetchNextPage, isFetchingNextPage, hasNextPage, addCommentLocal, updateCommentLocal, removeCommentLocal } =
     useTopCommentsFeed(id)
 
@@ -44,8 +45,8 @@ export function PostDetail() {
       })
       .catch(() => toast.error("Failed to load created comment.", { position: "top-center" }))
   }
-
-  if (!post) return null
+  if (isPostPending) return null
+  if (!post) return <EmptyState />
   return (
     <div className="flex h-full min-h-full w-full">
       <div className="h-full w-full bg-background">

@@ -56,6 +56,9 @@ export function PostCommentsComposer({ user, postUid, onPosted, className, ...pr
           setImages([])
           onPosted?.(data.uid)
         },
+        onError: () => {
+          toast.error("Failed to create the comment.", { position: "top-center" })
+        },
       }
     )
   }
