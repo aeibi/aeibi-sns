@@ -33,12 +33,12 @@ const data = {
     },
     {
       title: "Feedback",
-      url: "https://github.com/aeibi/aeibi-api/issues/new/choose",
+      url: "https://github.com/aeibi/aeibi-sns/issues/new/choose",
       icon: <SendIcon />,
     },
     {
       title: "Help",
-      url: "https://github.com/aeibi/aeibi-api/issues",
+      url: "https://github.com/aeibi/aeibi-sns/issues",
       icon: <BookOpenIcon />,
     },
   ],
