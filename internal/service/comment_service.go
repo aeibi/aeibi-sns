@@ -6,11 +6,15 @@ import (
 	"aeibi/util"
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type CommentService struct {
@@ -123,11 +127,16 @@ func (s *CommentService) CreateReply(ctx context.Context, uid string, req *api.C
 }
 
 func (s *CommentService) ListTopComments(ctx context.Context, viewerUid string, req *api.ListTopCommentsRequest) (*api.ListTopCommentsResponse, error) {
+	cursorCreatedAt, cursorID, err := decodeAndValidateTopCommentsPageToken(req.GetPageToken(), req.GetPostUid())
+	if err != nil {
+		return nil, err
+	}
+
 	rows, err := s.db.ListTopComments(ctx, db.ListTopCommentsParams{
 		Viewer:          uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
 		PostUid:         util.UUID(req.PostUid),
-		CursorCreatedAt: sql.NullTime{Time: time.Unix(req.CursorCreatedAt, 0).UTC(), Valid: req.CursorCreatedAt != 0},
-		CursorID:        uuid.NullUUID{UUID: util.UUID(req.CursorId), Valid: req.CursorId != ""},
+		CursorCreatedAt: cursorCreatedAt,
+		CursorID:        cursorID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list top comments: %w", err)
@@ -165,18 +174,22 @@ func (s *CommentService) ListTopComments(ctx context.Context, viewerUid string, 
 		})
 	}
 
-	var nextCursorCreatedAt int64
-	var nextCursorID string
+	var nextPageToken string
 	if len(rows) > 0 {
 		last := rows[len(rows)-1]
-		nextCursorCreatedAt = last.CreatedAt.Unix()
-		nextCursorID = last.Uid.String()
+		nextPageToken, err = encodeTopCommentsPageToken(topCommentsPageToken{
+			PostUID:         req.GetPostUid(),
+			CursorCreatedAt: last.CreatedAt.Unix(),
+			CursorID:        last.Uid.String(),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("encode page token: %w", err)
+		}
 	}
 
 	return &api.ListTopCommentsResponse{
-		Comments:            comments,
-		NextCursorCreatedAt: nextCursorCreatedAt,
-		NextCursorId:        nextCursorID,
+		Comments:      comments,
+		NextPageToken: nextPageToken,
 	}, nil
 }
 
@@ -343,4 +356,48 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 	return &api.LikeCommentResponse{
 		Count: count,
 	}, nil
+}
+
+type topCommentsPageToken struct {
+	PostUID         string `json:"post_uid,omitempty"`
+	CursorCreatedAt int64  `json:"cursor_created_at,omitempty"`
+	CursorID        string `json:"cursor_id,omitempty"`
+}
+
+func decodeAndValidateTopCommentsPageToken(pageToken string, postUID string) (sql.NullTime, uuid.NullUUID, error) {
+	if pageToken == "" {
+		return sql.NullTime{}, uuid.NullUUID{}, nil
+	}
+
+	raw, err := base64.RawURLEncoding.DecodeString(pageToken)
+	if err != nil {
+		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	var token topCommentsPageToken
+	if err := json.Unmarshal(raw, &token); err != nil {
+		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	if token.PostUID != postUID {
+		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "page_token does not match current filters")
+	}
+	if token.CursorCreatedAt <= 0 || token.CursorID == "" {
+		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	cursorID, err := uuid.Parse(token.CursorID)
+	if err != nil {
+		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	return sql.NullTime{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true}, uuid.NullUUID{UUID: cursorID, Valid: true}, nil
+}
+
+func encodeTopCommentsPageToken(token topCommentsPageToken) (string, error) {
+	raw, err := json.Marshal(token)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
 }

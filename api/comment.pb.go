@@ -441,12 +441,11 @@ func (x *CreateReplyResponse) GetReplyCount() int32 {
 }
 
 type ListTopCommentsRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	PostUid         string                 `protobuf:"bytes,1,opt,name=post_uid,json=postUid,proto3" json:"post_uid,omitempty"`
-	CursorCreatedAt int64                  `protobuf:"varint,2,opt,name=cursor_created_at,json=cursorCreatedAt,proto3" json:"cursor_created_at,omitempty"` // unix seconds
-	CursorId        string                 `protobuf:"bytes,3,opt,name=cursor_id,json=cursorId,proto3" json:"cursor_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PostUid       string                 `protobuf:"bytes,1,opt,name=post_uid,json=postUid,proto3" json:"post_uid,omitempty"`
+	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListTopCommentsRequest) Reset() {
@@ -486,27 +485,19 @@ func (x *ListTopCommentsRequest) GetPostUid() string {
 	return ""
 }
 
-func (x *ListTopCommentsRequest) GetCursorCreatedAt() int64 {
+func (x *ListTopCommentsRequest) GetPageToken() string {
 	if x != nil {
-		return x.CursorCreatedAt
-	}
-	return 0
-}
-
-func (x *ListTopCommentsRequest) GetCursorId() string {
-	if x != nil {
-		return x.CursorId
+		return x.PageToken
 	}
 	return ""
 }
 
 type ListTopCommentsResponse struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Comments            []*Comment             `protobuf:"bytes,1,rep,name=comments,proto3" json:"comments,omitempty"`
-	NextCursorCreatedAt int64                  `protobuf:"varint,2,opt,name=next_cursor_created_at,json=nextCursorCreatedAt,proto3" json:"next_cursor_created_at,omitempty"`
-	NextCursorId        string                 `protobuf:"bytes,3,opt,name=next_cursor_id,json=nextCursorId,proto3" json:"next_cursor_id,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Comments      []*Comment             `protobuf:"bytes,1,rep,name=comments,proto3" json:"comments,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListTopCommentsResponse) Reset() {
@@ -546,16 +537,9 @@ func (x *ListTopCommentsResponse) GetComments() []*Comment {
 	return nil
 }
 
-func (x *ListTopCommentsResponse) GetNextCursorCreatedAt() int64 {
+func (x *ListTopCommentsResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextCursorCreatedAt
-	}
-	return 0
-}
-
-func (x *ListTopCommentsResponse) GetNextCursorId() string {
-	if x != nil {
-		return x.NextCursorId
+		return x.NextPageToken
 	}
 	return ""
 }
@@ -944,15 +928,14 @@ const file_comment_proto_rawDesc = "" +
 	"\x13CreateReplyResponse\x12\x15\n" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\x12$\n" +
 	"\vreply_count\x18\x02 \x01(\x05B\x03\xe0A\x02R\n" +
-	"replyCount\"\x81\x01\n" +
+	"replyCount\"W\n" +
 	"\x16ListTopCommentsRequest\x12\x1e\n" +
-	"\bpost_uid\x18\x01 \x01(\tB\x03\xe0A\x02R\apostUid\x12*\n" +
-	"\x11cursor_created_at\x18\x02 \x01(\x03R\x0fcursorCreatedAt\x12\x1b\n" +
-	"\tcursor_id\x18\x03 \x01(\tR\bcursorId\"\xb1\x01\n" +
+	"\bpost_uid\x18\x01 \x01(\tB\x03\xe0A\x02R\apostUid\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\"y\n" +
 	"\x17ListTopCommentsResponse\x121\n" +
-	"\bcomments\x18\x01 \x03(\v2\x10.comment.CommentB\x03\xe0A\x02R\bcomments\x128\n" +
-	"\x16next_cursor_created_at\x18\x02 \x01(\x03B\x03\xe0A\x02R\x13nextCursorCreatedAt\x12)\n" +
-	"\x0enext_cursor_id\x18\x03 \x01(\tB\x03\xe0A\x02R\fnextCursorId\"?\n" +
+	"\bcomments\x18\x01 \x03(\v2\x10.comment.CommentB\x03\xe0A\x02R\bcomments\x12+\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\x03\xe0A\x02R\rnextPageToken\"?\n" +
 	"\x12ListRepliesRequest\x12\x15\n" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\x12\x12\n" +
 	"\x04page\x18\x02 \x01(\x05R\x04page\"|\n" +

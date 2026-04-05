@@ -115,15 +115,13 @@ message CreateReplyResponse {
 // List
 
 message ListTopCommentsRequest {
-  string post_uid          = 1 [(google.api.field_behavior) = REQUIRED];
-  int64  cursor_created_at = 2; // unix seconds
-  string cursor_id         = 3;
+  string post_uid   = 1 [(google.api.field_behavior) = REQUIRED];
+  string page_token = 2;
 }
 
 message ListTopCommentsResponse {
-  repeated Comment comments               = 1 [(google.api.field_behavior) = REQUIRED];
-  int64            next_cursor_created_at = 2 [(google.api.field_behavior) = REQUIRED];
-  string           next_cursor_id         = 3 [(google.api.field_behavior) = REQUIRED];
+  repeated Comment comments         = 1 [(google.api.field_behavior) = REQUIRED];
+  string           next_page_token = 2 [(google.api.field_behavior) = REQUIRED];
 }
 
 message ListRepliesRequest {

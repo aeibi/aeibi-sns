@@ -201,24 +201,102 @@ func (q *Queries) GetPostByUid(ctx context.Context, arg GetPostByUidParams) (Get
 }
 
 const listPosts = `-- name: ListPosts :many
-SELECT p.uid,
-  p.author,
+WITH filtered_posts AS (
+  SELECT p.id,
+    p.uid,
+    p.author,
+    p.text,
+    p.images,
+    p.attachments,
+    p.comment_count,
+    p.collection_count,
+    p.like_count,
+    p.pinned,
+    p.visibility,
+    p.latest_replied_on,
+    p.ip,
+    p.status,
+    p.created_at,
+    p.updated_at,
+    CASE
+      WHEN $2::text IS NULL THEN 0::float8
+      ELSE COALESCE(pgroonga_score(p.tableoid, p.ctid), 0::float8)::float8
+    END AS score
+  FROM posts p
+  WHERE p.status = 'NORMAL'::post_status
+    AND (
+      p.visibility = 'PUBLIC'::post_visibility
+      OR p.author = $1::uuid
+    )
+    AND (
+      $3::uuid IS NULL
+      OR p.author = $3::uuid
+    )
+    AND (
+      $4::text IS NULL
+      OR EXISTS (
+        SELECT 1
+        FROM post_tags pt
+          JOIN tags t ON t.id = pt.tag_id
+        WHERE pt.post_id = p.id
+          AND t.name = $4::text
+      )
+    )
+    AND (
+      $2::text IS NULL
+      OR p.text &@~ $2::text
+    )
+),
+matched_posts AS (
+  SELECT id, uid, author, text, images, attachments, comment_count, collection_count, like_count, pinned, visibility, latest_replied_on, ip, status, created_at, updated_at, score
+  FROM filtered_posts fp
+  WHERE (
+      (
+        $5::timestamptz IS NULL
+        AND $6::uuid IS NULL
+        AND (
+          $2::text IS NULL
+          OR $7::float8 IS NULL
+        )
+      )
+      OR (
+        $2::text IS NULL
+        AND $7::float8 IS NULL
+        AND (fp.created_at, fp.uid) < (
+          $5::timestamptz,
+          $6::uuid
+        )
+      )
+      OR (
+        $2::text IS NOT NULL
+        AND $7::float8 IS NOT NULL
+        AND (fp.score, fp.created_at, fp.uid) < (
+          $7::float8,
+          $5::timestamptz,
+          $6::uuid
+        )
+      )
+    )
+)
+SELECT mp.uid,
+  mp.author,
   u.uid AS author_uid,
   u.nickname AS author_nickname,
   u.avatar_url AS author_avatar_url,
-  p.text,
-  p.images,
-  p.attachments,
-  p.comment_count,
-  p.collection_count,
-  p.like_count,
-  p.pinned,
-  p.visibility,
-  p.latest_replied_on,
-  p.ip,
-  p.status,
-  p.created_at,
-  p.updated_at,
+  mp.text,
+  mp.images,
+  mp.attachments,
+  mp.comment_count,
+  mp.collection_count,
+  mp.like_count,
+  mp.pinned,
+  mp.visibility,
+  mp.latest_replied_on,
+  mp.ip,
+  mp.status,
+  mp.created_at,
+  mp.updated_at,
+  mp.score,
   (pl.user_uid IS NOT NULL)::boolean AS liked,
   (pc.user_uid IS NOT NULL)::boolean AS collected,
   (uf.follower_uid IS NOT NULL)::boolean AS following,
@@ -230,39 +308,36 @@ SELECT p.uid,
         )
       FROM post_tags pt
         JOIN tags t ON t.id = pt.tag_id
-      WHERE pt.post_id = p.id
+      WHERE pt.post_id = mp.id
     ),
     '{}'::text []
   )::text [] AS tag_names
-FROM posts p
-  JOIN users u ON u.uid = p.author
+FROM matched_posts mp
+  JOIN users u ON u.uid = mp.author
   AND u.status = 'NORMAL'::user_status
-  LEFT JOIN post_likes pl ON pl.post_uid = p.uid
+  LEFT JOIN post_likes pl ON pl.post_uid = mp.uid
   AND pl.user_uid = $1::uuid
-  LEFT JOIN post_collections pc ON pc.post_uid = p.uid
+  LEFT JOIN post_collections pc ON pc.post_uid = mp.uid
   AND pc.user_uid = $1::uuid
   LEFT JOIN user_follows uf ON uf.follower_uid = $1::uuid
-  AND uf.followee_uid = p.author
-WHERE p.status = 'NORMAL'::post_status
-  AND (
-    (
-      $2::timestamptz IS NULL
-      AND $3::uuid IS NULL
-    )
-    OR (p.created_at, p.uid) < (
-      $2::timestamptz,
-      $3::uuid
-    )
-  )
-ORDER BY p.created_at DESC,
-  p.uid DESC
+  AND uf.followee_uid = mp.author
+ORDER BY CASE
+    WHEN $2::text IS NULL THEN 0::float8
+    ELSE mp.score
+  END DESC,
+  mp.created_at DESC,
+  mp.uid DESC
 LIMIT 20
 `
 
 type ListPostsParams struct {
 	Viewer          uuid.NullUUID
+	Query           sql.NullString
+	AuthorUid       uuid.NullUUID
+	TagName         sql.NullString
 	CursorCreatedAt sql.NullTime
 	CursorID        uuid.NullUUID
+	CursorScore     sql.NullFloat64
 }
 
 type ListPostsRow struct {
@@ -284,6 +359,7 @@ type ListPostsRow struct {
 	Status          PostStatus
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	Score           float64
 	Liked           bool
 	Collected       bool
 	Following       bool
@@ -291,7 +367,15 @@ type ListPostsRow struct {
 }
 
 func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPosts, arg.Viewer, arg.CursorCreatedAt, arg.CursorID)
+	rows, err := q.db.QueryContext(ctx, listPosts,
+		arg.Viewer,
+		arg.Query,
+		arg.AuthorUid,
+		arg.TagName,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+		arg.CursorScore,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -318,298 +402,7 @@ func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPos
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.Liked,
-			&i.Collected,
-			&i.Following,
-			pq.Array(&i.TagNames),
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPostsByAuthor = `-- name: ListPostsByAuthor :many
-SELECT p.uid,
-  p.author,
-  u.uid AS author_uid,
-  u.nickname AS author_nickname,
-  u.avatar_url AS author_avatar_url,
-  p.text,
-  p.images,
-  p.attachments,
-  p.comment_count,
-  p.collection_count,
-  p.like_count,
-  p.pinned,
-  p.visibility,
-  p.latest_replied_on,
-  p.ip,
-  p.status,
-  p.created_at,
-  p.updated_at,
-  (pl.user_uid IS NOT NULL)::boolean AS liked,
-  (pc.user_uid IS NOT NULL)::boolean AS collected,
-  (uf.follower_uid IS NOT NULL)::boolean AS following,
-  COALESCE(
-    (
-      SELECT array_agg(
-          t.name
-          ORDER BY t.name
-        )
-      FROM post_tags pt
-        JOIN tags t ON t.id = pt.tag_id
-      WHERE pt.post_id = p.id
-    ),
-    '{}'::text []
-  )::text [] AS tag_names
-FROM posts p
-  JOIN users u ON u.uid = p.author
-  AND u.status = 'NORMAL'::user_status
-  LEFT JOIN post_likes pl ON pl.post_uid = p.uid
-  AND pl.user_uid = $1::uuid
-  LEFT JOIN post_collections pc ON pc.post_uid = p.uid
-  AND pc.user_uid = $1::uuid
-  LEFT JOIN user_follows uf ON uf.follower_uid = $1::uuid
-  AND uf.followee_uid = p.author
-WHERE p.status = 'NORMAL'::post_status
-  AND p.author = $2
-  AND (
-    (
-      $3::timestamptz IS NULL
-      AND $4::uuid IS NULL
-    )
-    OR (p.created_at, p.uid) < (
-      $3::timestamptz,
-      $4::uuid
-    )
-  )
-ORDER BY p.created_at DESC,
-  p.uid DESC
-LIMIT 20
-`
-
-type ListPostsByAuthorParams struct {
-	Viewer          uuid.NullUUID
-	Author          uuid.UUID
-	CursorCreatedAt sql.NullTime
-	CursorID        uuid.NullUUID
-}
-
-type ListPostsByAuthorRow struct {
-	Uid             uuid.UUID
-	Author          uuid.UUID
-	AuthorUid       uuid.UUID
-	AuthorNickname  string
-	AuthorAvatarUrl string
-	Text            string
-	Images          []string
-	Attachments     []string
-	CommentCount    int32
-	CollectionCount int32
-	LikeCount       int32
-	Pinned          bool
-	Visibility      PostVisibility
-	LatestRepliedOn time.Time
-	Ip              string
-	Status          PostStatus
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	Liked           bool
-	Collected       bool
-	Following       bool
-	TagNames        []string
-}
-
-func (q *Queries) ListPostsByAuthor(ctx context.Context, arg ListPostsByAuthorParams) ([]ListPostsByAuthorRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPostsByAuthor,
-		arg.Viewer,
-		arg.Author,
-		arg.CursorCreatedAt,
-		arg.CursorID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListPostsByAuthorRow
-	for rows.Next() {
-		var i ListPostsByAuthorRow
-		if err := rows.Scan(
-			&i.Uid,
-			&i.Author,
-			&i.AuthorUid,
-			&i.AuthorNickname,
-			&i.AuthorAvatarUrl,
-			&i.Text,
-			pq.Array(&i.Images),
-			pq.Array(&i.Attachments),
-			&i.CommentCount,
-			&i.CollectionCount,
-			&i.LikeCount,
-			&i.Pinned,
-			&i.Visibility,
-			&i.LatestRepliedOn,
-			&i.Ip,
-			&i.Status,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.Liked,
-			&i.Collected,
-			&i.Following,
-			pq.Array(&i.TagNames),
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPostsByTag = `-- name: ListPostsByTag :many
-SELECT p.uid,
-  p.author,
-  u.uid AS author_uid,
-  u.nickname AS author_nickname,
-  u.avatar_url AS author_avatar_url,
-  p.text,
-  p.images,
-  p.attachments,
-  p.comment_count,
-  p.collection_count,
-  p.like_count,
-  p.pinned,
-  p.visibility,
-  p.latest_replied_on,
-  p.ip,
-  p.status,
-  p.created_at,
-  p.updated_at,
-  (pl.user_uid IS NOT NULL)::boolean AS liked,
-  (pc.user_uid IS NOT NULL)::boolean AS collected,
-  (uf.follower_uid IS NOT NULL)::boolean AS following,
-  COALESCE(
-    (
-      SELECT array_agg(
-          t.name
-          ORDER BY t.name
-        )
-      FROM post_tags pt
-        JOIN tags t ON t.id = pt.tag_id
-      WHERE pt.post_id = p.id
-    ),
-    '{}'::text []
-  )::text [] AS tag_names
-FROM posts p
-  JOIN users u ON u.uid = p.author
-  AND u.status = 'NORMAL'::user_status
-  LEFT JOIN post_likes pl ON pl.post_uid = p.uid
-  AND pl.user_uid = $1::uuid
-  LEFT JOIN post_collections pc ON pc.post_uid = p.uid
-  AND pc.user_uid = $1::uuid
-  LEFT JOIN user_follows uf ON uf.follower_uid = $1::uuid
-  AND uf.followee_uid = p.author
-WHERE p.status = 'NORMAL'::post_status
-  AND EXISTS (
-    SELECT 1
-    FROM post_tags pt
-      JOIN tags t ON t.id = pt.tag_id
-    WHERE pt.post_id = p.id
-      AND t.name = $2
-  )
-  AND (
-    (
-      $3::timestamptz IS NULL
-      AND $4::uuid IS NULL
-    )
-    OR (p.created_at, p.uid) < (
-      $3::timestamptz,
-      $4::uuid
-    )
-  )
-ORDER BY p.created_at DESC,
-  p.uid DESC
-LIMIT 20
-`
-
-type ListPostsByTagParams struct {
-	Viewer          uuid.NullUUID
-	TagName         string
-	CursorCreatedAt sql.NullTime
-	CursorID        uuid.NullUUID
-}
-
-type ListPostsByTagRow struct {
-	Uid             uuid.UUID
-	Author          uuid.UUID
-	AuthorUid       uuid.UUID
-	AuthorNickname  string
-	AuthorAvatarUrl string
-	Text            string
-	Images          []string
-	Attachments     []string
-	CommentCount    int32
-	CollectionCount int32
-	LikeCount       int32
-	Pinned          bool
-	Visibility      PostVisibility
-	LatestRepliedOn time.Time
-	Ip              string
-	Status          PostStatus
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	Liked           bool
-	Collected       bool
-	Following       bool
-	TagNames        []string
-}
-
-func (q *Queries) ListPostsByTag(ctx context.Context, arg ListPostsByTagParams) ([]ListPostsByTagRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPostsByTag,
-		arg.Viewer,
-		arg.TagName,
-		arg.CursorCreatedAt,
-		arg.CursorID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListPostsByTagRow
-	for rows.Next() {
-		var i ListPostsByTagRow
-		if err := rows.Scan(
-			&i.Uid,
-			&i.Author,
-			&i.AuthorUid,
-			&i.AuthorNickname,
-			&i.AuthorAvatarUrl,
-			&i.Text,
-			pq.Array(&i.Images),
-			pq.Array(&i.Attachments),
-			&i.CommentCount,
-			&i.CollectionCount,
-			&i.LikeCount,
-			&i.Pinned,
-			&i.Visibility,
-			&i.LatestRepliedOn,
-			&i.Ip,
-			&i.Status,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.Score,
 			&i.Liked,
 			&i.Collected,
 			&i.Following,

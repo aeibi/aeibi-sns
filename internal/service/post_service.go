@@ -7,11 +7,16 @@ import (
 	"aeibi/util"
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type PostService struct {
@@ -114,77 +119,23 @@ func (s *PostService) GetPost(ctx context.Context, viewerUid string, req *api.Ge
 }
 
 func (s *PostService) ListPosts(ctx context.Context, viewerUid string, req *api.ListPostsRequest) (*api.ListPostsResponse, error) {
+	filter, authorUID, err := normalizeListPostsFilter(req)
+	if err != nil {
+		return nil, err
+	}
+	cursor, err := decodeAndValidatePostPageToken(req.GetPageToken(), filter)
+	if err != nil {
+		return nil, err
+	}
+
 	rows, err := s.db.ListPosts(ctx, db.ListPostsParams{
 		Viewer:          uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
-		CursorCreatedAt: sql.NullTime{Time: time.Unix(req.CursorCreatedAt, 0).UTC(), Valid: req.CursorCreatedAt != 0},
-		CursorID:        uuid.NullUUID{UUID: util.UUID(req.CursorId), Valid: req.CursorId != ""},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("list posts: %w", err)
-	}
-	posts := make([]*api.Post, 0, len(rows))
-	attachmentLists := make([][]string, 0, len(rows))
-	for _, row := range rows {
-		attachmentLists = append(attachmentLists, row.Attachments)
-	}
-	fileMap, err := s.listAttachmentFileMap(ctx, attachmentLists...)
-	if err != nil {
-		return nil, err
-	}
-	for _, row := range rows {
-		if row.Visibility == db.PostVisibilityPRIVATE {
-			continue
-		}
-		attachments := buildAttachmentsByURLOrder(row.Attachments, fileMap)
-		posts = append(posts, &api.Post{
-			Uid: row.Uid.String(),
-			Author: &api.PostAuthor{
-				Uid:         row.AuthorUid.String(),
-				Nickname:    row.AuthorNickname,
-				AvatarUrl:   row.AuthorAvatarUrl,
-				IsFollowing: row.Following,
-			},
-			Text:            row.Text,
-			Images:          row.Images,
-			Attachments:     attachments,
-			Tags:            row.TagNames,
-			CommentCount:    row.CommentCount,
-			CollectionCount: row.CollectionCount,
-			LikeCount:       row.LikeCount,
-			Visibility:      string(row.Visibility),
-			LatestRepliedOn: row.LatestRepliedOn.Unix(),
-			Ip:              row.Ip,
-			Pinned:          row.Pinned,
-			Liked:           row.Liked,
-			Collected:       row.Collected,
-			CreatedAt:       row.CreatedAt.Unix(),
-			UpdatedAt:       row.UpdatedAt.Unix(),
-		})
-	}
-
-	var nextCursorCreatedAt int64
-	var nextCursorID string
-	if len(rows) > 0 {
-		last := rows[len(rows)-1]
-		nextCursorCreatedAt = last.CreatedAt.Unix()
-		nextCursorID = last.Uid.String()
-	}
-
-	return &api.ListPostsResponse{
-		Posts:               posts,
-		NextCursorCreatedAt: nextCursorCreatedAt,
-		NextCursorId:        nextCursorID,
-	}, nil
-}
-
-func (s *PostService) ListPostsByAuthor(ctx context.Context, viewerUid string, req *api.ListPostsByAuthorRequest) (*api.ListPostsResponse, error) {
-	viewerIsAuthor := viewerUid != "" && util.UUID(viewerUid) == util.UUID(req.Uid)
-
-	rows, err := s.db.ListPostsByAuthor(ctx, db.ListPostsByAuthorParams{
-		Author:          util.UUID(req.Uid),
-		Viewer:          uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
-		CursorCreatedAt: sql.NullTime{Time: time.Unix(req.CursorCreatedAt, 0).UTC(), Valid: req.CursorCreatedAt != 0},
-		CursorID:        uuid.NullUUID{UUID: util.UUID(req.CursorId), Valid: req.CursorId != ""},
+		Query:           sql.NullString{String: filter.Query, Valid: filter.Query != ""},
+		AuthorUid:       authorUID,
+		TagName:         sql.NullString{String: filter.TagName, Valid: filter.TagName != ""},
+		CursorCreatedAt: cursor.CreatedAt,
+		CursorID:        cursor.ID,
+		CursorScore:     cursor.Score,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list posts: %w", err)
@@ -199,14 +150,8 @@ func (s *PostService) ListPostsByAuthor(ctx context.Context, viewerUid string, r
 	if err != nil {
 		return nil, err
 	}
-
 	for _, row := range rows {
-		if row.Visibility == db.PostVisibilityPRIVATE && !viewerIsAuthor {
-			continue
-		}
-
 		attachments := buildAttachmentsByURLOrder(row.Attachments, fileMap)
-
 		posts = append(posts, &api.Post{
 			Uid: row.Uid.String(),
 			Author: &api.PostAuthor{
@@ -233,95 +178,42 @@ func (s *PostService) ListPostsByAuthor(ctx context.Context, viewerUid string, r
 		})
 	}
 
-	var nextCursorCreatedAt int64
-	var nextCursorID string
+	var nextPageToken string
 	if len(rows) > 0 {
 		last := rows[len(rows)-1]
-		nextCursorCreatedAt = last.CreatedAt.Unix()
-		nextCursorID = last.Uid.String()
-	}
-
-	return &api.ListPostsResponse{
-		Posts:               posts,
-		NextCursorCreatedAt: nextCursorCreatedAt,
-		NextCursorId:        nextCursorID,
-	}, nil
-}
-
-func (s *PostService) ListPostsByTag(ctx context.Context, viewerUid string, req *api.ListPostsByTagRequest) (*api.ListPostsResponse, error) {
-	rows, err := s.db.ListPostsByTag(ctx, db.ListPostsByTagParams{
-		Viewer:          uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
-		TagName:         req.TagName,
-		CursorCreatedAt: sql.NullTime{Time: time.Unix(req.CursorCreatedAt, 0).UTC(), Valid: req.CursorCreatedAt != 0},
-		CursorID:        uuid.NullUUID{UUID: util.UUID(req.CursorId), Valid: req.CursorId != ""},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("list posts by tag: %w", err)
-	}
-
-	posts := make([]*api.Post, 0, len(rows))
-	attachmentLists := make([][]string, 0, len(rows))
-	for _, row := range rows {
-		attachmentLists = append(attachmentLists, row.Attachments)
-	}
-	fileMap, err := s.listAttachmentFileMap(ctx, attachmentLists...)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, row := range rows {
-		if row.Visibility == db.PostVisibilityPRIVATE {
-			continue
+		token := postPageToken{
+			Query:           filter.Query,
+			AuthorUID:       filter.AuthorUID,
+			TagName:         filter.TagName,
+			CursorCreatedAt: last.CreatedAt.Unix(),
+			CursorID:        last.Uid.String(),
 		}
-
-		attachments := buildAttachmentsByURLOrder(row.Attachments, fileMap)
-
-		posts = append(posts, &api.Post{
-			Uid: row.Uid.String(),
-			Author: &api.PostAuthor{
-				Uid:         row.AuthorUid.String(),
-				Nickname:    row.AuthorNickname,
-				AvatarUrl:   row.AuthorAvatarUrl,
-				IsFollowing: row.Following,
-			},
-			Text:            row.Text,
-			Images:          row.Images,
-			Attachments:     attachments,
-			Tags:            row.TagNames,
-			CommentCount:    row.CommentCount,
-			CollectionCount: row.CollectionCount,
-			LikeCount:       row.LikeCount,
-			Visibility:      string(row.Visibility),
-			LatestRepliedOn: row.LatestRepliedOn.Unix(),
-			Ip:              row.Ip,
-			Pinned:          row.Pinned,
-			Liked:           row.Liked,
-			Collected:       row.Collected,
-			CreatedAt:       row.CreatedAt.Unix(),
-			UpdatedAt:       row.UpdatedAt.Unix(),
-		})
-	}
-
-	var nextCursorCreatedAt int64
-	var nextCursorID string
-	if len(rows) > 0 {
-		last := rows[len(rows)-1]
-		nextCursorCreatedAt = last.CreatedAt.Unix()
-		nextCursorID = last.Uid.String()
+		if filter.Query != "" {
+			score := last.Score
+			token.CursorScore = &score
+		}
+		nextPageToken, err = encodePostPageToken(token)
+		if err != nil {
+			return nil, fmt.Errorf("encode page token: %w", err)
+		}
 	}
 
 	return &api.ListPostsResponse{
-		Posts:               posts,
-		NextCursorCreatedAt: nextCursorCreatedAt,
-		NextCursorId:        nextCursorID,
+		Posts:         posts,
+		NextPageToken: nextPageToken,
 	}, nil
 }
 
 func (s *PostService) ListMyCollections(ctx context.Context, uid string, req *api.ListPostsRequest) (*api.ListPostsResponse, error) {
+	cursor, err := decodeAndValidatePostPageToken(req.GetPageToken(), listPostsFilter{})
+	if err != nil {
+		return nil, err
+	}
+
 	rows, err := s.db.ListPostsByCollector(ctx, db.ListPostsByCollectorParams{
 		Collector:       util.UUID(uid),
-		CursorCreatedAt: sql.NullTime{Time: time.Unix(req.CursorCreatedAt, 0).UTC(), Valid: req.CursorCreatedAt != 0},
-		CursorID:        uuid.NullUUID{UUID: util.UUID(req.CursorId), Valid: req.CursorId != ""},
+		CursorCreatedAt: cursor.CreatedAt,
+		CursorID:        cursor.ID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list posts: %w", err)
@@ -370,88 +262,22 @@ func (s *PostService) ListMyCollections(ctx context.Context, uid string, req *ap
 		})
 	}
 
-	var nextCursorCreatedAt int64
-	var nextCursorID string
+	var nextPageToken string
 	if len(rows) > 0 {
 		last := rows[len(rows)-1]
-		nextCursorCreatedAt = last.CreatedAt.Unix()
-		nextCursorID = last.Uid.String()
+		token := postPageToken{
+			CursorCreatedAt: last.CreatedAt.Unix(),
+			CursorID:        last.Uid.String(),
+		}
+		nextPageToken, err = encodePostPageToken(token)
+		if err != nil {
+			return nil, fmt.Errorf("encode page token: %w", err)
+		}
 	}
 
 	return &api.ListPostsResponse{
-		Posts:               posts,
-		NextCursorCreatedAt: nextCursorCreatedAt,
-		NextCursorId:        nextCursorID,
-	}, nil
-}
-
-func (s *PostService) SearchPosts(ctx context.Context, viewerUid string, req *api.SearchPostsRequest) (*api.SearchPostsResponse, error) {
-	rows, err := s.db.SearchPosts(ctx, db.SearchPostsParams{
-		Viewer:          uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
-		Query:           req.Query,
-		Tag:             sql.NullString{String: req.Tag, Valid: req.Tag != ""},
-		CursorScore:     sql.NullFloat64{Float64: req.CursorScore, Valid: req.CursorId != ""},
-		CursorCreatedAt: sql.NullTime{Time: time.Unix(req.CursorCreatedAt, 0).UTC(), Valid: req.CursorCreatedAt != 0},
-		CursorID:        uuid.NullUUID{UUID: util.UUID(req.CursorId), Valid: req.CursorId != ""},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("search posts: %w", err)
-	}
-
-	posts := make([]*api.Post, 0, len(rows))
-	attachmentLists := make([][]string, 0, len(rows))
-	for _, row := range rows {
-		attachmentLists = append(attachmentLists, row.Attachments)
-	}
-	fileMap, err := s.listAttachmentFileMap(ctx, attachmentLists...)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, row := range rows {
-		attachments := buildAttachmentsByURLOrder(row.Attachments, fileMap)
-
-		posts = append(posts, &api.Post{
-			Uid: row.Uid.String(),
-			Author: &api.PostAuthor{
-				Uid:         row.AuthorUid.String(),
-				Nickname:    row.AuthorNickname,
-				AvatarUrl:   row.AuthorAvatarUrl,
-				IsFollowing: row.Following,
-			},
-			Text:            row.Text,
-			Images:          row.Images,
-			Attachments:     attachments,
-			Tags:            row.TagNames,
-			CommentCount:    row.CommentCount,
-			CollectionCount: row.CollectionCount,
-			LikeCount:       row.LikeCount,
-			Visibility:      string(row.Visibility),
-			LatestRepliedOn: row.LatestRepliedOn.Unix(),
-			Ip:              row.Ip,
-			Pinned:          row.Pinned,
-			Liked:           row.Liked,
-			Collected:       row.Collected,
-			CreatedAt:       row.CreatedAt.Unix(),
-			UpdatedAt:       row.UpdatedAt.Unix(),
-		})
-	}
-
-	var nextCursorScore float64
-	var nextCursorCreatedAt int64
-	var nextCursorID string
-	if len(rows) > 0 {
-		last := rows[len(rows)-1]
-		nextCursorScore = last.Score
-		nextCursorCreatedAt = last.CreatedAt.Unix()
-		nextCursorID = last.Uid.String()
-	}
-
-	return &api.SearchPostsResponse{
-		Posts:               posts,
-		NextCursorScore:     nextCursorScore,
-		NextCursorCreatedAt: nextCursorCreatedAt,
-		NextCursorId:        nextCursorID,
+		Posts:         posts,
+		NextPageToken: nextPageToken,
 	}, nil
 }
 
@@ -656,4 +482,106 @@ func buildAttachmentsByURLOrder(urls []string, fileMap map[string]db.GetFilesByU
 		})
 	}
 	return attachments
+}
+
+type listPostsFilter struct {
+	Query     string
+	AuthorUID string
+	TagName   string
+}
+
+type postPageToken struct {
+	Query           string   `json:"query,omitempty"`
+	AuthorUID       string   `json:"author_uid,omitempty"`
+	TagName         string   `json:"tag_name,omitempty"`
+	CursorScore     *float64 `json:"cursor_score,omitempty"`
+	CursorCreatedAt int64    `json:"cursor_created_at,omitempty"`
+	CursorID        string   `json:"cursor_id,omitempty"`
+}
+
+type postPageCursor struct {
+	Score     sql.NullFloat64
+	CreatedAt sql.NullTime
+	ID        uuid.NullUUID
+}
+
+func normalizeListPostsFilter(req *api.ListPostsRequest) (listPostsFilter, uuid.NullUUID, error) {
+	filter := listPostsFilter{
+		Query:     strings.TrimSpace(req.GetQuery()),
+		AuthorUID: strings.TrimSpace(req.GetAuthorUid()),
+		TagName:   strings.TrimSpace(req.GetTagName()),
+	}
+
+	var authorUID uuid.NullUUID
+	if filter.AuthorUID != "" {
+		parsed, err := uuid.Parse(filter.AuthorUID)
+		if err != nil {
+			return listPostsFilter{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "author_uid is invalid")
+		}
+		filter.AuthorUID = parsed.String()
+		authorUID = uuid.NullUUID{UUID: parsed, Valid: true}
+	}
+
+	return filter, authorUID, nil
+}
+
+func decodeAndValidatePostPageToken(pageToken string, filter listPostsFilter) (postPageCursor, error) {
+	if pageToken == "" {
+		return postPageCursor{}, nil
+	}
+
+	raw, err := base64.RawURLEncoding.DecodeString(pageToken)
+	if err != nil {
+		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	var token postPageToken
+	if err := json.Unmarshal(raw, &token); err != nil {
+		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	if token.Query != filter.Query || token.AuthorUID != filter.AuthorUID || token.TagName != filter.TagName {
+		return postPageCursor{}, status.Error(codes.InvalidArgument, "page_token does not match current filters")
+	}
+
+	if token.AuthorUID != "" {
+		if _, err := uuid.Parse(token.AuthorUID); err != nil {
+			return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		}
+	}
+
+	if token.CursorCreatedAt <= 0 || token.CursorID == "" {
+		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	cursorID, err := uuid.Parse(token.CursorID)
+	if err != nil {
+		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	hasQuery := filter.Query != ""
+	if hasQuery && token.CursorScore == nil {
+		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+	if !hasQuery && token.CursorScore != nil {
+		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	cursor := postPageCursor{
+		CreatedAt: sql.NullTime{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true},
+		ID:        uuid.NullUUID{UUID: cursorID, Valid: true},
+	}
+	if token.CursorScore != nil {
+		cursor.Score = sql.NullFloat64{Float64: *token.CursorScore, Valid: true}
+	}
+
+	return cursor, nil
+}
+
+func encodePostPageToken(token postPageToken) (string, error) {
+	raw, err := json.Marshal(token)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
 }

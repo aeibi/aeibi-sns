@@ -20,24 +20,10 @@ service PostService {
     };
   }
 
-  // GET /api/v1/posts 列表（公开）
+  // GET /api/v1/posts 统一列表/筛选/搜索
   rpc ListPosts(ListPostsRequest) returns (ListPostsResponse) {
     option (google.api.http) = {
       get: "/api/v1/posts"
-    };
-  }
-
-  // GET /api/v1/users/{uid}/posts 指定用户发布的列表（公开 + 本人 PRIVATE）
-  rpc ListPostsByAuthor(ListPostsByAuthorRequest) returns (ListPostsResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/users/{uid}/posts"
-    };
-  }
-
-  // GET /api/v1/tag/posts 按标签精确匹配列表（公开）
-  rpc ListPostsByTag(ListPostsByTagRequest) returns (ListPostsResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/tag/posts"
     };
   }
 
@@ -48,21 +34,14 @@ service PostService {
     };
   }
 
-  // GET /api/v1/search/posts 帖子搜索（公开 + 自己）
-  rpc SearchPosts(SearchPostsRequest) returns (SearchPostsResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/search/posts"
-    };
-  }
-
-  // GET /api/v1/search/tags 标签搜索（公开）
+  // GET /api/v1/search/tags 标签搜索
   rpc SearchTags(SearchTagsRequest) returns (SearchTagsResponse) {
     option (google.api.http) = {
       get: "/api/v1/search/tags"
     };
   }
 
-  // GET /api/v1/suggestions/tags 标签前缀推荐（公开）
+  // GET /api/v1/suggestions/tags 标签前缀推荐
   rpc SuggestTagsByPrefix(SuggestTagsByPrefixRequest) returns (SuggestTagsByPrefixResponse) {
     option (google.api.http) = {
       get: "/api/v1/suggestions/tags"
@@ -164,41 +143,15 @@ message CreatePostResponse {
 // List
 
 message ListPostsRequest {
-  int64  cursor_created_at = 1; // unix seconds
-  string cursor_id         = 2;
-}
-
-message ListPostsByAuthorRequest {
-  string uid               = 1 [(google.api.field_behavior) = REQUIRED];
-  int64  cursor_created_at = 2; // unix seconds
-  string cursor_id         = 3;
-}
-
-message ListPostsByTagRequest {
-  string tag_name          = 1 [(google.api.field_behavior) = REQUIRED];
-  int64  cursor_created_at = 2; // unix seconds
-  string cursor_id         = 3;
+  string query = 1;
+  string author_uid = 2;
+  string tag_name = 3;
+  string page_token = 4;
 }
 
 message ListPostsResponse {
-  repeated Post posts                  = 1 [(google.api.field_behavior) = REQUIRED];
-  int64         next_cursor_created_at = 2 [(google.api.field_behavior) = REQUIRED];
-  string        next_cursor_id         = 3 [(google.api.field_behavior) = REQUIRED];
-}
-
-message SearchPostsRequest {
-  string query             = 1 [(google.api.field_behavior) = REQUIRED];
-  string tag               = 2;
-  double cursor_score      = 3;
-  int64  cursor_created_at = 4; // unix seconds
-  string cursor_id         = 5;
-}
-
-message SearchPostsResponse {
-  repeated Post posts                  = 1 [(google.api.field_behavior) = REQUIRED];
-  double        next_cursor_score      = 2 [(google.api.field_behavior) = REQUIRED];
-  int64         next_cursor_created_at = 3 [(google.api.field_behavior) = REQUIRED];
-  string        next_cursor_id         = 4 [(google.api.field_behavior) = REQUIRED];
+  repeated Post posts           = 1 [(google.api.field_behavior) = REQUIRED];
+  string        next_page_token = 2 [(google.api.field_behavior) = REQUIRED];
 }
 
 message SearchTag {

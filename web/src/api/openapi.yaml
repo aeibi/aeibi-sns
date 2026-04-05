@@ -246,11 +246,19 @@ paths:
       description: GET /api/v1/me/collections 当前用户收藏的帖子列表
       operationId: PostService_ListMyCollections
       parameters:
-        - name: cursorCreatedAt
+        - name: query
           in: query
           schema:
             type: string
-        - name: cursorId
+        - name: authorUid
+          in: query
+          schema:
+            type: string
+        - name: tagName
+          in: query
+          schema:
+            type: string
+        - name: pageToken
           in: query
           schema:
             type: string
@@ -425,37 +433,26 @@ paths:
         "200":
           description: OK
           content: {}
-  /api/v1/me/posts/{uid}:
-    get:
-      tags:
-        - PostService
-      description: GET /api/v1/me/posts/{uid} 当前用户的帖子详情（含 PRIVATE）
-      operationId: PostService_GetMyPost
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/post.GetPostResponse"
   /api/v1/posts:
     get:
       tags:
         - PostService
-      description: GET /api/v1/posts 列表（公开）
+      description: GET /api/v1/posts 统一列表/筛选/搜索
       operationId: PostService_ListPosts
       parameters:
-        - name: cursorCreatedAt
+        - name: query
           in: query
           schema:
             type: string
-        - name: cursorId
+        - name: authorUid
+          in: query
+          schema:
+            type: string
+        - name: tagName
+          in: query
+          schema:
+            type: string
+        - name: pageToken
           in: query
           schema:
             type: string
@@ -496,11 +493,7 @@ paths:
           required: true
           schema:
             type: string
-        - name: cursorCreatedAt
-          in: query
-          schema:
-            type: string
-        - name: cursorId
+        - name: pageToken
           in: query
           schema:
             type: string
@@ -661,46 +654,11 @@ paths:
         "200":
           description: OK
           content: {}
-  /api/v1/search/posts:
-    get:
-      tags:
-        - PostService
-      description: GET /api/v1/search/posts 帖子搜索（公开 + 自己）
-      operationId: PostService_SearchPosts
-      parameters:
-        - name: query
-          in: query
-          schema:
-            type: string
-        - name: tag
-          in: query
-          schema:
-            type: string
-        - name: cursorScore
-          in: query
-          schema:
-            type: number
-            format: double
-        - name: cursorCreatedAt
-          in: query
-          schema:
-            type: string
-        - name: cursorId
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/post.SearchPostsResponse"
   /api/v1/search/tags:
     get:
       tags:
         - PostService
-      description: GET /api/v1/search/tags 标签搜索（公开）
+      description: GET /api/v1/search/tags 标签搜索
       operationId: PostService_SearchTags
       parameters:
         - name: query
@@ -736,7 +694,7 @@ paths:
     get:
       tags:
         - PostService
-      description: GET /api/v1/suggestions/tags 标签前缀推荐（公开）
+      description: GET /api/v1/suggestions/tags 标签前缀推荐
       operationId: PostService_SuggestTagsByPrefix
       parameters:
         - name: prefix
@@ -768,32 +726,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/user.SuggestUsersByPrefixResponse"
-  /api/v1/tag/posts:
-    get:
-      tags:
-        - PostService
-      description: GET /api/v1/tag/posts 按标签精确匹配列表（公开）
-      operationId: PostService_ListPostsByTag
-      parameters:
-        - name: tagName
-          in: query
-          schema:
-            type: string
-        - name: cursorCreatedAt
-          in: query
-          schema:
-            type: string
-        - name: cursorId
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/post.ListPostsResponse"
   /api/v1/users:
     post:
       tags:
@@ -854,33 +786,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/follow.FollowResponse"
-  /api/v1/users/{uid}/posts:
-    get:
-      tags:
-        - PostService
-      description: GET /api/v1/users/{uid}/posts 指定用户发布的列表（公开 + 本人 PRIVATE）
-      operationId: PostService_ListPostsByAuthor
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: cursorCreatedAt
-          in: query
-          schema:
-            type: string
-        - name: cursorId
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/post.ListPostsResponse"
 components:
   schemas:
     comment.Comment:
@@ -1033,17 +938,14 @@ components:
     comment.ListTopCommentsResponse:
       required:
         - comments
-        - nextCursorCreatedAt
-        - nextCursorId
+        - nextPageToken
       type: object
       properties:
         comments:
           type: array
           items:
             $ref: "#/components/schemas/comment.Comment"
-        nextCursorCreatedAt:
-          type: string
-        nextCursorId:
+        nextPageToken:
           type: string
     common.User:
       required:
@@ -1393,17 +1295,14 @@ components:
     post.ListPostsResponse:
       required:
         - posts
-        - nextCursorCreatedAt
-        - nextCursorId
+        - nextPageToken
       type: object
       properties:
         posts:
           type: array
           items:
             $ref: "#/components/schemas/post.Post"
-        nextCursorCreatedAt:
-          type: string
-        nextCursorId:
+        nextPageToken:
           type: string
     post.Post:
       required:
@@ -1486,25 +1385,6 @@ components:
         isFollowing:
           type: boolean
       description: Models
-    post.SearchPostsResponse:
-      required:
-        - posts
-        - nextCursorScore
-        - nextCursorCreatedAt
-        - nextCursorId
-      type: object
-      properties:
-        posts:
-          type: array
-          items:
-            $ref: "#/components/schemas/post.Post"
-        nextCursorScore:
-          type: number
-          format: double
-        nextCursorCreatedAt:
-          type: string
-        nextCursorId:
-          type: string
     post.SearchTag:
       required:
         - name

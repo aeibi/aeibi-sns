@@ -5,7 +5,9 @@ import (
 	"aeibi/internal/auth"
 	"aeibi/internal/service"
 	"context"
+	"strings"
 
+	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -49,70 +51,27 @@ func (h *PostHandler) ListPosts(ctx context.Context, req *api.ListPostsRequest) 
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
-	if (req.CursorCreatedAt == 0 && req.CursorId != "") || (req.CursorCreatedAt != 0 && req.CursorId == "") {
-		return nil, status.Error(codes.InvalidArgument, "cursor is required")
+	if strings.TrimSpace(req.AuthorUid) != "" {
+		if _, err := uuid.Parse(strings.TrimSpace(req.AuthorUid)); err != nil {
+			return nil, status.Error(codes.InvalidArgument, "author_uid is invalid")
+		}
 	}
 	viewerUid, _ := auth.SubjectFromContext(ctx)
 	return h.svc.ListPosts(ctx, viewerUid, req)
-}
-
-func (h *PostHandler) ListPostsByAuthor(ctx context.Context, req *api.ListPostsByAuthorRequest) (*api.ListPostsResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "request is nil")
-	}
-	if req.Uid == "" {
-		return nil, status.Error(codes.InvalidArgument, "uid is required")
-	}
-	if (req.CursorCreatedAt == 0 && req.CursorId != "") || (req.CursorCreatedAt != 0 && req.CursorId == "") {
-		return nil, status.Error(codes.InvalidArgument, "cursor is required")
-	}
-	viewerUid, _ := auth.SubjectFromContext(ctx)
-	return h.svc.ListPostsByAuthor(ctx, viewerUid, req)
-}
-
-func (h *PostHandler) ListPostsByTag(ctx context.Context, req *api.ListPostsByTagRequest) (*api.ListPostsResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "request is nil")
-	}
-	if req.TagName == "" {
-		return nil, status.Error(codes.InvalidArgument, "tag_name is required")
-	}
-	if (req.CursorCreatedAt == 0 && req.CursorId != "") || (req.CursorCreatedAt != 0 && req.CursorId == "") {
-		return nil, status.Error(codes.InvalidArgument, "cursor is required")
-	}
-	viewerUid, _ := auth.SubjectFromContext(ctx)
-	return h.svc.ListPostsByTag(ctx, viewerUid, req)
 }
 
 func (h *PostHandler) ListMyCollections(ctx context.Context, req *api.ListPostsRequest) (*api.ListPostsResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
-	if (req.CursorCreatedAt == 0 && req.CursorId != "") || (req.CursorCreatedAt != 0 && req.CursorId == "") {
-		return nil, status.Error(codes.InvalidArgument, "cursor is required")
+	if strings.TrimSpace(req.Query) != "" || strings.TrimSpace(req.AuthorUid) != "" || strings.TrimSpace(req.TagName) != "" {
+		return nil, status.Error(codes.InvalidArgument, "query, author_uid, tag_name are not supported")
 	}
 	uid, ok := auth.SubjectFromContext(ctx)
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 	}
 	return h.svc.ListMyCollections(ctx, uid, req)
-}
-
-func (h *PostHandler) SearchPosts(ctx context.Context, req *api.SearchPostsRequest) (*api.SearchPostsResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "request is nil")
-	}
-	if req.Query == "" {
-		return nil, status.Error(codes.InvalidArgument, "query is required")
-	}
-	if (req.CursorCreatedAt == 0 && req.CursorId != "") || (req.CursorCreatedAt != 0 && req.CursorId == "") {
-		return nil, status.Error(codes.InvalidArgument, "cursor is required")
-	}
-	if req.CursorId != "" && req.CursorScore == 0 {
-		return nil, status.Error(codes.InvalidArgument, "cursor_score is required")
-	}
-	viewerUid, _ := auth.SubjectFromContext(ctx)
-	return h.svc.SearchPosts(ctx, viewerUid, req)
 }
 
 func (h *PostHandler) SearchTags(ctx context.Context, req *api.SearchTagsRequest) (*api.SearchTagsResponse, error) {

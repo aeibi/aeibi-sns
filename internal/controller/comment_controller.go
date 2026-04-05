@@ -61,9 +61,6 @@ func (h *CommentHandler) ListTopComments(ctx context.Context, req *api.ListTopCo
 	if req.PostUid == "" {
 		return nil, status.Error(codes.InvalidArgument, "post_uid is required")
 	}
-	if (req.CursorCreatedAt == 0 && req.CursorId != "") || (req.CursorCreatedAt != 0 && req.CursorId == "") {
-		return nil, status.Error(codes.InvalidArgument, "cursor is required")
-	}
 	viewerUid, _ := auth.SubjectFromContext(ctx)
 	return h.svc.ListTopComments(ctx, viewerUid, req)
 }

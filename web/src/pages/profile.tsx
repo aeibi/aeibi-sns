@@ -5,7 +5,7 @@ import { PostCard } from "@/components/post-card"
 import { ProfileCard } from "@/components/profile-card"
 import { VirtualList } from "@/components/virtual-list"
 import { toast } from "sonner"
-import { useAuthorPostsFeed } from "@/hooks/use-post-infinite-feed"
+import { usePostsFeed } from "@/hooks/use-post-infinite-feed"
 import { EmptyState } from "@/components/empty"
 
 export function Profile() {
@@ -16,7 +16,9 @@ export function Profile() {
   const uid = searchParams.get("uid") || meData?.user.uid || ""
   const { data: userData, queryKey, isPending: isUserPending } = useUserServiceGetUser(uid)
   const { mutate: followUser, isPending: isFollowPending } = useFollowServiceFollow()
-  const { posts, fetchNextPage, isFetchingNextPage, hasNextPage, updatePostLocal, removePostLocal } = useAuthorPostsFeed(uid)
+  const { posts, fetchNextPage, isFetchingNextPage, hasNextPage, updatePostLocal, removePostLocal } = usePostsFeed({
+    authorUid: uid,
+  })
   const handleFollow = () => {
     const user = userData?.user
     if (!user || !meData?.user || meData.user.uid === user.uid || isFollowPending) return

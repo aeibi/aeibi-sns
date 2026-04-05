@@ -2,12 +2,12 @@ import { postServiceGetPost, useUserServiceGetMe } from "@/api/generated"
 import { PostCard } from "@/components/post-card"
 import { PostComposerCard } from "@/components/post-composer"
 import { VirtualList } from "@/components/virtual-list"
-import { useHomePostsFeed } from "@/hooks/use-post-infinite-feed"
+import { usePostsFeed } from "@/hooks/use-post-infinite-feed"
 import { toast } from "sonner"
 
 export function Home() {
   const { data: userData } = useUserServiceGetMe()
-  const { posts, fetchNextPage, isFetchingNextPage, hasNextPage, addPostLocal, updatePostLocal, removePostLocal } = useHomePostsFeed()
+  const { posts, fetchNextPage, isFetchingNextPage, hasNextPage, addPostLocal, updatePostLocal, removePostLocal } = usePostsFeed({})
   const handlePosted = (uid: string) => {
     void postServiceGetPost(uid)
       .then((data) => addPostLocal(data.post))

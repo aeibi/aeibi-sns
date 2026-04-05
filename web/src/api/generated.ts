@@ -88,8 +88,7 @@ export interface CommentListRepliesResponse {
 
 export interface CommentListTopCommentsResponse {
   comments: CommentComment[]
-  nextCursorCreatedAt: string
-  nextCursorId: string
+  nextPageToken: string
 }
 
 /**
@@ -287,15 +286,7 @@ export interface PostLikePostResponse {
 
 export interface PostListPostsResponse {
   posts: PostPost[]
-  nextCursorCreatedAt: string
-  nextCursorId: string
-}
-
-export interface PostSearchPostsResponse {
-  posts: PostPost[]
-  nextCursorScore: number
-  nextCursorCreatedAt: string
-  nextCursorId: string
+  nextPageToken: string
 }
 
 export interface PostSearchTag {
@@ -396,8 +387,10 @@ export type UserServiceUpdateMeParams = {
 }
 
 export type PostServiceListMyCollectionsParams = {
-  cursorCreatedAt?: string
-  cursorId?: string
+  query?: string
+  authorUid?: string
+  tagName?: string
+  pageToken?: string
 }
 
 export type FollowServiceListMyFollowersParams = {
@@ -425,25 +418,18 @@ export type MessageServiceListFollowInboxMessagesParams = {
 }
 
 export type PostServiceListPostsParams = {
-  cursorCreatedAt?: string
-  cursorId?: string
+  query?: string
+  authorUid?: string
+  tagName?: string
+  pageToken?: string
 }
 
 export type CommentServiceListTopCommentsParams = {
-  cursorCreatedAt?: string
-  cursorId?: string
+  pageToken?: string
 }
 
 export type PostServiceUpdatePostParams = {
   updateMask?: string
-}
-
-export type PostServiceSearchPostsParams = {
-  query?: string
-  tag?: string
-  cursorScore?: number
-  cursorCreatedAt?: string
-  cursorId?: string
 }
 
 export type PostServiceSearchTagsParams = {
@@ -460,17 +446,6 @@ export type PostServiceSuggestTagsByPrefixParams = {
 
 export type UserServiceSuggestUsersByPrefixParams = {
   prefix?: string
-}
-
-export type PostServiceListPostsByTagParams = {
-  tagName?: string
-  cursorCreatedAt?: string
-  cursorId?: string
-}
-
-export type PostServiceListPostsByAuthorParams = {
-  cursorCreatedAt?: string
-  cursorId?: string
 }
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1]
@@ -2178,98 +2153,7 @@ export const useUserServiceChangePassword = <TError = ErrorType<unknown>, TConte
 }
 
 /**
- * GET /api/v1/me/posts/{uid} 当前用户的帖子详情（含 PRIVATE）
- */
-export const postServiceGetMyPost = (uid: string, options?: SecondParameter<typeof customInstance>, signal?: AbortSignal) => {
-  return customInstance<PostGetPostResponse>({ url: `/api/v1/me/posts/${uid}`, method: "GET", signal }, options)
-}
-
-export const getPostServiceGetMyPostQueryKey = (uid: string) => {
-  return [`/api/v1/me/posts/${uid}`] as const
-}
-
-export const getPostServiceGetMyPostQueryOptions = <TData = Awaited<ReturnType<typeof postServiceGetMyPost>>, TError = ErrorType<unknown>>(
-  uid: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceGetMyPost>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey = queryOptions?.queryKey ?? getPostServiceGetMyPostQueryKey(uid)
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof postServiceGetMyPost>>> = ({ signal }) =>
-    postServiceGetMyPost(uid, requestOptions, signal)
-
-  return { queryKey, queryFn, enabled: !!uid, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof postServiceGetMyPost>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type PostServiceGetMyPostQueryResult = NonNullable<Awaited<ReturnType<typeof postServiceGetMyPost>>>
-export type PostServiceGetMyPostQueryError = ErrorType<unknown>
-
-export function usePostServiceGetMyPost<TData = Awaited<ReturnType<typeof postServiceGetMyPost>>, TError = ErrorType<unknown>>(
-  uid: string,
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceGetMyPost>>, TError, TData>> &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof postServiceGetMyPost>>,
-          TError,
-          Awaited<ReturnType<typeof postServiceGetMyPost>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePostServiceGetMyPost<TData = Awaited<ReturnType<typeof postServiceGetMyPost>>, TError = ErrorType<unknown>>(
-  uid: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceGetMyPost>>, TError, TData>> &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof postServiceGetMyPost>>,
-          TError,
-          Awaited<ReturnType<typeof postServiceGetMyPost>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePostServiceGetMyPost<TData = Awaited<ReturnType<typeof postServiceGetMyPost>>, TError = ErrorType<unknown>>(
-  uid: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceGetMyPost>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function usePostServiceGetMyPost<TData = Awaited<ReturnType<typeof postServiceGetMyPost>>, TError = ErrorType<unknown>>(
-  uid: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceGetMyPost>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getPostServiceGetMyPostQueryOptions(uid, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return { ...query, queryKey: queryOptions.queryKey }
-}
-
-/**
- * GET /api/v1/posts 列表（公开）
+ * GET /api/v1/posts 统一列表/筛选/搜索
  */
 export const postServiceListPosts = (
   params?: PostServiceListPostsParams,
@@ -3015,103 +2899,7 @@ export const useReportServiceCreateReport = <TError = ErrorType<unknown>, TConte
 }
 
 /**
- * GET /api/v1/search/posts 帖子搜索（公开 + 自己）
- */
-export const postServiceSearchPosts = (
-  params?: PostServiceSearchPostsParams,
-  options?: SecondParameter<typeof customInstance>,
-  signal?: AbortSignal
-) => {
-  return customInstance<PostSearchPostsResponse>({ url: `/api/v1/search/posts`, method: "GET", params, signal }, options)
-}
-
-export const getPostServiceSearchPostsQueryKey = (params?: PostServiceSearchPostsParams) => {
-  return [`/api/v1/search/posts`, ...(params ? [params] : [])] as const
-}
-
-export const getPostServiceSearchPostsQueryOptions = <
-  TData = Awaited<ReturnType<typeof postServiceSearchPosts>>,
-  TError = ErrorType<unknown>,
->(
-  params?: PostServiceSearchPostsParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceSearchPosts>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey = queryOptions?.queryKey ?? getPostServiceSearchPostsQueryKey(params)
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof postServiceSearchPosts>>> = ({ signal }) =>
-    postServiceSearchPosts(params, requestOptions, signal)
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof postServiceSearchPosts>>, TError, TData> & {
-    queryKey: DataTag<QueryKey, TData, TError>
-  }
-}
-
-export type PostServiceSearchPostsQueryResult = NonNullable<Awaited<ReturnType<typeof postServiceSearchPosts>>>
-export type PostServiceSearchPostsQueryError = ErrorType<unknown>
-
-export function usePostServiceSearchPosts<TData = Awaited<ReturnType<typeof postServiceSearchPosts>>, TError = ErrorType<unknown>>(
-  params: undefined | PostServiceSearchPostsParams,
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceSearchPosts>>, TError, TData>> &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof postServiceSearchPosts>>,
-          TError,
-          Awaited<ReturnType<typeof postServiceSearchPosts>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePostServiceSearchPosts<TData = Awaited<ReturnType<typeof postServiceSearchPosts>>, TError = ErrorType<unknown>>(
-  params?: PostServiceSearchPostsParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceSearchPosts>>, TError, TData>> &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof postServiceSearchPosts>>,
-          TError,
-          Awaited<ReturnType<typeof postServiceSearchPosts>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePostServiceSearchPosts<TData = Awaited<ReturnType<typeof postServiceSearchPosts>>, TError = ErrorType<unknown>>(
-  params?: PostServiceSearchPostsParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceSearchPosts>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function usePostServiceSearchPosts<TData = Awaited<ReturnType<typeof postServiceSearchPosts>>, TError = ErrorType<unknown>>(
-  params?: PostServiceSearchPostsParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceSearchPosts>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getPostServiceSearchPostsQueryOptions(params, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return { ...query, queryKey: queryOptions.queryKey }
-}
-
-/**
- * GET /api/v1/search/tags 标签搜索（公开）
+ * GET /api/v1/search/tags 标签搜索
  */
 export const postServiceSearchTags = (
   params?: PostServiceSearchTagsParams,
@@ -3303,7 +3091,7 @@ export function useUserServiceSearchUsers<TData = Awaited<ReturnType<typeof user
 }
 
 /**
- * GET /api/v1/suggestions/tags 标签前缀推荐（公开）
+ * GET /api/v1/suggestions/tags 标签前缀推荐
  */
 export const postServiceSuggestTagsByPrefix = (
   params?: PostServiceSuggestTagsByPrefixParams,
@@ -3523,102 +3311,6 @@ export function useUserServiceSuggestUsersByPrefix<
 }
 
 /**
- * GET /api/v1/tag/posts 按标签精确匹配列表（公开）
- */
-export const postServiceListPostsByTag = (
-  params?: PostServiceListPostsByTagParams,
-  options?: SecondParameter<typeof customInstance>,
-  signal?: AbortSignal
-) => {
-  return customInstance<PostListPostsResponse>({ url: `/api/v1/tag/posts`, method: "GET", params, signal }, options)
-}
-
-export const getPostServiceListPostsByTagQueryKey = (params?: PostServiceListPostsByTagParams) => {
-  return [`/api/v1/tag/posts`, ...(params ? [params] : [])] as const
-}
-
-export const getPostServiceListPostsByTagQueryOptions = <
-  TData = Awaited<ReturnType<typeof postServiceListPostsByTag>>,
-  TError = ErrorType<unknown>,
->(
-  params?: PostServiceListPostsByTagParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceListPostsByTag>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey = queryOptions?.queryKey ?? getPostServiceListPostsByTagQueryKey(params)
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof postServiceListPostsByTag>>> = ({ signal }) =>
-    postServiceListPostsByTag(params, requestOptions, signal)
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof postServiceListPostsByTag>>, TError, TData> & {
-    queryKey: DataTag<QueryKey, TData, TError>
-  }
-}
-
-export type PostServiceListPostsByTagQueryResult = NonNullable<Awaited<ReturnType<typeof postServiceListPostsByTag>>>
-export type PostServiceListPostsByTagQueryError = ErrorType<unknown>
-
-export function usePostServiceListPostsByTag<TData = Awaited<ReturnType<typeof postServiceListPostsByTag>>, TError = ErrorType<unknown>>(
-  params: undefined | PostServiceListPostsByTagParams,
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceListPostsByTag>>, TError, TData>> &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof postServiceListPostsByTag>>,
-          TError,
-          Awaited<ReturnType<typeof postServiceListPostsByTag>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePostServiceListPostsByTag<TData = Awaited<ReturnType<typeof postServiceListPostsByTag>>, TError = ErrorType<unknown>>(
-  params?: PostServiceListPostsByTagParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceListPostsByTag>>, TError, TData>> &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof postServiceListPostsByTag>>,
-          TError,
-          Awaited<ReturnType<typeof postServiceListPostsByTag>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePostServiceListPostsByTag<TData = Awaited<ReturnType<typeof postServiceListPostsByTag>>, TError = ErrorType<unknown>>(
-  params?: PostServiceListPostsByTagParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceListPostsByTag>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function usePostServiceListPostsByTag<TData = Awaited<ReturnType<typeof postServiceListPostsByTag>>, TError = ErrorType<unknown>>(
-  params?: PostServiceListPostsByTagParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceListPostsByTag>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getPostServiceListPostsByTagQueryOptions(params, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return { ...query, queryKey: queryOptions.queryKey }
-}
-
-/**
  * POST /api/v1/users 创建用户
  */
 export const userServiceCreateUser = (
@@ -3814,120 +3506,4 @@ export const useFollowServiceFollow = <TError = ErrorType<unknown>, TContext = u
   queryClient?: QueryClient
 ): UseMutationResult<Awaited<ReturnType<typeof followServiceFollow>>, TError, { uid: string; data: FollowFollowRequest }, TContext> => {
   return useMutation(getFollowServiceFollowMutationOptions(options), queryClient)
-}
-
-/**
- * GET /api/v1/users/{uid}/posts 指定用户发布的列表（公开 + 本人 PRIVATE）
- */
-export const postServiceListPostsByAuthor = (
-  uid: string,
-  params?: PostServiceListPostsByAuthorParams,
-  options?: SecondParameter<typeof customInstance>,
-  signal?: AbortSignal
-) => {
-  return customInstance<PostListPostsResponse>({ url: `/api/v1/users/${uid}/posts`, method: "GET", params, signal }, options)
-}
-
-export const getPostServiceListPostsByAuthorQueryKey = (uid: string, params?: PostServiceListPostsByAuthorParams) => {
-  return [`/api/v1/users/${uid}/posts`, ...(params ? [params] : [])] as const
-}
-
-export const getPostServiceListPostsByAuthorQueryOptions = <
-  TData = Awaited<ReturnType<typeof postServiceListPostsByAuthor>>,
-  TError = ErrorType<unknown>,
->(
-  uid: string,
-  params?: PostServiceListPostsByAuthorParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceListPostsByAuthor>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey = queryOptions?.queryKey ?? getPostServiceListPostsByAuthorQueryKey(uid, params)
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof postServiceListPostsByAuthor>>> = ({ signal }) =>
-    postServiceListPostsByAuthor(uid, params, requestOptions, signal)
-
-  return { queryKey, queryFn, enabled: !!uid, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof postServiceListPostsByAuthor>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type PostServiceListPostsByAuthorQueryResult = NonNullable<Awaited<ReturnType<typeof postServiceListPostsByAuthor>>>
-export type PostServiceListPostsByAuthorQueryError = ErrorType<unknown>
-
-export function usePostServiceListPostsByAuthor<
-  TData = Awaited<ReturnType<typeof postServiceListPostsByAuthor>>,
-  TError = ErrorType<unknown>,
->(
-  uid: string,
-  params: undefined | PostServiceListPostsByAuthorParams,
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceListPostsByAuthor>>, TError, TData>> &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof postServiceListPostsByAuthor>>,
-          TError,
-          Awaited<ReturnType<typeof postServiceListPostsByAuthor>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePostServiceListPostsByAuthor<
-  TData = Awaited<ReturnType<typeof postServiceListPostsByAuthor>>,
-  TError = ErrorType<unknown>,
->(
-  uid: string,
-  params?: PostServiceListPostsByAuthorParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceListPostsByAuthor>>, TError, TData>> &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof postServiceListPostsByAuthor>>,
-          TError,
-          Awaited<ReturnType<typeof postServiceListPostsByAuthor>>
-        >,
-        "initialData"
-      >
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePostServiceListPostsByAuthor<
-  TData = Awaited<ReturnType<typeof postServiceListPostsByAuthor>>,
-  TError = ErrorType<unknown>,
->(
-  uid: string,
-  params?: PostServiceListPostsByAuthorParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceListPostsByAuthor>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function usePostServiceListPostsByAuthor<
-  TData = Awaited<ReturnType<typeof postServiceListPostsByAuthor>>,
-  TError = ErrorType<unknown>,
->(
-  uid: string,
-  params?: PostServiceListPostsByAuthorParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceListPostsByAuthor>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getPostServiceListPostsByAuthorQueryOptions(uid, params, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return { ...query, queryKey: queryOptions.queryKey }
 }

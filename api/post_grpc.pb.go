@@ -22,10 +22,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	PostService_CreatePost_FullMethodName          = "/post.PostService/CreatePost"
 	PostService_ListPosts_FullMethodName           = "/post.PostService/ListPosts"
-	PostService_ListPostsByAuthor_FullMethodName   = "/post.PostService/ListPostsByAuthor"
-	PostService_ListPostsByTag_FullMethodName      = "/post.PostService/ListPostsByTag"
 	PostService_ListMyCollections_FullMethodName   = "/post.PostService/ListMyCollections"
-	PostService_SearchPosts_FullMethodName         = "/post.PostService/SearchPosts"
 	PostService_SearchTags_FullMethodName          = "/post.PostService/SearchTags"
 	PostService_SuggestTagsByPrefix_FullMethodName = "/post.PostService/SuggestTagsByPrefix"
 	PostService_GetPost_FullMethodName             = "/post.PostService/GetPost"
@@ -43,19 +40,13 @@ const (
 type PostServiceClient interface {
 	// POST /api/v1/posts 创建帖子
 	CreatePost(ctx context.Context, in *CreatePostRequest, opts ...grpc.CallOption) (*CreatePostResponse, error)
-	// GET /api/v1/posts 列表（公开）
+	// GET /api/v1/posts 统一列表/筛选/搜索
 	ListPosts(ctx context.Context, in *ListPostsRequest, opts ...grpc.CallOption) (*ListPostsResponse, error)
-	// GET /api/v1/users/{uid}/posts 指定用户发布的列表（公开 + 本人 PRIVATE）
-	ListPostsByAuthor(ctx context.Context, in *ListPostsByAuthorRequest, opts ...grpc.CallOption) (*ListPostsResponse, error)
-	// GET /api/v1/tag/posts 按标签精确匹配列表（公开）
-	ListPostsByTag(ctx context.Context, in *ListPostsByTagRequest, opts ...grpc.CallOption) (*ListPostsResponse, error)
 	// GET /api/v1/me/collections 当前用户收藏的帖子列表
 	ListMyCollections(ctx context.Context, in *ListPostsRequest, opts ...grpc.CallOption) (*ListPostsResponse, error)
-	// GET /api/v1/search/posts 帖子搜索（公开 + 自己）
-	SearchPosts(ctx context.Context, in *SearchPostsRequest, opts ...grpc.CallOption) (*SearchPostsResponse, error)
-	// GET /api/v1/search/tags 标签搜索（公开）
+	// GET /api/v1/search/tags 标签搜索
 	SearchTags(ctx context.Context, in *SearchTagsRequest, opts ...grpc.CallOption) (*SearchTagsResponse, error)
-	// GET /api/v1/suggestions/tags 标签前缀推荐（公开）
+	// GET /api/v1/suggestions/tags 标签前缀推荐
 	SuggestTagsByPrefix(ctx context.Context, in *SuggestTagsByPrefixRequest, opts ...grpc.CallOption) (*SuggestTagsByPrefixResponse, error)
 	// GET /api/v1/posts/{uid} 详情
 	GetPost(ctx context.Context, in *GetPostRequest, opts ...grpc.CallOption) (*GetPostResponse, error)
@@ -97,40 +88,10 @@ func (c *postServiceClient) ListPosts(ctx context.Context, in *ListPostsRequest,
 	return out, nil
 }
 
-func (c *postServiceClient) ListPostsByAuthor(ctx context.Context, in *ListPostsByAuthorRequest, opts ...grpc.CallOption) (*ListPostsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListPostsResponse)
-	err := c.cc.Invoke(ctx, PostService_ListPostsByAuthor_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *postServiceClient) ListPostsByTag(ctx context.Context, in *ListPostsByTagRequest, opts ...grpc.CallOption) (*ListPostsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListPostsResponse)
-	err := c.cc.Invoke(ctx, PostService_ListPostsByTag_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *postServiceClient) ListMyCollections(ctx context.Context, in *ListPostsRequest, opts ...grpc.CallOption) (*ListPostsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListPostsResponse)
 	err := c.cc.Invoke(ctx, PostService_ListMyCollections_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *postServiceClient) SearchPosts(ctx context.Context, in *SearchPostsRequest, opts ...grpc.CallOption) (*SearchPostsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SearchPostsResponse)
-	err := c.cc.Invoke(ctx, PostService_SearchPosts_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -215,19 +176,13 @@ func (c *postServiceClient) CollectPost(ctx context.Context, in *CollectPostRequ
 type PostServiceServer interface {
 	// POST /api/v1/posts 创建帖子
 	CreatePost(context.Context, *CreatePostRequest) (*CreatePostResponse, error)
-	// GET /api/v1/posts 列表（公开）
+	// GET /api/v1/posts 统一列表/筛选/搜索
 	ListPosts(context.Context, *ListPostsRequest) (*ListPostsResponse, error)
-	// GET /api/v1/users/{uid}/posts 指定用户发布的列表（公开 + 本人 PRIVATE）
-	ListPostsByAuthor(context.Context, *ListPostsByAuthorRequest) (*ListPostsResponse, error)
-	// GET /api/v1/tag/posts 按标签精确匹配列表（公开）
-	ListPostsByTag(context.Context, *ListPostsByTagRequest) (*ListPostsResponse, error)
 	// GET /api/v1/me/collections 当前用户收藏的帖子列表
 	ListMyCollections(context.Context, *ListPostsRequest) (*ListPostsResponse, error)
-	// GET /api/v1/search/posts 帖子搜索（公开 + 自己）
-	SearchPosts(context.Context, *SearchPostsRequest) (*SearchPostsResponse, error)
-	// GET /api/v1/search/tags 标签搜索（公开）
+	// GET /api/v1/search/tags 标签搜索
 	SearchTags(context.Context, *SearchTagsRequest) (*SearchTagsResponse, error)
-	// GET /api/v1/suggestions/tags 标签前缀推荐（公开）
+	// GET /api/v1/suggestions/tags 标签前缀推荐
 	SuggestTagsByPrefix(context.Context, *SuggestTagsByPrefixRequest) (*SuggestTagsByPrefixResponse, error)
 	// GET /api/v1/posts/{uid} 详情
 	GetPost(context.Context, *GetPostRequest) (*GetPostResponse, error)
@@ -255,17 +210,8 @@ func (UnimplementedPostServiceServer) CreatePost(context.Context, *CreatePostReq
 func (UnimplementedPostServiceServer) ListPosts(context.Context, *ListPostsRequest) (*ListPostsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListPosts not implemented")
 }
-func (UnimplementedPostServiceServer) ListPostsByAuthor(context.Context, *ListPostsByAuthorRequest) (*ListPostsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListPostsByAuthor not implemented")
-}
-func (UnimplementedPostServiceServer) ListPostsByTag(context.Context, *ListPostsByTagRequest) (*ListPostsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListPostsByTag not implemented")
-}
 func (UnimplementedPostServiceServer) ListMyCollections(context.Context, *ListPostsRequest) (*ListPostsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListMyCollections not implemented")
-}
-func (UnimplementedPostServiceServer) SearchPosts(context.Context, *SearchPostsRequest) (*SearchPostsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method SearchPosts not implemented")
 }
 func (UnimplementedPostServiceServer) SearchTags(context.Context, *SearchTagsRequest) (*SearchTagsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SearchTags not implemented")
@@ -345,42 +291,6 @@ func _PostService_ListPosts_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PostService_ListPostsByAuthor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListPostsByAuthorRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PostServiceServer).ListPostsByAuthor(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: PostService_ListPostsByAuthor_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PostServiceServer).ListPostsByAuthor(ctx, req.(*ListPostsByAuthorRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _PostService_ListPostsByTag_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListPostsByTagRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PostServiceServer).ListPostsByTag(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: PostService_ListPostsByTag_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PostServiceServer).ListPostsByTag(ctx, req.(*ListPostsByTagRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _PostService_ListMyCollections_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListPostsRequest)
 	if err := dec(in); err != nil {
@@ -395,24 +305,6 @@ func _PostService_ListMyCollections_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PostServiceServer).ListMyCollections(ctx, req.(*ListPostsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _PostService_SearchPosts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SearchPostsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PostServiceServer).SearchPosts(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: PostService_SearchPosts_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PostServiceServer).SearchPosts(ctx, req.(*SearchPostsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -559,20 +451,8 @@ var PostService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PostService_ListPosts_Handler,
 		},
 		{
-			MethodName: "ListPostsByAuthor",
-			Handler:    _PostService_ListPostsByAuthor_Handler,
-		},
-		{
-			MethodName: "ListPostsByTag",
-			Handler:    _PostService_ListPostsByTag_Handler,
-		},
-		{
 			MethodName: "ListMyCollections",
 			Handler:    _PostService_ListMyCollections_Handler,
-		},
-		{
-			MethodName: "SearchPosts",
-			Handler:    _PostService_SearchPosts_Handler,
 		},
 		{
 			MethodName: "SearchTags",

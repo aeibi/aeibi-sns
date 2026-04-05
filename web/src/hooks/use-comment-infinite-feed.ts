@@ -8,36 +8,38 @@ import {
   type CommentServiceListTopCommentsParams,
 } from "@/api/generated"
 
-type CommentPage = { comments: Comment[] }
-type CursorPage = { nextCursorId?: string; nextCursorCreatedAt?: string }
-type CursorPageParam = { cursorId?: string; cursorCreatedAt?: string }
-
-interface UseCommentInfiniteFeedOptions<TPage extends CommentPage, TPageParam, TQueryKey extends QueryKey> {
-  queryKey: TQueryKey
-  initialPageParam: TPageParam
+interface UseCommentInfiniteFeedOptions {
+  queryKey: QueryKey
+  initialPageParam: CommentServiceListTopCommentsParams
   enabled?: boolean
-  queryFn: (pageParam: TPageParam, signal?: AbortSignal) => Promise<TPage>
-  getNextPageParam: (lastPage: TPage) => TPageParam | undefined
+  queryFn: (pageParam: CommentServiceListTopCommentsParams, signal?: AbortSignal) => Promise<CommentListTopCommentsResponse>
+  getNextPageParam: (lastPage: CommentListTopCommentsResponse) => CommentServiceListTopCommentsParams | undefined
 }
 
-export function useCommentInfiniteFeed<TPage extends CommentPage, TPageParam, TQueryKey extends QueryKey = QueryKey>({
+export function useCommentInfiniteFeed({
   queryKey,
   initialPageParam,
   enabled = true,
   queryFn,
   getNextPageParam,
-}: UseCommentInfiniteFeedOptions<TPage, TPageParam, TQueryKey>) {
+}: UseCommentInfiniteFeedOptions) {
   const queryClient = useQueryClient()
-  const query = useInfiniteQuery<TPage, unknown, InfiniteData<TPage>, TQueryKey, TPageParam>({
+  const query = useInfiniteQuery<
+    CommentListTopCommentsResponse,
+    unknown,
+    InfiniteData<CommentListTopCommentsResponse>,
+    QueryKey,
+    CommentServiceListTopCommentsParams
+  >({
     queryKey,
     enabled,
     initialPageParam,
-    queryFn: ({ pageParam, signal }) => queryFn(pageParam as TPageParam, signal),
+    queryFn: ({ pageParam, signal }) => queryFn(pageParam, signal),
     getNextPageParam,
   })
 
   function addCommentLocal(comment: Comment) {
-    queryClient.setQueryData<InfiniteData<TPage>>(queryKey, (old) => {
+    queryClient.setQueryData<InfiniteData<CommentListTopCommentsResponse>>(queryKey, (old) => {
       if (!old || !old.pages.length) return old
       const firstPage = old.pages[0]
       if (firstPage.comments.some((item) => item.uid === comment.uid)) return old
@@ -47,7 +49,7 @@ export function useCommentInfiniteFeed<TPage extends CommentPage, TPageParam, TQ
   }
 
   function updateCommentLocal(uid: string, patch: Partial<Comment>) {
-    queryClient.setQueryData<InfiniteData<TPage>>(queryKey, (old) => {
+    queryClient.setQueryData<InfiniteData<CommentListTopCommentsResponse>>(queryKey, (old) => {
       if (!old) return old
       let changed = false
       const pages = old.pages.map((page) => {
@@ -65,7 +67,7 @@ export function useCommentInfiniteFeed<TPage extends CommentPage, TPageParam, TQ
   }
 
   function removeCommentLocal(uid: string) {
-    queryClient.setQueryData<InfiniteData<TPage>>(queryKey, (old) => {
+    queryClient.setQueryData<InfiniteData<CommentListTopCommentsResponse>>(queryKey, (old) => {
       if (!old) return old
       let changed = false
       const pages = old.pages.map((page) => {
@@ -85,27 +87,18 @@ export function useCommentInfiniteFeed<TPage extends CommentPage, TPageParam, TQ
   return { ...query, comments, queryKey, addCommentLocal, updateCommentLocal, removeCommentLocal }
 }
 
-export function buildCommentCursorNextPageParam<TPage extends CursorPage, TPageParam extends CursorPageParam>(
-  lastPage: TPage,
-  fixedParams?: Omit<TPageParam, "cursorId" | "cursorCreatedAt">,
-  extraParams?: Partial<TPageParam>
-): TPageParam | undefined {
-  if (!lastPage.nextCursorId || !lastPage.nextCursorCreatedAt) return
-  return {
-    ...(fixedParams ?? ({} as Omit<TPageParam, "cursorId" | "cursorCreatedAt">)),
-    ...(extraParams ?? {}),
-    cursorId: lastPage.nextCursorId,
-    cursorCreatedAt: lastPage.nextCursorCreatedAt,
-  } as TPageParam
-}
-
 export function useTopCommentsFeed(postUid: string) {
   const queryKey = [...getCommentServiceListTopCommentsQueryKey(postUid), "infinite"] as const
-  return useCommentInfiniteFeed<CommentListTopCommentsResponse, CommentServiceListTopCommentsParams>({
+  return useCommentInfiniteFeed({
     queryKey,
     enabled: !!postUid,
-    initialPageParam: {} as CommentServiceListTopCommentsParams,
+    initialPageParam: {},
     queryFn: (pageParam, signal) => commentServiceListTopComments(postUid, pageParam, undefined, signal),
-    getNextPageParam: (lastPage) => buildCommentCursorNextPageParam(lastPage),
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.nextPageToken) return
+      return {
+        pageToken: lastPage.nextPageToken,
+      }
+    },
   })
 }
