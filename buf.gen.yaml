@@ -1,0 +1,17 @@
+version: v2
+plugins:
+  - local: protoc-gen-go
+    out: .
+    opt: module=aeibi
+  - local: protoc-gen-go-grpc
+    out: .
+    opt: module=aeibi
+  - local: protoc-gen-grpc-gateway
+    out: .
+    opt: module=aeibi
+  - local: protoc-gen-openapi
+    out: api/openapi
+    strategy: all
+    opt:
+      - fq_schema_naming=true
+      - default_response=false

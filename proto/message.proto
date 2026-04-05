@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package message;
+
+option go_package = "aeibi/api;api";
+
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+
+// MessageService
+service MessageService {
+  // GET /api/v1/me/inbox/messages/comments 当前用户评论消息列表
+  rpc ListCommentInboxMessages(ListCommentInboxMessagesRequest) returns (ListCommentInboxMessagesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/me/inbox/messages/comments"
+    };
+  }
+
+  // GET /api/v1/me/inbox/messages/follows 当前用户关注消息列表
+  rpc ListFollowInboxMessages(ListFollowInboxMessagesRequest) returns (ListFollowInboxMessagesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/me/inbox/messages/follows"
+    };
+  }
+
+  // DELETE /api/v1/me/inbox/messages/{uid} 归档一条消息
+  rpc DeleteInboxMessage(DeleteInboxMessageRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/api/v1/me/inbox/messages/{uid}"
+    };
+  }
+
+  // PATCH /api/v1/me/inbox/messages/read 全部标记为已读
+  rpc MarkAllInboxMessagesRead(google.protobuf.Empty) returns (MarkAllInboxMessagesReadResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/me/inbox/messages/read"
+    };
+  }
+
+  // GET /api/v1/me/inbox/messages/unread/count 未读计数
+  rpc CountUnreadInboxMessages(google.protobuf.Empty) returns (CountUnreadInboxMessagesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/me/inbox/messages/unread/count"
+    };
+  }
+}
+
+// -------------------- Messages --------------------
+
+message InboxMessageActor {
+  string uid        = 1 [(google.api.field_behavior) = REQUIRED];
+  string nickname   = 2 [(google.api.field_behavior) = REQUIRED];
+  string avatar_url = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message CommentInboxMessage {
+  string            uid             = 1 [(google.api.field_behavior) = REQUIRED];
+  bool              is_read         = 2 [(google.api.field_behavior) = REQUIRED];
+  InboxMessageActor actor           = 3 [(google.api.field_behavior) = REQUIRED];
+  int64             created_at      = 4 [(google.api.field_behavior) = REQUIRED];
+  string            comment_uid     = 5;
+  string            comment_content = 6;
+  string            post_uid        = 7;
+  string            parent_uid      = 8;
+  string            parent_content  = 9;
+}
+
+message FollowInboxMessage {
+  string            uid        = 1 [(google.api.field_behavior) = REQUIRED];
+  bool              is_read    = 2 [(google.api.field_behavior) = REQUIRED];
+  InboxMessageActor actor      = 3 [(google.api.field_behavior) = REQUIRED];
+  int64             created_at = 4 [(google.api.field_behavior) = REQUIRED];
+}
+
+enum InboxMessageReadFilter {
+  INBOX_MESSAGE_READ_FILTER_UNSPECIFIED = 0; // all
+  INBOX_MESSAGE_READ_FILTER_UNREAD      = 1;
+  INBOX_MESSAGE_READ_FILTER_READ        = 2;
+}
+
+message ListCommentInboxMessagesRequest {
+  int64                  cursor_created_at = 1; // unix seconds
+  string                 cursor_id         = 2;
+  InboxMessageReadFilter read_filter       = 3;
+}
+
+message ListCommentInboxMessagesResponse {
+  repeated CommentInboxMessage messages               = 1 [(google.api.field_behavior) = REQUIRED];
+  int64                     next_cursor_created_at = 2 [(google.api.field_behavior) = REQUIRED];
+  string                    next_cursor_id         = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message ListFollowInboxMessagesRequest {
+  int64                  cursor_created_at = 1; // unix seconds
+  string                 cursor_id         = 2;
+  InboxMessageReadFilter read_filter       = 3;
+}
+
+message ListFollowInboxMessagesResponse {
+  repeated FollowInboxMessage messages               = 1 [(google.api.field_behavior) = REQUIRED];
+  int64                    next_cursor_created_at = 2 [(google.api.field_behavior) = REQUIRED];
+  string                   next_cursor_id         = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message DeleteInboxMessageRequest {
+  string uid = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message MarkAllInboxMessagesReadResponse {
+  int32 updated_count = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message CountUnreadInboxMessagesResponse {
+  int32 unread_count         = 1 [(google.api.field_behavior) = REQUIRED];
+  int32 follow_unread_count  = 2 [(google.api.field_behavior) = REQUIRED];
+  int32 comment_unread_count = 3 [(google.api.field_behavior) = REQUIRED];
+}

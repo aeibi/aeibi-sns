@@ -1,0 +1,165 @@
+syntax = "proto3";
+
+package comment;
+
+option go_package = "aeibi/api;api";
+
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+import "common.proto";
+
+// CommentService
+service CommentService {
+  // POST /api/v1/posts/{post_uid}/comments 创建一级评论
+  rpc CreateTopComment(CreateTopCommentRequest) returns (CreateTopCommentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/posts/{post_uid}/comments"
+      body: "*"
+    };
+  }
+
+  // POST /api/v1/comments/{parent_uid}/replies 回复评论
+  rpc CreateReply(CreateReplyRequest) returns (CreateReplyResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/comments/{parent_uid}/replies"
+      body: "*"
+    };
+  }
+
+  // GET /api/v1/posts/{post_uid}/comments 一级评论列表
+  rpc ListTopComments(ListTopCommentsRequest) returns (ListTopCommentsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/posts/{post_uid}/comments"
+    };
+  }
+
+  // GET /api/v1/comments/{uid}/replies 回复列表
+  rpc ListReplies(ListRepliesRequest) returns (ListRepliesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/comments/{uid}/replies"
+    };
+  }
+
+  // GET /api/v1/comments/{uid} 评论详情
+  rpc GetComment(GetCommentRequest) returns (GetCommentResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/comments/{uid}"
+    };
+  }
+
+  // DELETE /api/v1/comments/{uid} 软删评论
+  rpc DeleteComment(DeleteCommentRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/api/v1/comments/{uid}"
+    };
+  }
+
+  // POST /api/v1/comments/{uid}/like 点赞或取消赞
+  rpc LikeComment(LikeCommentRequest) returns (LikeCommentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/comments/{uid}/like"
+      body: "*"
+    };
+  }
+}
+
+// -------------------- Messages --------------------
+
+// Models
+message CommentAuthor {
+  string uid        = 1 [(google.api.field_behavior) = REQUIRED];
+  string nickname   = 2 [(google.api.field_behavior) = REQUIRED];
+  string avatar_url = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message Comment {
+  string          uid             = 1 [(google.api.field_behavior) = REQUIRED];
+  CommentAuthor   author          = 2 [(google.api.field_behavior) = REQUIRED];
+  string          post_uid        = 3 [(google.api.field_behavior) = REQUIRED];
+  string          root_uid        = 4 [(google.api.field_behavior) = REQUIRED];
+  string          parent_uid      = 5;
+  CommentAuthor   reply_to_author = 6;
+  string          content         = 7 [(google.api.field_behavior) = REQUIRED];
+  repeated string images          = 8 [(google.api.field_behavior) = REQUIRED];
+  int32           reply_count     = 9 [(google.api.field_behavior) = REQUIRED];
+  int64           created_at      = 10 [(google.api.field_behavior) = REQUIRED];
+  int64           updated_at      = 11 [(google.api.field_behavior) = REQUIRED];
+  int32           like_count      = 12 [(google.api.field_behavior) = REQUIRED];
+  bool            liked           = 13 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Create
+
+message CreateTopCommentRequest {
+  string          post_uid = 1 [(google.api.field_behavior) = REQUIRED];
+  string          content  = 2 [(google.api.field_behavior) = REQUIRED];
+  repeated string images   = 3;
+}
+
+message CreateTopCommentResponse {
+  string uid           = 1 [(google.api.field_behavior) = REQUIRED];
+  int32  comment_count = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+message CreateReplyRequest {
+  string parent_uid = 1 [(google.api.field_behavior) = REQUIRED];
+  string content    = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+message CreateReplyResponse {
+  string uid         = 1 [(google.api.field_behavior) = REQUIRED];
+  int32  reply_count = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// List
+
+message ListTopCommentsRequest {
+  string post_uid          = 1 [(google.api.field_behavior) = REQUIRED];
+  int64  cursor_created_at = 2; // unix seconds
+  string cursor_id         = 3;
+}
+
+message ListTopCommentsResponse {
+  repeated Comment comments               = 1 [(google.api.field_behavior) = REQUIRED];
+  int64            next_cursor_created_at = 2 [(google.api.field_behavior) = REQUIRED];
+  string           next_cursor_id         = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message ListRepliesRequest {
+  string uid  = 1 [(google.api.field_behavior) = REQUIRED]; // root comment uid
+  int32  page = 2; // 1-based
+}
+
+message ListRepliesResponse {
+  repeated Comment comments = 1 [(google.api.field_behavior) = REQUIRED];
+  int32            page     = 2 [(google.api.field_behavior) = REQUIRED];
+  int32            total    = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Get
+
+message GetCommentRequest {
+  string uid = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message GetCommentResponse {
+  Comment comment = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Delete
+
+message DeleteCommentRequest {
+  string uid = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Like
+
+message LikeCommentRequest {
+  string              uid    = 1 [(google.api.field_behavior) = REQUIRED];
+  common.ToggleAction action = 2;
+}
+
+message LikeCommentResponse {
+  int32 count = 1 [(google.api.field_behavior) = REQUIRED];
+}

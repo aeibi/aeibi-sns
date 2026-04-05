@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package file;
+
+option go_package = "aeibi/api;api";
+
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/api/httpbody.proto";
+
+// FileService
+service FileService {
+  // POST /api/v1/files 上传文件
+  rpc UploadFile(UploadFileRequest) returns (UploadFileResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/files"
+      body: "*"
+    };
+  }
+
+  // GET /api/v1/files/meta/{url} 获取文件元数据（不含内容）
+  rpc GetFileMeta(GetFileMetaRequest) returns (GetFileMetaResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/files/meta/{url=**}"
+    };
+  }
+
+  // GET /api/v1/files/content/{url} 获取文件内容
+  rpc GetFile(GetFileRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      get: "/api/v1/files/content/{url=**}"
+    };
+  }
+}
+
+// -------------------- Messages --------------------
+
+// Models
+message File {
+  string name         = 1 [(google.api.field_behavior) = REQUIRED];
+  string content_type = 2 [(google.api.field_behavior) = REQUIRED];
+  int64  size         = 3 [(google.api.field_behavior) = REQUIRED];
+  string checksum     = 4 [(google.api.field_behavior) = REQUIRED];
+  string uploader     = 5 [(google.api.field_behavior) = REQUIRED];
+  int64  created_at   = 6 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Upload
+message UploadFileRequest {
+  string name         = 1;
+  string content_type = 2;
+  bytes  data         = 3 [(google.api.field_behavior) = REQUIRED];
+  string checksum     = 4;
+}
+
+message UploadFileResponse {
+  File  file = 1 [(google.api.field_behavior) = REQUIRED];
+  string url  = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Meta
+message GetFileMetaRequest {
+  string url = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message GetFileMetaResponse {
+  File  file = 1 [(google.api.field_behavior) = REQUIRED];
+  string url  = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Content
+message GetFileRequest {
+  string url = 1 [(google.api.field_behavior) = REQUIRED];
+}

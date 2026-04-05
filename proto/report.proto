@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package report;
+
+option go_package = "aeibi/api;api";
+
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+
+// ReportService
+service ReportService {
+  // POST /api/v1/reports 创建举报
+  rpc CreateReport(CreateReportRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/api/v1/reports"
+      body: "*"
+    };
+  }
+}
+
+// -------------------- Enums --------------------
+
+enum ReportTargetType {
+  REPORT_TARGET_TYPE_UNSPECIFIED = 0;
+  REPORT_TARGET_TYPE_POST        = 1;
+  REPORT_TARGET_TYPE_COMMENT     = 2;
+  REPORT_TARGET_TYPE_USER        = 3;
+}
+
+// -------------------- Messages --------------------
+
+message CreateReportRequest {
+  ReportTargetType report_target_type = 1 [(google.api.field_behavior) = REQUIRED];
+  string           target_uid         = 2 [(google.api.field_behavior) = REQUIRED];
+  string           content            = 3 [(google.api.field_behavior) = REQUIRED];
+}

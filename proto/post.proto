@@ -1,0 +1,275 @@
+syntax = "proto3";
+
+package post;
+
+option go_package = "aeibi/api;api";
+
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "common.proto";
+
+// PostService
+service PostService {
+  // POST /api/v1/posts 创建帖子
+  rpc CreatePost(CreatePostRequest) returns (CreatePostResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/posts"
+      body: "*"
+    };
+  }
+
+  // GET /api/v1/posts 列表（公开）
+  rpc ListPosts(ListPostsRequest) returns (ListPostsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/posts"
+    };
+  }
+
+  // GET /api/v1/users/{uid}/posts 指定用户发布的列表（公开 + 本人 PRIVATE）
+  rpc ListPostsByAuthor(ListPostsByAuthorRequest) returns (ListPostsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/users/{uid}/posts"
+    };
+  }
+
+  // GET /api/v1/tag/posts 按标签精确匹配列表（公开）
+  rpc ListPostsByTag(ListPostsByTagRequest) returns (ListPostsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/tag/posts"
+    };
+  }
+
+  // GET /api/v1/me/collections 当前用户收藏的帖子列表
+  rpc ListMyCollections(ListPostsRequest) returns (ListPostsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/me/collections"
+    };
+  }
+
+  // GET /api/v1/search/posts 帖子搜索（公开 + 自己）
+  rpc SearchPosts(SearchPostsRequest) returns (SearchPostsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/search/posts"
+    };
+  }
+
+  // GET /api/v1/search/tags 标签搜索（公开）
+  rpc SearchTags(SearchTagsRequest) returns (SearchTagsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/search/tags"
+    };
+  }
+
+  // GET /api/v1/suggestions/tags 标签前缀推荐（公开）
+  rpc SuggestTagsByPrefix(SuggestTagsByPrefixRequest) returns (SuggestTagsByPrefixResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/suggestions/tags"
+    };
+  }
+
+  // GET /api/v1/posts/{uid} 详情
+  rpc GetPost(GetPostRequest) returns (GetPostResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/posts/{uid}"
+    };
+  }
+
+  // PATCH /api/v1/posts/{uid} 更新正文/媒体/标签/可见性
+  rpc UpdatePost(UpdatePostRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      patch: "/api/v1/posts/{uid}"
+      body : "post"
+    };
+  }
+
+  // DELETE /api/v1/posts/{uid} 软删
+  rpc DeletePost(DeletePostRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/api/v1/posts/{uid}"
+    };
+  }
+
+  // POST /api/v1/posts/{uid}/like 点赞或取消赞
+  rpc LikePost(LikePostRequest) returns (LikePostResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/posts/{uid}/like"
+      body: "*"
+    };
+  }
+
+  // POST /api/v1/posts/{uid}/collect 收藏或取消收藏
+  rpc CollectPost(CollectPostRequest) returns (CollectPostResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/posts/{uid}/collect"
+      body: "*"
+    };
+  }
+}
+
+// -------------------- Messages --------------------
+
+// Models
+message PostAuthor {
+  string uid          = 1 [(google.api.field_behavior) = REQUIRED];
+  string nickname     = 2 [(google.api.field_behavior) = REQUIRED];
+  string avatar_url   = 3 [(google.api.field_behavior) = REQUIRED];
+  bool   is_following = 4 [(google.api.field_behavior) = REQUIRED];
+}
+
+message Attachment {
+  string url          = 1 [(google.api.field_behavior) = REQUIRED];
+  string name         = 2 [(google.api.field_behavior) = REQUIRED];
+  int64  size         = 3 [(google.api.field_behavior) = REQUIRED];
+  string content_type = 4 [(google.api.field_behavior) = REQUIRED];
+  string checksum     = 5 [(google.api.field_behavior) = REQUIRED];
+}
+
+message Post {
+  string              uid               = 1 [(google.api.field_behavior) = REQUIRED];
+  PostAuthor          author            = 2 [(google.api.field_behavior) = REQUIRED];
+  string              text              = 3 [(google.api.field_behavior) = REQUIRED];
+  repeated string     images            = 4 [(google.api.field_behavior) = REQUIRED];
+  repeated Attachment attachments       = 5 [(google.api.field_behavior) = REQUIRED];
+  repeated string     tags              = 6 [(google.api.field_behavior) = REQUIRED];
+  int32               comment_count     = 7 [(google.api.field_behavior) = REQUIRED];
+  int32               collection_count  = 8 [(google.api.field_behavior) = REQUIRED];
+  int32               like_count        = 9 [(google.api.field_behavior) = REQUIRED];
+  string              visibility        = 10 [(google.api.field_behavior) = REQUIRED];
+  int64               latest_replied_on = 11 [(google.api.field_behavior) = REQUIRED];
+  string              ip                = 12 [(google.api.field_behavior) = REQUIRED];
+  bool                pinned            = 13 [(google.api.field_behavior) = REQUIRED];
+  bool                liked             = 14 [(google.api.field_behavior) = REQUIRED];
+  bool                collected         = 15 [(google.api.field_behavior) = REQUIRED];
+  int64               created_at        = 16 [(google.api.field_behavior) = REQUIRED];
+  int64               updated_at        = 17 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Create
+
+message CreatePostRequest {
+  string          text        = 1 [(google.api.field_behavior) = REQUIRED];
+  repeated string images      = 2;
+  repeated string attachments = 3;
+  repeated string tags        = 4;
+  string          visibility  = 5;
+  bool            pinned      = 6;
+}
+
+message CreatePostResponse {
+  string uid = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// List
+
+message ListPostsRequest {
+  int64  cursor_created_at = 1; // unix seconds
+  string cursor_id         = 2;
+}
+
+message ListPostsByAuthorRequest {
+  string uid               = 1 [(google.api.field_behavior) = REQUIRED];
+  int64  cursor_created_at = 2; // unix seconds
+  string cursor_id         = 3;
+}
+
+message ListPostsByTagRequest {
+  string tag_name          = 1 [(google.api.field_behavior) = REQUIRED];
+  int64  cursor_created_at = 2; // unix seconds
+  string cursor_id         = 3;
+}
+
+message ListPostsResponse {
+  repeated Post posts                  = 1 [(google.api.field_behavior) = REQUIRED];
+  int64         next_cursor_created_at = 2 [(google.api.field_behavior) = REQUIRED];
+  string        next_cursor_id         = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message SearchPostsRequest {
+  string query             = 1 [(google.api.field_behavior) = REQUIRED];
+  string tag               = 2;
+  double cursor_score      = 3;
+  int64  cursor_created_at = 4; // unix seconds
+  string cursor_id         = 5;
+}
+
+message SearchPostsResponse {
+  repeated Post posts                  = 1 [(google.api.field_behavior) = REQUIRED];
+  double        next_cursor_score      = 2 [(google.api.field_behavior) = REQUIRED];
+  int64         next_cursor_created_at = 3 [(google.api.field_behavior) = REQUIRED];
+  string        next_cursor_id         = 4 [(google.api.field_behavior) = REQUIRED];
+}
+
+message SearchTag {
+  string name = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message SearchTagsRequest {
+  string query = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message SearchTagsResponse {
+  repeated SearchTag tags = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message SuggestTagsByPrefixRequest {
+  string prefix = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message SuggestTagsByPrefixResponse {
+  repeated SearchTag tags = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Get
+
+message GetPostRequest {
+  string uid = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message GetPostResponse {
+  Post post = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Update
+
+message UpdatePostBody {
+  string          text        = 1;
+  repeated string images      = 2;
+  repeated string attachments = 3;
+  repeated string tags        = 4;
+  string          visibility  = 5;
+  bool            pinned      = 6;
+}
+
+message UpdatePostRequest {
+  string                    uid         = 1 [(google.api.field_behavior) = REQUIRED];
+  UpdatePostBody            post        = 2 [(google.api.field_behavior) = REQUIRED];
+  google.protobuf.FieldMask update_mask = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Delete
+
+message DeletePostRequest {
+  string uid = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Like / Collect
+
+message LikePostRequest {
+  string              uid    = 1 [(google.api.field_behavior) = REQUIRED];
+  common.ToggleAction action = 2;
+}
+
+message LikePostResponse {
+  int32 count = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message CollectPostRequest {
+  string              uid    = 1 [(google.api.field_behavior) = REQUIRED];
+  common.ToggleAction action = 2;
+}
+
+message CollectPostResponse {
+  int32 count = 1 [(google.api.field_behavior) = REQUIRED];
+}

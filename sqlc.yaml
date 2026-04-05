@@ -1,0 +1,9 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "internal/repository/db/query"
+    schema: "internal/repository/db/migration"
+    gen:
+      go:
+        package: "db"
+        out: "internal/repository/db"

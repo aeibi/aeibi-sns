@@ -1,0 +1,54 @@
+services:
+  postgres:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    image: aeibi-postgres:18-bookworm
+    container_name: aeibi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aeibi
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: aeibi
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+  rustfs-volume-permission-helper:
+    image: alpine:3.20
+    container_name: aeibi-rustfs-volume-permission-helper
+    command: >
+      sh -c "
+      chown -R 10001:10001 /data /logs &&
+      echo 'RustFS volume permissions fixed'
+      "
+    volumes:
+      - rustfs-data:/data
+      - rustfs-logs:/logs
+    restart: "no"
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: aeibi-rustfs
+    restart: unless-stopped
+    depends_on:
+      - rustfs-volume-permission-helper
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Console
+    environment:
+      RUSTFS_ADDRESS: "0.0.0.0:9000"
+      RUSTFS_CONSOLE_ADDRESS: "0.0.0.0:9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_ACCESS_KEY: "aeibi"
+      RUSTFS_SECRET_KEY: "aeibi-rustfs-secret"
+    command: ["/data"]
+    volumes:
+      - rustfs-data:/data
+      - rustfs-logs:/logs
+
+volumes:
+  postgres-data:
+  rustfs-data:
+  rustfs-logs:

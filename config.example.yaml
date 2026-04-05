@@ -1,0 +1,21 @@
+server:
+  grpc_addr: ":39091"
+  http_addr: ":38081"
+
+database:
+  dsn: "postgres://aeibi:password@127.0.0.1:5432/aeibi?sslmode=disable"
+  migrations_source: "file://internal/repository/db/migration"
+
+oss:
+  endpoint: "127.0.0.1:9000"
+  access_key: "aeibi"
+  secret_key: "aeibi-rustfs-secret"
+  bucket: "aeibi"
+  use_ssl: false
+  max_upload_size_kb: 500
+
+auth:
+  jwt_secret: "cbaucbbcjbdshjcbyyeagfyagbchbdjcancfehfiakdncakncjenrha"
+  jwt_issuer: "aeibi"
+  jwt_ttl: "2h"
+  refresh_ttl: "720h"

@@ -1,0 +1,24 @@
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Backend
+config.yaml
+.buf-deps/
+deploy.sh
+release/
+
+# Frontend (web)
+web/logs
+web/*.log
+web/npm-debug.log*
+web/yarn-debug.log*
+web/yarn-error.log*
+web/pnpm-debug.log*
+web/lerna-debug.log*
+web/node_modules
+web/dist
+web/dist-ssr
+web/*.local
+web/aeibi-web-dist.tar.gz

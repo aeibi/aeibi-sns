@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package follow;
+
+option go_package = "aeibi/api;api";
+
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "common.proto";
+
+// FollowService
+service FollowService {
+  // POST /api/v1/users/{uid}/follow 关注或取消关注
+  rpc Follow(FollowRequest) returns (FollowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/users/{uid}/follow"
+      body: "*"
+    };
+  }
+
+  // GET /api/v1/me/followers 粉丝列表
+  rpc ListMyFollowers(ListMyFollowersRequest) returns (ListMyFollowersResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/me/followers"
+    };
+  }
+
+  // GET /api/v1/me/following 关注列表
+  rpc ListMyFollowing(ListMyFollowingRequest) returns (ListMyFollowingResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/me/following"
+    };
+  }
+}
+
+// -------------------- Messages --------------------
+
+// Follow
+message FollowRequest {
+  string              uid    = 1 [(google.api.field_behavior) = REQUIRED];
+  common.ToggleAction action = 2;
+}
+
+message FollowResponse {
+  int32 following_count = 1 [(google.api.field_behavior) = REQUIRED];
+  int32 followers_count = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// List
+message ListMyFollowersRequest {
+  int64  cursor_created_at = 1; // unix seconds
+  string cursor_id         = 2;
+  string query             = 3; // optional fuzzy search on nickname
+}
+
+message ListMyFollowersResponse {
+  repeated common.User users                  = 1 [(google.api.field_behavior) = REQUIRED];
+  int64                next_cursor_created_at = 2 [(google.api.field_behavior) = REQUIRED];
+  string               next_cursor_id         = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message ListMyFollowingRequest {
+  int64  cursor_created_at = 1; // unix seconds
+  string cursor_id         = 2;
+  string query             = 3; // optional fuzzy search on nickname
+}
+
+message ListMyFollowingResponse {
+  repeated common.User users                  = 1 [(google.api.field_behavior) = REQUIRED];
+  int64                next_cursor_created_at = 2 [(google.api.field_behavior) = REQUIRED];
+  string               next_cursor_id         = 3 [(google.api.field_behavior) = REQUIRED];
+}

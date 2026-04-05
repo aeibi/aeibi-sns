@@ -1,0 +1,178 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "aeibi/api;api";
+
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "common.proto";
+
+// UserService
+service UserService {
+  // POST /api/v1/users 创建用户
+  rpc CreateUser(CreateUserRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/api/v1/users"
+      body: "*"
+    };
+  }
+
+  // GET /api/v1/users/{uid} 详情
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/users/{uid}"
+    };
+  }
+
+  // GET /api/v1/search/users 用户搜索（公开）
+  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/search/users"
+    };
+  }
+
+  // GET /api/v1/suggestions/users 用户昵称前缀推荐（公开）
+  rpc SuggestUsersByPrefix(SuggestUsersByPrefixRequest) returns (SuggestUsersByPrefixResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/suggestions/users"
+    };
+  }
+
+  // GET /api/v1/me 当前用户
+  rpc GetMe(google.protobuf.Empty) returns (GetMeResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/me"
+    };
+  }
+
+  // PATCH /api/v1/me 更新自己
+  rpc UpdateMe(UpdateMeRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      patch: "/api/v1/me"
+      body : "user"
+    };
+  }
+
+  // PATCH /api/v1/me/password 修改当前用户密码
+  rpc ChangePassword(ChangePasswordRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      patch: "/api/v1/me/password"
+      body : "*"
+    };
+  }
+
+  // POST /api/v1/auth/login 登录
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/login"
+      body: "*"
+    };
+  }
+
+  // POST /api/v1/auth/refresh 刷新 token
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/refresh"
+      body: "*"
+    };
+  }
+
+  // POST /api/v1/auth/logout 退出登录
+  rpc Logout(google.protobuf.Empty) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/logout"
+    };
+  }
+}
+
+// -------------------- Messages --------------------
+
+// Create
+
+message CreateUserRequest {
+  string username = 1 [(google.api.field_behavior) = REQUIRED];
+  string password = 2 [(google.api.field_behavior) = REQUIRED];
+  string email    = 3;
+  string nickname = 4;
+}
+
+// Get
+
+message GetUserRequest {
+  string uid = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message GetUserResponse {
+  common.User user = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Search
+
+message SearchUsersRequest {
+  string query = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message SearchUsersResponse {
+  repeated common.User users = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message SuggestUsersByPrefixRequest {
+  string prefix = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message SuggestUsersByPrefixResponse {
+  repeated common.User users = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Me
+
+message GetMeResponse {
+  common.User user = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message UpdateMeUser {
+  string username   = 1;
+  string email      = 2;
+  string nickname   = 3;
+  string avatar_url = 4;
+}
+
+message UpdateMeRequest {
+  UpdateMeUser               user        = 1 [(google.api.field_behavior) = REQUIRED];
+  google.protobuf.FieldMask  update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+message ChangePasswordRequest {
+  string old_password = 1 [(google.api.field_behavior) = REQUIRED];
+  string new_password = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Auth
+
+message LoginRequest {
+  string account   = 1 [(google.api.field_behavior) = REQUIRED]; // username/email/phone
+  string password  = 2 [(google.api.field_behavior) = REQUIRED];
+  string captcha   = 3;
+  string device_id = 4;
+}
+
+message LoginResponse {
+  TokenPair tokens = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message RefreshTokenResponse {
+  TokenPair tokens = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Tokens
+message TokenPair {
+  string access_token  = 1 [(google.api.field_behavior) = REQUIRED];
+  string refresh_token = 2 [(google.api.field_behavior) = REQUIRED];
+}

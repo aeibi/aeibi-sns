@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package common;
+
+option go_package = "aeibi/api;api";
+
+import "google/api/field_behavior.proto";
+
+// -------------------- Messages --------------------
+
+// User
+message User {
+  string uid             = 1 [(google.api.field_behavior) = REQUIRED];
+  string username        = 2;
+  string role            = 3 [(google.api.field_behavior) = REQUIRED];
+  string email           = 4;
+  string nickname        = 5 [(google.api.field_behavior) = REQUIRED];
+  string avatar_url      = 6 [(google.api.field_behavior) = REQUIRED];
+  int32  followers_count = 7 [(google.api.field_behavior) = REQUIRED];
+  int32  following_count = 8 [(google.api.field_behavior) = REQUIRED];
+  bool   is_following    = 9;
+  string description     = 10;
+}
+
+// Actions
+// ToggleAction 用于“添加/移除”类切换动作（点赞、收藏、关注等）。
+enum ToggleAction {
+  TOGGLE_ACTION_ADD    = 0;
+  TOGGLE_ACTION_REMOVE = 1;
+}
