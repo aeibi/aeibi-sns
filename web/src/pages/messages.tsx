@@ -11,10 +11,9 @@ import {
   useMessageServiceMarkAllInboxMessagesRead,
   messageServiceListCommentInboxMessages,
   messageServiceListFollowInboxMessages,
-  type MessageServiceListCommentInboxMessagesParams,
-  type MessageServiceListFollowInboxMessagesParams,
 } from "@/api/generated"
 import { useSearchParams } from "react-router-dom"
+import { dedupeByUid } from "@/lib/utils"
 
 const InboxMessageReadFilter = {
   UNSPECIFIED: 0,
@@ -31,15 +30,21 @@ export function Messages() {
   const readFilter = status === "unread" ? InboxMessageReadFilter.UNREAD : InboxMessageReadFilter.UNSPECIFIED
 
   const {
-    data: followData,
-    fetchNextPage: fetchFollowNextPage,
-    isFetchingNextPage: isFetchingFollowNextPage,
-    hasNextPage: hasFollowNextPage,
-    refetch: refetchFollowMessages,
+    data: messagesData,
+    fetchNextPage,
+    isFetchingNextPage,
+    hasNextPage,
+    refetch: refetchMessages,
   } = useInfiniteQuery({
-    queryKey: getMessageServiceListFollowInboxMessagesQueryKey({ readFilter }),
-    initialPageParam: { readFilter } as MessageServiceListFollowInboxMessagesParams,
-    queryFn: ({ pageParam, signal }) => messageServiceListFollowInboxMessages(pageParam, undefined, signal),
+    queryKey:
+      category === "follow"
+        ? getMessageServiceListFollowInboxMessagesQueryKey({ readFilter })
+        : getMessageServiceListCommentInboxMessagesQueryKey({ readFilter }),
+    initialPageParam: { readFilter },
+    queryFn: ({ pageParam, signal }) =>
+      category === "follow"
+        ? messageServiceListFollowInboxMessages(pageParam, undefined, signal)
+        : messageServiceListCommentInboxMessages(pageParam, undefined, signal),
     getNextPageParam: (lastPage) => {
       if (!lastPage.nextPageToken) return
       return {
@@ -47,37 +52,10 @@ export function Messages() {
         readFilter,
       }
     },
-    enabled: category === "follow",
   })
 
-  const {
-    data: commentData,
-    fetchNextPage: fetchCommentNextPage,
-    isFetchingNextPage: isFetchingCommentNextPage,
-    hasNextPage: hasCommentNextPage,
-    refetch: refetchCommentMessages,
-  } = useInfiniteQuery({
-    queryKey: getMessageServiceListCommentInboxMessagesQueryKey({ readFilter }),
-    initialPageParam: { readFilter } as MessageServiceListCommentInboxMessagesParams,
-    queryFn: ({ pageParam, signal }) => messageServiceListCommentInboxMessages(pageParam, undefined, signal),
-    getNextPageParam: (lastPage) => {
-      if (!lastPage.nextPageToken) return
-      return {
-        pageToken: lastPage.nextPageToken,
-        readFilter,
-      }
-    },
-    enabled: category === "comment",
-  })
-
-  const followMessages: FollowMessage[] = followData?.pages.flatMap((page) => page.messages) ?? []
-  const commentMessages: CommentMessage[] = commentData?.pages.flatMap((page) => page.messages) ?? []
   const isFollowCategory = category === "follow"
-  const activeMessages: InboxMessage[] = isFollowCategory ? followMessages : commentMessages
-  const fetchNextPage = isFollowCategory ? fetchFollowNextPage : fetchCommentNextPage
-  const isFetchingNextPage = isFollowCategory ? isFetchingFollowNextPage : isFetchingCommentNextPage
-  const hasNextPage = isFollowCategory ? hasFollowNextPage : hasCommentNextPage
-  const refetchMessages = isFollowCategory ? refetchFollowMessages : refetchCommentMessages
+  const messages: InboxMessage[] = dedupeByUid(messagesData?.pages.flatMap((page) => page.messages) ?? [])
 
   const updateSearchParam = (key: "category" | "status", value: MessageCategory | MessageStatus) => {
     const nextSearchParams = new URLSearchParams(searchParams)
@@ -86,7 +64,10 @@ export function Messages() {
   }
 
   const handleCategoryChange = (nextCategory: MessageCategory) => {
-    updateSearchParam("category", nextCategory)
+    const nextSearchParams = new URLSearchParams(searchParams)
+    nextSearchParams.set("status", "unread")
+    nextSearchParams.set("category", nextCategory)
+    setSearchParams(nextSearchParams)
   }
 
   const handleStatusChange = (nextStatus: MessageStatus) => {
@@ -109,7 +90,7 @@ export function Messages() {
         <MessageStatusTabs selectedStatus={status} onStatusChange={handleStatusChange} onMarkAllAsRead={handleMarkAllAsRead} />
         <VirtualList
           key={`${category}-${status}`}
-          items={activeMessages}
+          items={messages}
           getItemKey={(message) => message.uid}
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
