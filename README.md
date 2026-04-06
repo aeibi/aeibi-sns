@@ -44,6 +44,39 @@ The project is in an early stage. Core community flows are already in place, and
 - Moderation: report posts, comments, and users
 - File service: upload files, query metadata, retrieve file content (S3-compatible object storage)
 
+## Local Development
+
+Prerequisites:
+- Go `1.25.4+`
+- Docker Engine `28+`
+- Docker Compose `v2+`
+- Node.js `22.x` (LTS recommended)
+- pnpm `10+`
+
+### Backend
+
+Run from the repository root:
+
+```bash
+docker compose -f docker/docker-compose.yaml up -d
+go run ./cmd --config ./config.example.yaml
+```
+
+Notes:
+
+- Database migrations are applied automatically on startup.
+- OSS bucket is checked/created automatically on startup.
+
+### Frontend
+
+Run in the `web` directory:
+
+```bash
+cd web
+pnpm install
+pnpm run dev
+```
+
 ## Star History
 
 <a href="https://www.star-history.com/?repos=aeibi%2Faeibi-sns&type=date&legend=bottom-right">
