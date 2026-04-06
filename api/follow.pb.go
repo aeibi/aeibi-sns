@@ -129,12 +129,11 @@ func (x *FollowResponse) GetFollowersCount() int32 {
 
 // List
 type ListMyFollowersRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	CursorCreatedAt int64                  `protobuf:"varint,1,opt,name=cursor_created_at,json=cursorCreatedAt,proto3" json:"cursor_created_at,omitempty"` // unix seconds
-	CursorId        string                 `protobuf:"bytes,2,opt,name=cursor_id,json=cursorId,proto3" json:"cursor_id,omitempty"`
-	Query           string                 `protobuf:"bytes,3,opt,name=query,proto3" json:"query,omitempty"` // optional fuzzy search on nickname
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"` // optional fuzzy search on nickname
+	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListMyFollowersRequest) Reset() {
@@ -167,20 +166,6 @@ func (*ListMyFollowersRequest) Descriptor() ([]byte, []int) {
 	return file_follow_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ListMyFollowersRequest) GetCursorCreatedAt() int64 {
-	if x != nil {
-		return x.CursorCreatedAt
-	}
-	return 0
-}
-
-func (x *ListMyFollowersRequest) GetCursorId() string {
-	if x != nil {
-		return x.CursorId
-	}
-	return ""
-}
-
 func (x *ListMyFollowersRequest) GetQuery() string {
 	if x != nil {
 		return x.Query
@@ -188,13 +173,19 @@ func (x *ListMyFollowersRequest) GetQuery() string {
 	return ""
 }
 
+func (x *ListMyFollowersRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 type ListMyFollowersResponse struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Users               []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
-	NextCursorCreatedAt int64                  `protobuf:"varint,2,opt,name=next_cursor_created_at,json=nextCursorCreatedAt,proto3" json:"next_cursor_created_at,omitempty"`
-	NextCursorId        string                 `protobuf:"bytes,3,opt,name=next_cursor_id,json=nextCursorId,proto3" json:"next_cursor_id,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Users         []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListMyFollowersResponse) Reset() {
@@ -234,27 +225,19 @@ func (x *ListMyFollowersResponse) GetUsers() []*User {
 	return nil
 }
 
-func (x *ListMyFollowersResponse) GetNextCursorCreatedAt() int64 {
+func (x *ListMyFollowersResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextCursorCreatedAt
-	}
-	return 0
-}
-
-func (x *ListMyFollowersResponse) GetNextCursorId() string {
-	if x != nil {
-		return x.NextCursorId
+		return x.NextPageToken
 	}
 	return ""
 }
 
 type ListMyFollowingRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	CursorCreatedAt int64                  `protobuf:"varint,1,opt,name=cursor_created_at,json=cursorCreatedAt,proto3" json:"cursor_created_at,omitempty"` // unix seconds
-	CursorId        string                 `protobuf:"bytes,2,opt,name=cursor_id,json=cursorId,proto3" json:"cursor_id,omitempty"`
-	Query           string                 `protobuf:"bytes,3,opt,name=query,proto3" json:"query,omitempty"` // optional fuzzy search on nickname
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"` // optional fuzzy search on nickname
+	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListMyFollowingRequest) Reset() {
@@ -287,20 +270,6 @@ func (*ListMyFollowingRequest) Descriptor() ([]byte, []int) {
 	return file_follow_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ListMyFollowingRequest) GetCursorCreatedAt() int64 {
-	if x != nil {
-		return x.CursorCreatedAt
-	}
-	return 0
-}
-
-func (x *ListMyFollowingRequest) GetCursorId() string {
-	if x != nil {
-		return x.CursorId
-	}
-	return ""
-}
-
 func (x *ListMyFollowingRequest) GetQuery() string {
 	if x != nil {
 		return x.Query
@@ -308,13 +277,19 @@ func (x *ListMyFollowingRequest) GetQuery() string {
 	return ""
 }
 
+func (x *ListMyFollowingRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 type ListMyFollowingResponse struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Users               []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
-	NextCursorCreatedAt int64                  `protobuf:"varint,2,opt,name=next_cursor_created_at,json=nextCursorCreatedAt,proto3" json:"next_cursor_created_at,omitempty"`
-	NextCursorId        string                 `protobuf:"bytes,3,opt,name=next_cursor_id,json=nextCursorId,proto3" json:"next_cursor_id,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Users         []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListMyFollowingResponse) Reset() {
@@ -354,16 +329,9 @@ func (x *ListMyFollowingResponse) GetUsers() []*User {
 	return nil
 }
 
-func (x *ListMyFollowingResponse) GetNextCursorCreatedAt() int64 {
+func (x *ListMyFollowingResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextCursorCreatedAt
-	}
-	return 0
-}
-
-func (x *ListMyFollowingResponse) GetNextCursorId() string {
-	if x != nil {
-		return x.NextCursorId
+		return x.NextPageToken
 	}
 	return ""
 }
@@ -378,23 +346,21 @@ const file_follow_proto_rawDesc = "" +
 	"\x06action\x18\x02 \x01(\x0e2\x14.common.ToggleActionR\x06action\"l\n" +
 	"\x0eFollowResponse\x12,\n" +
 	"\x0ffollowing_count\x18\x01 \x01(\x05B\x03\xe0A\x02R\x0efollowingCount\x12,\n" +
-	"\x0ffollowers_count\x18\x02 \x01(\x05B\x03\xe0A\x02R\x0efollowersCount\"w\n" +
-	"\x16ListMyFollowersRequest\x12*\n" +
-	"\x11cursor_created_at\x18\x01 \x01(\x03R\x0fcursorCreatedAt\x12\x1b\n" +
-	"\tcursor_id\x18\x02 \x01(\tR\bcursorId\x12\x14\n" +
-	"\x05query\x18\x03 \x01(\tR\x05query\"\xa7\x01\n" +
+	"\x0ffollowers_count\x18\x02 \x01(\x05B\x03\xe0A\x02R\x0efollowersCount\"M\n" +
+	"\x16ListMyFollowersRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\"o\n" +
 	"\x17ListMyFollowersResponse\x12'\n" +
-	"\x05users\x18\x01 \x03(\v2\f.common.UserB\x03\xe0A\x02R\x05users\x128\n" +
-	"\x16next_cursor_created_at\x18\x02 \x01(\x03B\x03\xe0A\x02R\x13nextCursorCreatedAt\x12)\n" +
-	"\x0enext_cursor_id\x18\x03 \x01(\tB\x03\xe0A\x02R\fnextCursorId\"w\n" +
-	"\x16ListMyFollowingRequest\x12*\n" +
-	"\x11cursor_created_at\x18\x01 \x01(\x03R\x0fcursorCreatedAt\x12\x1b\n" +
-	"\tcursor_id\x18\x02 \x01(\tR\bcursorId\x12\x14\n" +
-	"\x05query\x18\x03 \x01(\tR\x05query\"\xa7\x01\n" +
+	"\x05users\x18\x01 \x03(\v2\f.common.UserB\x03\xe0A\x02R\x05users\x12+\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\x03\xe0A\x02R\rnextPageToken\"M\n" +
+	"\x16ListMyFollowingRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\"o\n" +
 	"\x17ListMyFollowingResponse\x12'\n" +
-	"\x05users\x18\x01 \x03(\v2\f.common.UserB\x03\xe0A\x02R\x05users\x128\n" +
-	"\x16next_cursor_created_at\x18\x02 \x01(\x03B\x03\xe0A\x02R\x13nextCursorCreatedAt\x12)\n" +
-	"\x0enext_cursor_id\x18\x03 \x01(\tB\x03\xe0A\x02R\fnextCursorId2\xd3\x02\n" +
+	"\x05users\x18\x01 \x03(\v2\f.common.UserB\x03\xe0A\x02R\x05users\x12+\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\x03\xe0A\x02R\rnextPageToken2\xd3\x02\n" +
 	"\rFollowService\x12^\n" +
 	"\x06Follow\x12\x15.follow.FollowRequest\x1a\x16.follow.FollowResponse\"%\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/api/v1/users/{uid}/follow\x12p\n" +
 	"\x0fListMyFollowers\x12\x1e.follow.ListMyFollowersRequest\x1a\x1f.follow.ListMyFollowersResponse\"\x1c\x82\xd3\xe4\x93\x02\x16\x12\x14/api/v1/me/followers\x12p\n" +

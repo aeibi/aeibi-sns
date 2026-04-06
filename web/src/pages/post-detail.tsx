@@ -48,49 +48,47 @@ export function PostDetail() {
   if (isPostPending) return null
   if (!post) return <EmptyState />
   return (
-    <div className="flex h-full min-h-full w-full">
-      <div className="h-full w-full bg-background">
-        <VirtualList
-          stickyHeader={
-            <div className="sticky top-0 z-10 mx-auto flex max-w-4xl items-center p-4">
-              <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
-                <ChevronLeftIcon />
-              </Button>
-            </div>
-          }
-          header={
-            <div className="flex flex-col gap-4">
-              <PostCard
-                post={post}
-                user={userData?.user}
-                onUpdatePost={(patch) => updatePostLocal(post.uid, patch)}
-                onRemovePost={() => navigate("/")}
-                disableCommentExpand
-              />
-              {!!userData?.user && (
-                <PostCommentsComposer className="w-full" user={userData.user} postUid={post.uid} onPosted={handlePosted} />
-              )}
-            </div>
-          }
-          items={comments}
-          getItemKey={(comment) => comment.uid}
-          hasNextPage={hasNextPage}
-          isFetchingNextPage={isFetchingNextPage}
-          onLoadMore={fetchNextPage}
-          paddingStart={64}
-          renderItem={(comment) => (
-            <div className="flex flex-col gap-4">
-              <PostComment
-                comment={comment}
-                user={userData?.user}
-                onUpdateComment={(patch) => updateCommentLocal(comment.uid, patch)}
-                onRemoveComment={() => removeCommentLocal(comment.uid)}
-              />
-              <Separator className="ml-8" />
-            </div>
-          )}
-        />
-      </div>
+    <div className="h-full w-full bg-background">
+      <VirtualList
+        stickyHeader={
+          <div className="sticky top-0 z-10 mx-auto flex max-w-4xl items-center p-4">
+            <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
+              <ChevronLeftIcon />
+            </Button>
+          </div>
+        }
+        header={
+          <div className="flex flex-col gap-4">
+            <PostCard
+              post={post}
+              user={userData?.user}
+              onUpdatePost={(patch) => updatePostLocal(post.uid, patch)}
+              onRemovePost={() => navigate("/")}
+              disableCommentExpand
+            />
+            {!!userData?.user && (
+              <PostCommentsComposer className="w-full" user={userData.user} postUid={post.uid} onPosted={handlePosted} />
+            )}
+          </div>
+        }
+        items={comments}
+        getItemKey={(comment) => comment.uid}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        onLoadMore={fetchNextPage}
+        paddingStart={64}
+        renderItem={(comment) => (
+          <div className="flex flex-col gap-4">
+            <PostComment
+              comment={comment}
+              user={userData?.user}
+              onUpdateComment={(patch) => updateCommentLocal(comment.uid, patch)}
+              onRemoveComment={() => removeCommentLocal(comment.uid)}
+            />
+            <Separator className="ml-8" />
+          </div>
+        )}
+      />
     </div>
   )
 }

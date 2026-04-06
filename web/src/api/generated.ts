@@ -154,14 +154,12 @@ export interface FollowFollowResponse {
 
 export interface FollowListMyFollowersResponse {
   users: CommonUser[]
-  nextCursorCreatedAt: string
-  nextCursorId: string
+  nextPageToken: string
 }
 
 export interface FollowListMyFollowingResponse {
   users: CommonUser[]
-  nextCursorCreatedAt: string
-  nextCursorId: string
+  nextPageToken: string
 }
 
 export interface MessageInboxMessageActor {
@@ -197,14 +195,12 @@ export interface MessageFollowInboxMessage {
 
 export interface MessageListCommentInboxMessagesResponse {
   messages: MessageCommentInboxMessage[]
-  nextCursorCreatedAt: string
-  nextCursorId: string
+  nextPageToken: string
 }
 
 export interface MessageListFollowInboxMessagesResponse {
   messages: MessageFollowInboxMessage[]
-  nextCursorCreatedAt: string
-  nextCursorId: string
+  nextPageToken: string
 }
 
 export interface MessageMarkAllInboxMessagesReadResponse {
@@ -394,27 +390,23 @@ export type PostServiceListMyCollectionsParams = {
 }
 
 export type FollowServiceListMyFollowersParams = {
-  cursorCreatedAt?: string
-  cursorId?: string
   query?: string
+  pageToken?: string
 }
 
 export type FollowServiceListMyFollowingParams = {
-  cursorCreatedAt?: string
-  cursorId?: string
   query?: string
+  pageToken?: string
 }
 
 export type MessageServiceListCommentInboxMessagesParams = {
-  cursorCreatedAt?: string
-  cursorId?: string
   readFilter?: number
+  pageToken?: string
 }
 
 export type MessageServiceListFollowInboxMessagesParams = {
-  cursorCreatedAt?: string
-  cursorId?: string
   readFilter?: number
+  pageToken?: string
 }
 
 export type PostServiceListPostsParams = {

@@ -29,10 +29,9 @@ export function Relation() {
     initialPageParam: { query: query.trim() } as FollowServiceListMyFollowingParams,
     queryFn: ({ pageParam, signal }) => followServiceListMyFollowing(pageParam, undefined, signal),
     getNextPageParam: (lastPage) => {
-      if (!lastPage.nextCursorId || !lastPage.nextCursorCreatedAt) return
+      if (!lastPage.nextPageToken) return
       return {
-        cursorId: lastPage.nextCursorId,
-        cursorCreatedAt: lastPage.nextCursorCreatedAt,
+        pageToken: lastPage.nextPageToken,
         query: query.trim(),
       }
     },
@@ -49,10 +48,9 @@ export function Relation() {
     initialPageParam: { query: query.trim() } as FollowServiceListMyFollowersParams,
     queryFn: ({ pageParam, signal }) => followServiceListMyFollowers(pageParam, undefined, signal),
     getNextPageParam: (lastPage) => {
-      if (!lastPage.nextCursorId || !lastPage.nextCursorCreatedAt) return
+      if (!lastPage.nextPageToken) return
       return {
-        cursorId: lastPage.nextCursorId,
-        cursorCreatedAt: lastPage.nextCursorCreatedAt,
+        pageToken: lastPage.nextPageToken,
         query: query.trim(),
       }
     },

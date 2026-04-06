@@ -22,15 +22,6 @@ const InboxMessageReadFilter = {
   READ: 2,
 } as const
 
-const buildNextPageParam = (lastPage: { nextCursorId: string; nextCursorCreatedAt: string }, readFilter: number) => {
-  if (!lastPage.nextCursorId || !lastPage.nextCursorCreatedAt) return
-  return {
-    cursorId: lastPage.nextCursorId,
-    cursorCreatedAt: lastPage.nextCursorCreatedAt,
-    readFilter,
-  }
-}
-
 export function Messages() {
   const [searchParams, setSearchParams] = useSearchParams()
   const category = searchParams.get("category") === "comment" ? "comment" : "follow"
@@ -49,7 +40,13 @@ export function Messages() {
     queryKey: getMessageServiceListFollowInboxMessagesQueryKey({ readFilter }),
     initialPageParam: { readFilter } as MessageServiceListFollowInboxMessagesParams,
     queryFn: ({ pageParam, signal }) => messageServiceListFollowInboxMessages(pageParam, undefined, signal),
-    getNextPageParam: (lastPage) => buildNextPageParam(lastPage, readFilter),
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.nextPageToken) return
+      return {
+        pageToken: lastPage.nextPageToken,
+        readFilter,
+      }
+    },
     enabled: category === "follow",
   })
 
@@ -63,7 +60,13 @@ export function Messages() {
     queryKey: getMessageServiceListCommentInboxMessagesQueryKey({ readFilter }),
     initialPageParam: { readFilter } as MessageServiceListCommentInboxMessagesParams,
     queryFn: ({ pageParam, signal }) => messageServiceListCommentInboxMessages(pageParam, undefined, signal),
-    getNextPageParam: (lastPage) => buildNextPageParam(lastPage, readFilter),
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.nextPageToken) return
+      return {
+        pageToken: lastPage.nextPageToken,
+        readFilter,
+      }
+    },
     enabled: category === "comment",
   })
 

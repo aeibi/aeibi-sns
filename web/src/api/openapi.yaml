@@ -3,1573 +3,1545 @@
 
 openapi: 3.0.3
 info:
-  title: ""
-  version: 0.0.1
+    title: ""
+    version: 0.0.1
 paths:
-  /api/v1/auth/login:
-    post:
-      tags:
-        - UserService
-      description: POST /api/v1/auth/login 登录
-      operationId: UserService_Login
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/user.LoginRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/user.LoginResponse"
-  /api/v1/auth/logout:
-    post:
-      tags:
-        - UserService
-      description: POST /api/v1/auth/logout 退出登录
-      operationId: UserService_Logout
-      responses:
-        "200":
-          description: OK
-          content: {}
-  /api/v1/auth/refresh:
-    post:
-      tags:
-        - UserService
-      description: POST /api/v1/auth/refresh 刷新 token
-      operationId: UserService_RefreshToken
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/user.RefreshTokenRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/user.RefreshTokenResponse"
-  /api/v1/comments/{parentUid}/replies:
-    post:
-      tags:
-        - CommentService
-      description: POST /api/v1/comments/{parent_uid}/replies 回复评论
-      operationId: CommentService_CreateReply
-      parameters:
-        - name: parentUid
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/comment.CreateReplyRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/comment.CreateReplyResponse"
-  /api/v1/comments/{uid}:
-    get:
-      tags:
-        - CommentService
-      description: GET /api/v1/comments/{uid} 评论详情
-      operationId: CommentService_GetComment
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/comment.GetCommentResponse"
-    delete:
-      tags:
-        - CommentService
-      description: DELETE /api/v1/comments/{uid} 软删评论
-      operationId: CommentService_DeleteComment
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content: {}
-  /api/v1/comments/{uid}/like:
-    post:
-      tags:
-        - CommentService
-      description: POST /api/v1/comments/{uid}/like 点赞或取消赞
-      operationId: CommentService_LikeComment
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/comment.LikeCommentRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/comment.LikeCommentResponse"
-  /api/v1/comments/{uid}/replies:
-    get:
-      tags:
-        - CommentService
-      description: GET /api/v1/comments/{uid}/replies 回复列表
-      operationId: CommentService_ListReplies
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: page
-          in: query
-          schema:
-            type: integer
-            format: int32
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/comment.ListRepliesResponse"
-  /api/v1/files:
-    post:
-      tags:
-        - FileService
-      description: POST /api/v1/files 上传文件
-      operationId: FileService_UploadFile
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/file.UploadFileRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/file.UploadFileResponse"
-  /api/v1/files/content/**:
-    get:
-      tags:
-        - FileService
-      description: GET /api/v1/files/content/{url} 获取文件内容
-      operationId: FileService_GetFile
-      responses:
-        "200":
-          description: OK
-          content:
-            "*/*": {}
-  /api/v1/files/meta/**:
-    get:
-      tags:
-        - FileService
-      description: GET /api/v1/files/meta/{url} 获取文件元数据（不含内容）
-      operationId: FileService_GetFileMeta
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/file.GetFileMetaResponse"
-  /api/v1/me:
-    get:
-      tags:
-        - UserService
-      description: GET /api/v1/me 当前用户
-      operationId: UserService_GetMe
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/user.GetMeResponse"
-    patch:
-      tags:
-        - UserService
-      description: PATCH /api/v1/me 更新自己
-      operationId: UserService_UpdateMe
-      parameters:
-        - name: updateMask
-          in: query
-          schema:
-            type: string
-            format: field-mask
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/user.UpdateMeUser"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content: {}
-  /api/v1/me/collections:
-    get:
-      tags:
-        - PostService
-      description: GET /api/v1/me/collections 当前用户收藏的帖子列表
-      operationId: PostService_ListMyCollections
-      parameters:
-        - name: query
-          in: query
-          schema:
-            type: string
-        - name: authorUid
-          in: query
-          schema:
-            type: string
-        - name: tagName
-          in: query
-          schema:
-            type: string
-        - name: pageToken
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/post.ListPostsResponse"
-  /api/v1/me/followers:
-    get:
-      tags:
-        - FollowService
-      description: GET /api/v1/me/followers 粉丝列表
-      operationId: FollowService_ListMyFollowers
-      parameters:
-        - name: cursorCreatedAt
-          in: query
-          schema:
-            type: string
-        - name: cursorId
-          in: query
-          schema:
-            type: string
-        - name: query
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/follow.ListMyFollowersResponse"
-  /api/v1/me/following:
-    get:
-      tags:
-        - FollowService
-      description: GET /api/v1/me/following 关注列表
-      operationId: FollowService_ListMyFollowing
-      parameters:
-        - name: cursorCreatedAt
-          in: query
-          schema:
-            type: string
-        - name: cursorId
-          in: query
-          schema:
-            type: string
-        - name: query
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/follow.ListMyFollowingResponse"
-  /api/v1/me/inbox/messages/comments:
-    get:
-      tags:
-        - MessageService
-      description: GET /api/v1/me/inbox/messages/comments 当前用户评论消息列表
-      operationId: MessageService_ListCommentInboxMessages
-      parameters:
-        - name: cursorCreatedAt
-          in: query
-          schema:
-            type: string
-        - name: cursorId
-          in: query
-          schema:
-            type: string
-        - name: readFilter
-          in: query
-          schema:
-            type: integer
-            format: enum
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/message.ListCommentInboxMessagesResponse"
-  /api/v1/me/inbox/messages/follows:
-    get:
-      tags:
-        - MessageService
-      description: GET /api/v1/me/inbox/messages/follows 当前用户关注消息列表
-      operationId: MessageService_ListFollowInboxMessages
-      parameters:
-        - name: cursorCreatedAt
-          in: query
-          schema:
-            type: string
-        - name: cursorId
-          in: query
-          schema:
-            type: string
-        - name: readFilter
-          in: query
-          schema:
-            type: integer
-            format: enum
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/message.ListFollowInboxMessagesResponse"
-  /api/v1/me/inbox/messages/read:
-    patch:
-      tags:
-        - MessageService
-      description: PATCH /api/v1/me/inbox/messages/read 全部标记为已读
-      operationId: MessageService_MarkAllInboxMessagesRead
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/message.MarkAllInboxMessagesReadResponse"
-  /api/v1/me/inbox/messages/unread/count:
-    get:
-      tags:
-        - MessageService
-      description: GET /api/v1/me/inbox/messages/unread/count 未读计数
-      operationId: MessageService_CountUnreadInboxMessages
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/message.CountUnreadInboxMessagesResponse"
-  /api/v1/me/inbox/messages/{uid}:
-    delete:
-      tags:
-        - MessageService
-      description: DELETE /api/v1/me/inbox/messages/{uid} 归档一条消息
-      operationId: MessageService_DeleteInboxMessage
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content: {}
-  /api/v1/me/password:
-    patch:
-      tags:
-        - UserService
-      description: PATCH /api/v1/me/password 修改当前用户密码
-      operationId: UserService_ChangePassword
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/user.ChangePasswordRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content: {}
-  /api/v1/posts:
-    get:
-      tags:
-        - PostService
-      description: GET /api/v1/posts 统一列表/筛选/搜索
-      operationId: PostService_ListPosts
-      parameters:
-        - name: query
-          in: query
-          schema:
-            type: string
-        - name: authorUid
-          in: query
-          schema:
-            type: string
-        - name: tagName
-          in: query
-          schema:
-            type: string
-        - name: pageToken
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/post.ListPostsResponse"
-    post:
-      tags:
-        - PostService
-      description: POST /api/v1/posts 创建帖子
-      operationId: PostService_CreatePost
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/post.CreatePostRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/post.CreatePostResponse"
-  /api/v1/posts/{postUid}/comments:
-    get:
-      tags:
-        - CommentService
-      description: GET /api/v1/posts/{post_uid}/comments 一级评论列表
-      operationId: CommentService_ListTopComments
-      parameters:
-        - name: postUid
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: pageToken
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/comment.ListTopCommentsResponse"
-    post:
-      tags:
-        - CommentService
-      description: POST /api/v1/posts/{post_uid}/comments 创建一级评论
-      operationId: CommentService_CreateTopComment
-      parameters:
-        - name: postUid
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/comment.CreateTopCommentRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/comment.CreateTopCommentResponse"
-  /api/v1/posts/{uid}:
-    get:
-      tags:
-        - PostService
-      description: GET /api/v1/posts/{uid} 详情
-      operationId: PostService_GetPost
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/post.GetPostResponse"
-    delete:
-      tags:
-        - PostService
-      description: DELETE /api/v1/posts/{uid} 软删
-      operationId: PostService_DeletePost
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content: {}
-    patch:
-      tags:
-        - PostService
-      description: PATCH /api/v1/posts/{uid} 更新正文/媒体/标签/可见性
-      operationId: PostService_UpdatePost
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: updateMask
-          in: query
-          schema:
-            type: string
-            format: field-mask
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/post.UpdatePostBody"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content: {}
-  /api/v1/posts/{uid}/collect:
-    post:
-      tags:
-        - PostService
-      description: POST /api/v1/posts/{uid}/collect 收藏或取消收藏
-      operationId: PostService_CollectPost
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/post.CollectPostRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/post.CollectPostResponse"
-  /api/v1/posts/{uid}/like:
-    post:
-      tags:
-        - PostService
-      description: POST /api/v1/posts/{uid}/like 点赞或取消赞
-      operationId: PostService_LikePost
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/post.LikePostRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/post.LikePostResponse"
-  /api/v1/reports:
-    post:
-      tags:
-        - ReportService
-      description: POST /api/v1/reports 创建举报
-      operationId: ReportService_CreateReport
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/report.CreateReportRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content: {}
-  /api/v1/search/tags:
-    get:
-      tags:
-        - PostService
-      description: GET /api/v1/search/tags 标签搜索
-      operationId: PostService_SearchTags
-      parameters:
-        - name: query
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/post.SearchTagsResponse"
-  /api/v1/search/users:
-    get:
-      tags:
-        - UserService
-      description: GET /api/v1/search/users 用户搜索（公开）
-      operationId: UserService_SearchUsers
-      parameters:
-        - name: query
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/user.SearchUsersResponse"
-  /api/v1/suggestions/tags:
-    get:
-      tags:
-        - PostService
-      description: GET /api/v1/suggestions/tags 标签前缀推荐
-      operationId: PostService_SuggestTagsByPrefix
-      parameters:
-        - name: prefix
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/post.SuggestTagsByPrefixResponse"
-  /api/v1/suggestions/users:
-    get:
-      tags:
-        - UserService
-      description: GET /api/v1/suggestions/users 用户昵称前缀推荐（公开）
-      operationId: UserService_SuggestUsersByPrefix
-      parameters:
-        - name: prefix
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/user.SuggestUsersByPrefixResponse"
-  /api/v1/users:
-    post:
-      tags:
-        - UserService
-      description: POST /api/v1/users 创建用户
-      operationId: UserService_CreateUser
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/user.CreateUserRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content: {}
-  /api/v1/users/{uid}:
-    get:
-      tags:
-        - UserService
-      description: GET /api/v1/users/{uid} 详情
-      operationId: UserService_GetUser
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/user.GetUserResponse"
-  /api/v1/users/{uid}/follow:
-    post:
-      tags:
-        - FollowService
-      description: POST /api/v1/users/{uid}/follow 关注或取消关注
-      operationId: FollowService_Follow
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/follow.FollowRequest"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/follow.FollowResponse"
-components:
-  schemas:
-    comment.Comment:
-      required:
-        - uid
-        - author
-        - postUid
-        - rootUid
-        - content
-        - images
-        - replyCount
-        - createdAt
-        - updatedAt
-        - likeCount
-        - liked
-      type: object
-      properties:
-        uid:
-          type: string
-        author:
-          $ref: "#/components/schemas/comment.CommentAuthor"
-        postUid:
-          type: string
-        rootUid:
-          type: string
-        parentUid:
-          type: string
-        replyToAuthor:
-          $ref: "#/components/schemas/comment.CommentAuthor"
-        content:
-          type: string
-        images:
-          type: array
-          items:
-            type: string
-        replyCount:
-          type: integer
-          format: int32
-        createdAt:
-          type: string
-        updatedAt:
-          type: string
-        likeCount:
-          type: integer
-          format: int32
-        liked:
-          type: boolean
-    comment.CommentAuthor:
-      required:
-        - uid
-        - nickname
-        - avatarUrl
-      type: object
-      properties:
-        uid:
-          type: string
-        nickname:
-          type: string
-        avatarUrl:
-          type: string
-      description: Models
-    comment.CreateReplyRequest:
-      required:
-        - parentUid
-        - content
-      type: object
-      properties:
-        parentUid:
-          type: string
-        content:
-          type: string
-    comment.CreateReplyResponse:
-      required:
-        - uid
-        - replyCount
-      type: object
-      properties:
-        uid:
-          type: string
-        replyCount:
-          type: integer
-          format: int32
-    comment.CreateTopCommentRequest:
-      required:
-        - postUid
-        - content
-      type: object
-      properties:
-        postUid:
-          type: string
-        content:
-          type: string
-        images:
-          type: array
-          items:
-            type: string
-    comment.CreateTopCommentResponse:
-      required:
-        - uid
-        - commentCount
-      type: object
-      properties:
-        uid:
-          type: string
-        commentCount:
-          type: integer
-          format: int32
-    comment.GetCommentResponse:
-      required:
-        - comment
-      type: object
-      properties:
-        comment:
-          $ref: "#/components/schemas/comment.Comment"
-    comment.LikeCommentRequest:
-      required:
-        - uid
-      type: object
-      properties:
-        uid:
-          type: string
-        action:
-          type: integer
-          format: enum
-    comment.LikeCommentResponse:
-      required:
-        - count
-      type: object
-      properties:
-        count:
-          type: integer
-          format: int32
-    comment.ListRepliesResponse:
-      required:
-        - comments
-        - page
-        - total
-      type: object
-      properties:
-        comments:
-          type: array
-          items:
-            $ref: "#/components/schemas/comment.Comment"
-        page:
-          type: integer
-          format: int32
-        total:
-          type: integer
-          format: int32
-    comment.ListTopCommentsResponse:
-      required:
-        - comments
-        - nextPageToken
-      type: object
-      properties:
-        comments:
-          type: array
-          items:
-            $ref: "#/components/schemas/comment.Comment"
-        nextPageToken:
-          type: string
-    common.User:
-      required:
-        - uid
-        - role
-        - nickname
-        - avatarUrl
-        - followersCount
-        - followingCount
-      type: object
-      properties:
-        uid:
-          type: string
-        username:
-          type: string
-        role:
-          type: string
-        email:
-          type: string
-        nickname:
-          type: string
-        avatarUrl:
-          type: string
-        followersCount:
-          type: integer
-          format: int32
-        followingCount:
-          type: integer
-          format: int32
-        isFollowing:
-          type: boolean
-        description:
-          type: string
-      description: User
-    file.File:
-      required:
-        - name
-        - contentType
-        - size
-        - checksum
-        - uploader
-        - createdAt
-      type: object
-      properties:
-        name:
-          type: string
-        contentType:
-          type: string
-        size:
-          type: string
-        checksum:
-          type: string
-        uploader:
-          type: string
-        createdAt:
-          type: string
-      description: Models
-    file.GetFileMetaResponse:
-      required:
-        - file
-        - url
-      type: object
-      properties:
-        file:
-          $ref: "#/components/schemas/file.File"
-        url:
-          type: string
-    file.UploadFileRequest:
-      required:
-        - data
-      type: object
-      properties:
-        name:
-          type: string
-        contentType:
-          type: string
-        data:
-          type: string
-          format: bytes
-        checksum:
-          type: string
-      description: Upload
-    file.UploadFileResponse:
-      required:
-        - file
-        - url
-      type: object
-      properties:
-        file:
-          $ref: "#/components/schemas/file.File"
-        url:
-          type: string
-    follow.FollowRequest:
-      required:
-        - uid
-      type: object
-      properties:
-        uid:
-          type: string
-        action:
-          type: integer
-          format: enum
-      description: Follow
-    follow.FollowResponse:
-      required:
-        - followingCount
-        - followersCount
-      type: object
-      properties:
-        followingCount:
-          type: integer
-          format: int32
-        followersCount:
-          type: integer
-          format: int32
-    follow.ListMyFollowersResponse:
-      required:
-        - users
-        - nextCursorCreatedAt
-        - nextCursorId
-      type: object
-      properties:
-        users:
-          type: array
-          items:
-            $ref: "#/components/schemas/common.User"
-        nextCursorCreatedAt:
-          type: string
-        nextCursorId:
-          type: string
-    follow.ListMyFollowingResponse:
-      required:
-        - users
-        - nextCursorCreatedAt
-        - nextCursorId
-      type: object
-      properties:
-        users:
-          type: array
-          items:
-            $ref: "#/components/schemas/common.User"
-        nextCursorCreatedAt:
-          type: string
-        nextCursorId:
-          type: string
-    message.CommentInboxMessage:
-      required:
-        - uid
-        - isRead
-        - actor
-        - createdAt
-      type: object
-      properties:
-        uid:
-          type: string
-        isRead:
-          type: boolean
-        actor:
-          $ref: "#/components/schemas/message.InboxMessageActor"
-        createdAt:
-          type: string
-        commentUid:
-          type: string
-        commentContent:
-          type: string
-        postUid:
-          type: string
-        parentUid:
-          type: string
-        parentContent:
-          type: string
-    message.CountUnreadInboxMessagesResponse:
-      required:
-        - unreadCount
-        - followUnreadCount
-        - commentUnreadCount
-      type: object
-      properties:
-        unreadCount:
-          type: integer
-          format: int32
-        followUnreadCount:
-          type: integer
-          format: int32
-        commentUnreadCount:
-          type: integer
-          format: int32
-    message.FollowInboxMessage:
-      required:
-        - uid
-        - isRead
-        - actor
-        - createdAt
-      type: object
-      properties:
-        uid:
-          type: string
-        isRead:
-          type: boolean
-        actor:
-          $ref: "#/components/schemas/message.InboxMessageActor"
-        createdAt:
-          type: string
-    message.InboxMessageActor:
-      required:
-        - uid
-        - nickname
-        - avatarUrl
-      type: object
-      properties:
-        uid:
-          type: string
-        nickname:
-          type: string
-        avatarUrl:
-          type: string
-    message.ListCommentInboxMessagesResponse:
-      required:
-        - messages
-        - nextCursorCreatedAt
-        - nextCursorId
-      type: object
-      properties:
-        messages:
-          type: array
-          items:
-            $ref: "#/components/schemas/message.CommentInboxMessage"
-        nextCursorCreatedAt:
-          type: string
-        nextCursorId:
-          type: string
-    message.ListFollowInboxMessagesResponse:
-      required:
-        - messages
-        - nextCursorCreatedAt
-        - nextCursorId
-      type: object
-      properties:
-        messages:
-          type: array
-          items:
-            $ref: "#/components/schemas/message.FollowInboxMessage"
-        nextCursorCreatedAt:
-          type: string
-        nextCursorId:
-          type: string
-    message.MarkAllInboxMessagesReadResponse:
-      required:
-        - updatedCount
-      type: object
-      properties:
-        updatedCount:
-          type: integer
-          format: int32
-    post.Attachment:
-      required:
-        - url
-        - name
-        - size
-        - contentType
-        - checksum
-      type: object
-      properties:
-        url:
-          type: string
-        name:
-          type: string
-        size:
-          type: string
-        contentType:
-          type: string
-        checksum:
-          type: string
-    post.CollectPostRequest:
-      required:
-        - uid
-      type: object
-      properties:
-        uid:
-          type: string
-        action:
-          type: integer
-          format: enum
-    post.CollectPostResponse:
-      required:
-        - count
-      type: object
-      properties:
-        count:
-          type: integer
-          format: int32
-    post.CreatePostRequest:
-      required:
-        - text
-      type: object
-      properties:
-        text:
-          type: string
-        images:
-          type: array
-          items:
-            type: string
-        attachments:
-          type: array
-          items:
-            type: string
-        tags:
-          type: array
-          items:
-            type: string
-        visibility:
-          type: string
-        pinned:
-          type: boolean
-    post.CreatePostResponse:
-      required:
-        - uid
-      type: object
-      properties:
-        uid:
-          type: string
-    post.GetPostResponse:
-      required:
-        - post
-      type: object
-      properties:
+    /api/v1/auth/login:
         post:
-          $ref: "#/components/schemas/post.Post"
-    post.LikePostRequest:
-      required:
-        - uid
-      type: object
-      properties:
-        uid:
-          type: string
-        action:
-          type: integer
-          format: enum
-    post.LikePostResponse:
-      required:
-        - count
-      type: object
-      properties:
-        count:
-          type: integer
-          format: int32
-    post.ListPostsResponse:
-      required:
-        - posts
-        - nextPageToken
-      type: object
-      properties:
-        posts:
-          type: array
-          items:
-            $ref: "#/components/schemas/post.Post"
-        nextPageToken:
-          type: string
-    post.Post:
-      required:
-        - uid
-        - author
-        - text
-        - images
-        - attachments
-        - tags
-        - commentCount
-        - collectionCount
-        - likeCount
-        - visibility
-        - latestRepliedOn
-        - ip
-        - pinned
-        - liked
-        - collected
-        - createdAt
-        - updatedAt
-      type: object
-      properties:
-        uid:
-          type: string
-        author:
-          $ref: "#/components/schemas/post.PostAuthor"
-        text:
-          type: string
-        images:
-          type: array
-          items:
-            type: string
-        attachments:
-          type: array
-          items:
-            $ref: "#/components/schemas/post.Attachment"
-        tags:
-          type: array
-          items:
-            type: string
-        commentCount:
-          type: integer
-          format: int32
-        collectionCount:
-          type: integer
-          format: int32
-        likeCount:
-          type: integer
-          format: int32
-        visibility:
-          type: string
-        latestRepliedOn:
-          type: string
-        ip:
-          type: string
-        pinned:
-          type: boolean
-        liked:
-          type: boolean
-        collected:
-          type: boolean
-        createdAt:
-          type: string
-        updatedAt:
-          type: string
-    post.PostAuthor:
-      required:
-        - uid
-        - nickname
-        - avatarUrl
-        - isFollowing
-      type: object
-      properties:
-        uid:
-          type: string
-        nickname:
-          type: string
-        avatarUrl:
-          type: string
-        isFollowing:
-          type: boolean
-      description: Models
-    post.SearchTag:
-      required:
-        - name
-      type: object
-      properties:
-        name:
-          type: string
-    post.SearchTagsResponse:
-      required:
-        - tags
-      type: object
-      properties:
-        tags:
-          type: array
-          items:
-            $ref: "#/components/schemas/post.SearchTag"
-    post.SuggestTagsByPrefixResponse:
-      required:
-        - tags
-      type: object
-      properties:
-        tags:
-          type: array
-          items:
-            $ref: "#/components/schemas/post.SearchTag"
-    post.UpdatePostBody:
-      type: object
-      properties:
-        text:
-          type: string
-        images:
-          type: array
-          items:
-            type: string
-        attachments:
-          type: array
-          items:
-            type: string
-        tags:
-          type: array
-          items:
-            type: string
-        visibility:
-          type: string
-        pinned:
-          type: boolean
-    report.CreateReportRequest:
-      required:
-        - reportTargetType
-        - targetUid
-        - content
-      type: object
-      properties:
-        reportTargetType:
-          type: integer
-          format: enum
-        targetUid:
-          type: string
-        content:
-          type: string
-    user.ChangePasswordRequest:
-      required:
-        - oldPassword
-        - newPassword
-      type: object
-      properties:
-        oldPassword:
-          type: string
-        newPassword:
-          type: string
-    user.CreateUserRequest:
-      required:
-        - username
-        - password
-      type: object
-      properties:
-        username:
-          type: string
-        password:
-          type: string
-        email:
-          type: string
-        nickname:
-          type: string
-    user.GetMeResponse:
-      required:
-        - user
-      type: object
-      properties:
-        user:
-          $ref: "#/components/schemas/common.User"
-    user.GetUserResponse:
-      required:
-        - user
-      type: object
-      properties:
-        user:
-          $ref: "#/components/schemas/common.User"
-    user.LoginRequest:
-      required:
-        - account
-        - password
-      type: object
-      properties:
-        account:
-          type: string
-        password:
-          type: string
-        captcha:
-          type: string
-        deviceId:
-          type: string
-    user.LoginResponse:
-      required:
-        - tokens
-      type: object
-      properties:
-        tokens:
-          $ref: "#/components/schemas/user.TokenPair"
-    user.RefreshTokenRequest:
-      required:
-        - refreshToken
-      type: object
-      properties:
-        refreshToken:
-          type: string
-    user.RefreshTokenResponse:
-      required:
-        - tokens
-      type: object
-      properties:
-        tokens:
-          $ref: "#/components/schemas/user.TokenPair"
-    user.SearchUsersResponse:
-      required:
-        - users
-      type: object
-      properties:
-        users:
-          type: array
-          items:
-            $ref: "#/components/schemas/common.User"
-    user.SuggestUsersByPrefixResponse:
-      required:
-        - users
-      type: object
-      properties:
-        users:
-          type: array
-          items:
-            $ref: "#/components/schemas/common.User"
-    user.TokenPair:
-      required:
-        - accessToken
-        - refreshToken
-      type: object
-      properties:
-        accessToken:
-          type: string
-        refreshToken:
-          type: string
-      description: Tokens
-    user.UpdateMeUser:
-      type: object
-      properties:
-        username:
-          type: string
-        email:
-          type: string
-        nickname:
-          type: string
-        avatarUrl:
-          type: string
+            tags:
+                - UserService
+            description: POST /api/v1/auth/login 登录
+            operationId: UserService_Login
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/user.LoginRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/user.LoginResponse'
+    /api/v1/auth/logout:
+        post:
+            tags:
+                - UserService
+            description: POST /api/v1/auth/logout 退出登录
+            operationId: UserService_Logout
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+    /api/v1/auth/refresh:
+        post:
+            tags:
+                - UserService
+            description: POST /api/v1/auth/refresh 刷新 token
+            operationId: UserService_RefreshToken
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/user.RefreshTokenRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/user.RefreshTokenResponse'
+    /api/v1/comments/{parentUid}/replies:
+        post:
+            tags:
+                - CommentService
+            description: POST /api/v1/comments/{parent_uid}/replies 回复评论
+            operationId: CommentService_CreateReply
+            parameters:
+                - name: parentUid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/comment.CreateReplyRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/comment.CreateReplyResponse'
+    /api/v1/comments/{uid}:
+        get:
+            tags:
+                - CommentService
+            description: GET /api/v1/comments/{uid} 评论详情
+            operationId: CommentService_GetComment
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/comment.GetCommentResponse'
+        delete:
+            tags:
+                - CommentService
+            description: DELETE /api/v1/comments/{uid} 软删评论
+            operationId: CommentService_DeleteComment
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+    /api/v1/comments/{uid}/like:
+        post:
+            tags:
+                - CommentService
+            description: POST /api/v1/comments/{uid}/like 点赞或取消赞
+            operationId: CommentService_LikeComment
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/comment.LikeCommentRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/comment.LikeCommentResponse'
+    /api/v1/comments/{uid}/replies:
+        get:
+            tags:
+                - CommentService
+            description: GET /api/v1/comments/{uid}/replies 回复列表
+            operationId: CommentService_ListReplies
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: page
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/comment.ListRepliesResponse'
+    /api/v1/files:
+        post:
+            tags:
+                - FileService
+            description: POST /api/v1/files 上传文件
+            operationId: FileService_UploadFile
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/file.UploadFileRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/file.UploadFileResponse'
+    /api/v1/files/content/**:
+        get:
+            tags:
+                - FileService
+            description: GET /api/v1/files/content/{url} 获取文件内容
+            operationId: FileService_GetFile
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        '*/*': {}
+    /api/v1/files/meta/**:
+        get:
+            tags:
+                - FileService
+            description: GET /api/v1/files/meta/{url} 获取文件元数据（不含内容）
+            operationId: FileService_GetFileMeta
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/file.GetFileMetaResponse'
+    /api/v1/me:
+        get:
+            tags:
+                - UserService
+            description: GET /api/v1/me 当前用户
+            operationId: UserService_GetMe
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/user.GetMeResponse'
+        patch:
+            tags:
+                - UserService
+            description: PATCH /api/v1/me 更新自己
+            operationId: UserService_UpdateMe
+            parameters:
+                - name: updateMask
+                  in: query
+                  schema:
+                    type: string
+                    format: field-mask
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/user.UpdateMeUser'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+    /api/v1/me/collections:
+        get:
+            tags:
+                - PostService
+            description: GET /api/v1/me/collections 当前用户收藏的帖子列表
+            operationId: PostService_ListMyCollections
+            parameters:
+                - name: query
+                  in: query
+                  schema:
+                    type: string
+                - name: authorUid
+                  in: query
+                  schema:
+                    type: string
+                - name: tagName
+                  in: query
+                  schema:
+                    type: string
+                - name: pageToken
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/post.ListPostsResponse'
+    /api/v1/me/followers:
+        get:
+            tags:
+                - FollowService
+            description: GET /api/v1/me/followers 粉丝列表
+            operationId: FollowService_ListMyFollowers
+            parameters:
+                - name: query
+                  in: query
+                  schema:
+                    type: string
+                - name: pageToken
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/follow.ListMyFollowersResponse'
+    /api/v1/me/following:
+        get:
+            tags:
+                - FollowService
+            description: GET /api/v1/me/following 关注列表
+            operationId: FollowService_ListMyFollowing
+            parameters:
+                - name: query
+                  in: query
+                  schema:
+                    type: string
+                - name: pageToken
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/follow.ListMyFollowingResponse'
+    /api/v1/me/inbox/messages/comments:
+        get:
+            tags:
+                - MessageService
+            description: GET /api/v1/me/inbox/messages/comments 当前用户评论消息列表
+            operationId: MessageService_ListCommentInboxMessages
+            parameters:
+                - name: readFilter
+                  in: query
+                  schema:
+                    type: integer
+                    format: enum
+                - name: pageToken
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/message.ListCommentInboxMessagesResponse'
+    /api/v1/me/inbox/messages/follows:
+        get:
+            tags:
+                - MessageService
+            description: GET /api/v1/me/inbox/messages/follows 当前用户关注消息列表
+            operationId: MessageService_ListFollowInboxMessages
+            parameters:
+                - name: readFilter
+                  in: query
+                  schema:
+                    type: integer
+                    format: enum
+                - name: pageToken
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/message.ListFollowInboxMessagesResponse'
+    /api/v1/me/inbox/messages/read:
+        patch:
+            tags:
+                - MessageService
+            description: PATCH /api/v1/me/inbox/messages/read 全部标记为已读
+            operationId: MessageService_MarkAllInboxMessagesRead
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/message.MarkAllInboxMessagesReadResponse'
+    /api/v1/me/inbox/messages/unread/count:
+        get:
+            tags:
+                - MessageService
+            description: GET /api/v1/me/inbox/messages/unread/count 未读计数
+            operationId: MessageService_CountUnreadInboxMessages
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/message.CountUnreadInboxMessagesResponse'
+    /api/v1/me/inbox/messages/{uid}:
+        delete:
+            tags:
+                - MessageService
+            description: DELETE /api/v1/me/inbox/messages/{uid} 归档一条消息
+            operationId: MessageService_DeleteInboxMessage
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+    /api/v1/me/password:
+        patch:
+            tags:
+                - UserService
+            description: PATCH /api/v1/me/password 修改当前用户密码
+            operationId: UserService_ChangePassword
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/user.ChangePasswordRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+    /api/v1/posts:
+        get:
+            tags:
+                - PostService
+            description: GET /api/v1/posts 统一列表/筛选/搜索
+            operationId: PostService_ListPosts
+            parameters:
+                - name: query
+                  in: query
+                  schema:
+                    type: string
+                - name: authorUid
+                  in: query
+                  schema:
+                    type: string
+                - name: tagName
+                  in: query
+                  schema:
+                    type: string
+                - name: pageToken
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/post.ListPostsResponse'
+        post:
+            tags:
+                - PostService
+            description: POST /api/v1/posts 创建帖子
+            operationId: PostService_CreatePost
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/post.CreatePostRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/post.CreatePostResponse'
+    /api/v1/posts/{postUid}/comments:
+        get:
+            tags:
+                - CommentService
+            description: GET /api/v1/posts/{post_uid}/comments 一级评论列表
+            operationId: CommentService_ListTopComments
+            parameters:
+                - name: postUid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: pageToken
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/comment.ListTopCommentsResponse'
+        post:
+            tags:
+                - CommentService
+            description: POST /api/v1/posts/{post_uid}/comments 创建一级评论
+            operationId: CommentService_CreateTopComment
+            parameters:
+                - name: postUid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/comment.CreateTopCommentRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/comment.CreateTopCommentResponse'
+    /api/v1/posts/{uid}:
+        get:
+            tags:
+                - PostService
+            description: GET /api/v1/posts/{uid} 详情
+            operationId: PostService_GetPost
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/post.GetPostResponse'
+        delete:
+            tags:
+                - PostService
+            description: DELETE /api/v1/posts/{uid} 软删
+            operationId: PostService_DeletePost
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+        patch:
+            tags:
+                - PostService
+            description: PATCH /api/v1/posts/{uid} 更新正文/媒体/标签/可见性
+            operationId: PostService_UpdatePost
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: updateMask
+                  in: query
+                  schema:
+                    type: string
+                    format: field-mask
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/post.UpdatePostBody'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+    /api/v1/posts/{uid}/collect:
+        post:
+            tags:
+                - PostService
+            description: POST /api/v1/posts/{uid}/collect 收藏或取消收藏
+            operationId: PostService_CollectPost
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/post.CollectPostRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/post.CollectPostResponse'
+    /api/v1/posts/{uid}/like:
+        post:
+            tags:
+                - PostService
+            description: POST /api/v1/posts/{uid}/like 点赞或取消赞
+            operationId: PostService_LikePost
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/post.LikePostRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/post.LikePostResponse'
+    /api/v1/reports:
+        post:
+            tags:
+                - ReportService
+            description: POST /api/v1/reports 创建举报
+            operationId: ReportService_CreateReport
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/report.CreateReportRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+    /api/v1/search/tags:
+        get:
+            tags:
+                - PostService
+            description: GET /api/v1/search/tags 标签搜索
+            operationId: PostService_SearchTags
+            parameters:
+                - name: query
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/post.SearchTagsResponse'
+    /api/v1/search/users:
+        get:
+            tags:
+                - UserService
+            description: GET /api/v1/search/users 用户搜索（公开）
+            operationId: UserService_SearchUsers
+            parameters:
+                - name: query
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/user.SearchUsersResponse'
+    /api/v1/suggestions/tags:
+        get:
+            tags:
+                - PostService
+            description: GET /api/v1/suggestions/tags 标签前缀推荐
+            operationId: PostService_SuggestTagsByPrefix
+            parameters:
+                - name: prefix
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/post.SuggestTagsByPrefixResponse'
+    /api/v1/suggestions/users:
+        get:
+            tags:
+                - UserService
+            description: GET /api/v1/suggestions/users 用户昵称前缀推荐（公开）
+            operationId: UserService_SuggestUsersByPrefix
+            parameters:
+                - name: prefix
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/user.SuggestUsersByPrefixResponse'
+    /api/v1/users:
+        post:
+            tags:
+                - UserService
+            description: POST /api/v1/users 创建用户
+            operationId: UserService_CreateUser
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/user.CreateUserRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+    /api/v1/users/{uid}:
+        get:
+            tags:
+                - UserService
+            description: GET /api/v1/users/{uid} 详情
+            operationId: UserService_GetUser
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/user.GetUserResponse'
+    /api/v1/users/{uid}/follow:
+        post:
+            tags:
+                - FollowService
+            description: POST /api/v1/users/{uid}/follow 关注或取消关注
+            operationId: FollowService_Follow
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/follow.FollowRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/follow.FollowResponse'
+components:
+    schemas:
+        comment.Comment:
+            required:
+                - uid
+                - author
+                - postUid
+                - rootUid
+                - content
+                - images
+                - replyCount
+                - createdAt
+                - updatedAt
+                - likeCount
+                - liked
+            type: object
+            properties:
+                uid:
+                    type: string
+                author:
+                    $ref: '#/components/schemas/comment.CommentAuthor'
+                postUid:
+                    type: string
+                rootUid:
+                    type: string
+                parentUid:
+                    type: string
+                replyToAuthor:
+                    $ref: '#/components/schemas/comment.CommentAuthor'
+                content:
+                    type: string
+                images:
+                    type: array
+                    items:
+                        type: string
+                replyCount:
+                    type: integer
+                    format: int32
+                createdAt:
+                    type: string
+                updatedAt:
+                    type: string
+                likeCount:
+                    type: integer
+                    format: int32
+                liked:
+                    type: boolean
+        comment.CommentAuthor:
+            required:
+                - uid
+                - nickname
+                - avatarUrl
+            type: object
+            properties:
+                uid:
+                    type: string
+                nickname:
+                    type: string
+                avatarUrl:
+                    type: string
+            description: Models
+        comment.CreateReplyRequest:
+            required:
+                - parentUid
+                - content
+            type: object
+            properties:
+                parentUid:
+                    type: string
+                content:
+                    type: string
+        comment.CreateReplyResponse:
+            required:
+                - uid
+                - replyCount
+            type: object
+            properties:
+                uid:
+                    type: string
+                replyCount:
+                    type: integer
+                    format: int32
+        comment.CreateTopCommentRequest:
+            required:
+                - postUid
+                - content
+            type: object
+            properties:
+                postUid:
+                    type: string
+                content:
+                    type: string
+                images:
+                    type: array
+                    items:
+                        type: string
+        comment.CreateTopCommentResponse:
+            required:
+                - uid
+                - commentCount
+            type: object
+            properties:
+                uid:
+                    type: string
+                commentCount:
+                    type: integer
+                    format: int32
+        comment.GetCommentResponse:
+            required:
+                - comment
+            type: object
+            properties:
+                comment:
+                    $ref: '#/components/schemas/comment.Comment'
+        comment.LikeCommentRequest:
+            required:
+                - uid
+            type: object
+            properties:
+                uid:
+                    type: string
+                action:
+                    type: integer
+                    format: enum
+        comment.LikeCommentResponse:
+            required:
+                - count
+            type: object
+            properties:
+                count:
+                    type: integer
+                    format: int32
+        comment.ListRepliesResponse:
+            required:
+                - comments
+                - page
+                - total
+            type: object
+            properties:
+                comments:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/comment.Comment'
+                page:
+                    type: integer
+                    format: int32
+                total:
+                    type: integer
+                    format: int32
+        comment.ListTopCommentsResponse:
+            required:
+                - comments
+                - nextPageToken
+            type: object
+            properties:
+                comments:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/comment.Comment'
+                nextPageToken:
+                    type: string
+        common.User:
+            required:
+                - uid
+                - role
+                - nickname
+                - avatarUrl
+                - followersCount
+                - followingCount
+            type: object
+            properties:
+                uid:
+                    type: string
+                username:
+                    type: string
+                role:
+                    type: string
+                email:
+                    type: string
+                nickname:
+                    type: string
+                avatarUrl:
+                    type: string
+                followersCount:
+                    type: integer
+                    format: int32
+                followingCount:
+                    type: integer
+                    format: int32
+                isFollowing:
+                    type: boolean
+                description:
+                    type: string
+            description: User
+        file.File:
+            required:
+                - name
+                - contentType
+                - size
+                - checksum
+                - uploader
+                - createdAt
+            type: object
+            properties:
+                name:
+                    type: string
+                contentType:
+                    type: string
+                size:
+                    type: string
+                checksum:
+                    type: string
+                uploader:
+                    type: string
+                createdAt:
+                    type: string
+            description: Models
+        file.GetFileMetaResponse:
+            required:
+                - file
+                - url
+            type: object
+            properties:
+                file:
+                    $ref: '#/components/schemas/file.File'
+                url:
+                    type: string
+        file.UploadFileRequest:
+            required:
+                - data
+            type: object
+            properties:
+                name:
+                    type: string
+                contentType:
+                    type: string
+                data:
+                    type: string
+                    format: bytes
+                checksum:
+                    type: string
+            description: Upload
+        file.UploadFileResponse:
+            required:
+                - file
+                - url
+            type: object
+            properties:
+                file:
+                    $ref: '#/components/schemas/file.File'
+                url:
+                    type: string
+        follow.FollowRequest:
+            required:
+                - uid
+            type: object
+            properties:
+                uid:
+                    type: string
+                action:
+                    type: integer
+                    format: enum
+            description: Follow
+        follow.FollowResponse:
+            required:
+                - followingCount
+                - followersCount
+            type: object
+            properties:
+                followingCount:
+                    type: integer
+                    format: int32
+                followersCount:
+                    type: integer
+                    format: int32
+        follow.ListMyFollowersResponse:
+            required:
+                - users
+                - nextPageToken
+            type: object
+            properties:
+                users:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/common.User'
+                nextPageToken:
+                    type: string
+        follow.ListMyFollowingResponse:
+            required:
+                - users
+                - nextPageToken
+            type: object
+            properties:
+                users:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/common.User'
+                nextPageToken:
+                    type: string
+        message.CommentInboxMessage:
+            required:
+                - uid
+                - isRead
+                - actor
+                - createdAt
+            type: object
+            properties:
+                uid:
+                    type: string
+                isRead:
+                    type: boolean
+                actor:
+                    $ref: '#/components/schemas/message.InboxMessageActor'
+                createdAt:
+                    type: string
+                commentUid:
+                    type: string
+                commentContent:
+                    type: string
+                postUid:
+                    type: string
+                parentUid:
+                    type: string
+                parentContent:
+                    type: string
+        message.CountUnreadInboxMessagesResponse:
+            required:
+                - unreadCount
+                - followUnreadCount
+                - commentUnreadCount
+            type: object
+            properties:
+                unreadCount:
+                    type: integer
+                    format: int32
+                followUnreadCount:
+                    type: integer
+                    format: int32
+                commentUnreadCount:
+                    type: integer
+                    format: int32
+        message.FollowInboxMessage:
+            required:
+                - uid
+                - isRead
+                - actor
+                - createdAt
+            type: object
+            properties:
+                uid:
+                    type: string
+                isRead:
+                    type: boolean
+                actor:
+                    $ref: '#/components/schemas/message.InboxMessageActor'
+                createdAt:
+                    type: string
+        message.InboxMessageActor:
+            required:
+                - uid
+                - nickname
+                - avatarUrl
+            type: object
+            properties:
+                uid:
+                    type: string
+                nickname:
+                    type: string
+                avatarUrl:
+                    type: string
+        message.ListCommentInboxMessagesResponse:
+            required:
+                - messages
+                - nextPageToken
+            type: object
+            properties:
+                messages:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/message.CommentInboxMessage'
+                nextPageToken:
+                    type: string
+        message.ListFollowInboxMessagesResponse:
+            required:
+                - messages
+                - nextPageToken
+            type: object
+            properties:
+                messages:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/message.FollowInboxMessage'
+                nextPageToken:
+                    type: string
+        message.MarkAllInboxMessagesReadResponse:
+            required:
+                - updatedCount
+            type: object
+            properties:
+                updatedCount:
+                    type: integer
+                    format: int32
+        post.Attachment:
+            required:
+                - url
+                - name
+                - size
+                - contentType
+                - checksum
+            type: object
+            properties:
+                url:
+                    type: string
+                name:
+                    type: string
+                size:
+                    type: string
+                contentType:
+                    type: string
+                checksum:
+                    type: string
+        post.CollectPostRequest:
+            required:
+                - uid
+            type: object
+            properties:
+                uid:
+                    type: string
+                action:
+                    type: integer
+                    format: enum
+        post.CollectPostResponse:
+            required:
+                - count
+            type: object
+            properties:
+                count:
+                    type: integer
+                    format: int32
+        post.CreatePostRequest:
+            required:
+                - text
+            type: object
+            properties:
+                text:
+                    type: string
+                images:
+                    type: array
+                    items:
+                        type: string
+                attachments:
+                    type: array
+                    items:
+                        type: string
+                tags:
+                    type: array
+                    items:
+                        type: string
+                visibility:
+                    type: string
+                pinned:
+                    type: boolean
+        post.CreatePostResponse:
+            required:
+                - uid
+            type: object
+            properties:
+                uid:
+                    type: string
+        post.GetPostResponse:
+            required:
+                - post
+            type: object
+            properties:
+                post:
+                    $ref: '#/components/schemas/post.Post'
+        post.LikePostRequest:
+            required:
+                - uid
+            type: object
+            properties:
+                uid:
+                    type: string
+                action:
+                    type: integer
+                    format: enum
+        post.LikePostResponse:
+            required:
+                - count
+            type: object
+            properties:
+                count:
+                    type: integer
+                    format: int32
+        post.ListPostsResponse:
+            required:
+                - posts
+                - nextPageToken
+            type: object
+            properties:
+                posts:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/post.Post'
+                nextPageToken:
+                    type: string
+        post.Post:
+            required:
+                - uid
+                - author
+                - text
+                - images
+                - attachments
+                - tags
+                - commentCount
+                - collectionCount
+                - likeCount
+                - visibility
+                - latestRepliedOn
+                - ip
+                - pinned
+                - liked
+                - collected
+                - createdAt
+                - updatedAt
+            type: object
+            properties:
+                uid:
+                    type: string
+                author:
+                    $ref: '#/components/schemas/post.PostAuthor'
+                text:
+                    type: string
+                images:
+                    type: array
+                    items:
+                        type: string
+                attachments:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/post.Attachment'
+                tags:
+                    type: array
+                    items:
+                        type: string
+                commentCount:
+                    type: integer
+                    format: int32
+                collectionCount:
+                    type: integer
+                    format: int32
+                likeCount:
+                    type: integer
+                    format: int32
+                visibility:
+                    type: string
+                latestRepliedOn:
+                    type: string
+                ip:
+                    type: string
+                pinned:
+                    type: boolean
+                liked:
+                    type: boolean
+                collected:
+                    type: boolean
+                createdAt:
+                    type: string
+                updatedAt:
+                    type: string
+        post.PostAuthor:
+            required:
+                - uid
+                - nickname
+                - avatarUrl
+                - isFollowing
+            type: object
+            properties:
+                uid:
+                    type: string
+                nickname:
+                    type: string
+                avatarUrl:
+                    type: string
+                isFollowing:
+                    type: boolean
+            description: Models
+        post.SearchTag:
+            required:
+                - name
+            type: object
+            properties:
+                name:
+                    type: string
+        post.SearchTagsResponse:
+            required:
+                - tags
+            type: object
+            properties:
+                tags:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/post.SearchTag'
+        post.SuggestTagsByPrefixResponse:
+            required:
+                - tags
+            type: object
+            properties:
+                tags:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/post.SearchTag'
+        post.UpdatePostBody:
+            type: object
+            properties:
+                text:
+                    type: string
+                images:
+                    type: array
+                    items:
+                        type: string
+                attachments:
+                    type: array
+                    items:
+                        type: string
+                tags:
+                    type: array
+                    items:
+                        type: string
+                visibility:
+                    type: string
+                pinned:
+                    type: boolean
+        report.CreateReportRequest:
+            required:
+                - reportTargetType
+                - targetUid
+                - content
+            type: object
+            properties:
+                reportTargetType:
+                    type: integer
+                    format: enum
+                targetUid:
+                    type: string
+                content:
+                    type: string
+        user.ChangePasswordRequest:
+            required:
+                - oldPassword
+                - newPassword
+            type: object
+            properties:
+                oldPassword:
+                    type: string
+                newPassword:
+                    type: string
+        user.CreateUserRequest:
+            required:
+                - username
+                - password
+            type: object
+            properties:
+                username:
+                    type: string
+                password:
+                    type: string
+                email:
+                    type: string
+                nickname:
+                    type: string
+        user.GetMeResponse:
+            required:
+                - user
+            type: object
+            properties:
+                user:
+                    $ref: '#/components/schemas/common.User'
+        user.GetUserResponse:
+            required:
+                - user
+            type: object
+            properties:
+                user:
+                    $ref: '#/components/schemas/common.User'
+        user.LoginRequest:
+            required:
+                - account
+                - password
+            type: object
+            properties:
+                account:
+                    type: string
+                password:
+                    type: string
+                captcha:
+                    type: string
+                deviceId:
+                    type: string
+        user.LoginResponse:
+            required:
+                - tokens
+            type: object
+            properties:
+                tokens:
+                    $ref: '#/components/schemas/user.TokenPair'
+        user.RefreshTokenRequest:
+            required:
+                - refreshToken
+            type: object
+            properties:
+                refreshToken:
+                    type: string
+        user.RefreshTokenResponse:
+            required:
+                - tokens
+            type: object
+            properties:
+                tokens:
+                    $ref: '#/components/schemas/user.TokenPair'
+        user.SearchUsersResponse:
+            required:
+                - users
+            type: object
+            properties:
+                users:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/common.User'
+        user.SuggestUsersByPrefixResponse:
+            required:
+                - users
+            type: object
+            properties:
+                users:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/common.User'
+        user.TokenPair:
+            required:
+                - accessToken
+                - refreshToken
+            type: object
+            properties:
+                accessToken:
+                    type: string
+                refreshToken:
+                    type: string
+            description: Tokens
+        user.UpdateMeUser:
+            type: object
+            properties:
+                username:
+                    type: string
+                email:
+                    type: string
+                nickname:
+                    type: string
+                avatarUrl:
+                    type: string
 tags:
-  - name: CommentService
-    description: CommentService
-  - name: FileService
-    description: FileService
-  - name: FollowService
-    description: FollowService
-  - name: MessageService
-    description: MessageService
-  - name: PostService
-    description: PostService
-  - name: ReportService
-    description: ReportService
-  - name: UserService
-    description: UserService
+    - name: CommentService
+      description: CommentService
+    - name: FileService
+      description: FileService
+    - name: FollowService
+      description: FollowService
+    - name: MessageService
+      description: MessageService
+    - name: PostService
+      description: PostService
+    - name: ReportService
+      description: ReportService
+    - name: UserService
+      description: UserService

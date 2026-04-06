@@ -48,25 +48,21 @@ message FollowResponse {
 
 // List
 message ListMyFollowersRequest {
-  int64  cursor_created_at = 1; // unix seconds
-  string cursor_id         = 2;
-  string query             = 3; // optional fuzzy search on nickname
+  string query      = 1; // optional fuzzy search on nickname
+  string page_token = 2;
 }
 
 message ListMyFollowersResponse {
-  repeated common.User users                  = 1 [(google.api.field_behavior) = REQUIRED];
-  int64                next_cursor_created_at = 2 [(google.api.field_behavior) = REQUIRED];
-  string               next_cursor_id         = 3 [(google.api.field_behavior) = REQUIRED];
+  repeated common.User users           = 1 [(google.api.field_behavior) = REQUIRED];
+  string               next_page_token = 2 [(google.api.field_behavior) = REQUIRED];
 }
 
 message ListMyFollowingRequest {
-  int64  cursor_created_at = 1; // unix seconds
-  string cursor_id         = 2;
-  string query             = 3; // optional fuzzy search on nickname
+  string query      = 1; // optional fuzzy search on nickname
+  string page_token = 2;
 }
 
 message ListMyFollowingResponse {
-  repeated common.User users                  = 1 [(google.api.field_behavior) = REQUIRED];
-  int64                next_cursor_created_at = 2 [(google.api.field_behavior) = REQUIRED];
-  string               next_cursor_id         = 3 [(google.api.field_behavior) = REQUIRED];
+  repeated common.User users           = 1 [(google.api.field_behavior) = REQUIRED];
+  string               next_page_token = 2 [(google.api.field_behavior) = REQUIRED];
 }

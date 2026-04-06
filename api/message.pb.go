@@ -309,12 +309,11 @@ func (x *FollowInboxMessage) GetCreatedAt() int64 {
 }
 
 type ListCommentInboxMessagesRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	CursorCreatedAt int64                  `protobuf:"varint,1,opt,name=cursor_created_at,json=cursorCreatedAt,proto3" json:"cursor_created_at,omitempty"` // unix seconds
-	CursorId        string                 `protobuf:"bytes,2,opt,name=cursor_id,json=cursorId,proto3" json:"cursor_id,omitempty"`
-	ReadFilter      InboxMessageReadFilter `protobuf:"varint,3,opt,name=read_filter,json=readFilter,proto3,enum=message.InboxMessageReadFilter" json:"read_filter,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ReadFilter    InboxMessageReadFilter `protobuf:"varint,1,opt,name=read_filter,json=readFilter,proto3,enum=message.InboxMessageReadFilter" json:"read_filter,omitempty"`
+	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListCommentInboxMessagesRequest) Reset() {
@@ -347,20 +346,6 @@ func (*ListCommentInboxMessagesRequest) Descriptor() ([]byte, []int) {
 	return file_message_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ListCommentInboxMessagesRequest) GetCursorCreatedAt() int64 {
-	if x != nil {
-		return x.CursorCreatedAt
-	}
-	return 0
-}
-
-func (x *ListCommentInboxMessagesRequest) GetCursorId() string {
-	if x != nil {
-		return x.CursorId
-	}
-	return ""
-}
-
 func (x *ListCommentInboxMessagesRequest) GetReadFilter() InboxMessageReadFilter {
 	if x != nil {
 		return x.ReadFilter
@@ -368,13 +353,19 @@ func (x *ListCommentInboxMessagesRequest) GetReadFilter() InboxMessageReadFilter
 	return InboxMessageReadFilter_INBOX_MESSAGE_READ_FILTER_UNSPECIFIED
 }
 
+func (x *ListCommentInboxMessagesRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 type ListCommentInboxMessagesResponse struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Messages            []*CommentInboxMessage `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
-	NextCursorCreatedAt int64                  `protobuf:"varint,2,opt,name=next_cursor_created_at,json=nextCursorCreatedAt,proto3" json:"next_cursor_created_at,omitempty"`
-	NextCursorId        string                 `protobuf:"bytes,3,opt,name=next_cursor_id,json=nextCursorId,proto3" json:"next_cursor_id,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Messages      []*CommentInboxMessage `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListCommentInboxMessagesResponse) Reset() {
@@ -414,27 +405,19 @@ func (x *ListCommentInboxMessagesResponse) GetMessages() []*CommentInboxMessage 
 	return nil
 }
 
-func (x *ListCommentInboxMessagesResponse) GetNextCursorCreatedAt() int64 {
+func (x *ListCommentInboxMessagesResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextCursorCreatedAt
-	}
-	return 0
-}
-
-func (x *ListCommentInboxMessagesResponse) GetNextCursorId() string {
-	if x != nil {
-		return x.NextCursorId
+		return x.NextPageToken
 	}
 	return ""
 }
 
 type ListFollowInboxMessagesRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	CursorCreatedAt int64                  `protobuf:"varint,1,opt,name=cursor_created_at,json=cursorCreatedAt,proto3" json:"cursor_created_at,omitempty"` // unix seconds
-	CursorId        string                 `protobuf:"bytes,2,opt,name=cursor_id,json=cursorId,proto3" json:"cursor_id,omitempty"`
-	ReadFilter      InboxMessageReadFilter `protobuf:"varint,3,opt,name=read_filter,json=readFilter,proto3,enum=message.InboxMessageReadFilter" json:"read_filter,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ReadFilter    InboxMessageReadFilter `protobuf:"varint,1,opt,name=read_filter,json=readFilter,proto3,enum=message.InboxMessageReadFilter" json:"read_filter,omitempty"`
+	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListFollowInboxMessagesRequest) Reset() {
@@ -467,20 +450,6 @@ func (*ListFollowInboxMessagesRequest) Descriptor() ([]byte, []int) {
 	return file_message_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ListFollowInboxMessagesRequest) GetCursorCreatedAt() int64 {
-	if x != nil {
-		return x.CursorCreatedAt
-	}
-	return 0
-}
-
-func (x *ListFollowInboxMessagesRequest) GetCursorId() string {
-	if x != nil {
-		return x.CursorId
-	}
-	return ""
-}
-
 func (x *ListFollowInboxMessagesRequest) GetReadFilter() InboxMessageReadFilter {
 	if x != nil {
 		return x.ReadFilter
@@ -488,13 +457,19 @@ func (x *ListFollowInboxMessagesRequest) GetReadFilter() InboxMessageReadFilter 
 	return InboxMessageReadFilter_INBOX_MESSAGE_READ_FILTER_UNSPECIFIED
 }
 
+func (x *ListFollowInboxMessagesRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 type ListFollowInboxMessagesResponse struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Messages            []*FollowInboxMessage  `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
-	NextCursorCreatedAt int64                  `protobuf:"varint,2,opt,name=next_cursor_created_at,json=nextCursorCreatedAt,proto3" json:"next_cursor_created_at,omitempty"`
-	NextCursorId        string                 `protobuf:"bytes,3,opt,name=next_cursor_id,json=nextCursorId,proto3" json:"next_cursor_id,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Messages      []*FollowInboxMessage  `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListFollowInboxMessagesResponse) Reset() {
@@ -534,16 +509,9 @@ func (x *ListFollowInboxMessagesResponse) GetMessages() []*FollowInboxMessage {
 	return nil
 }
 
-func (x *ListFollowInboxMessagesResponse) GetNextCursorCreatedAt() int64 {
+func (x *ListFollowInboxMessagesResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextCursorCreatedAt
-	}
-	return 0
-}
-
-func (x *ListFollowInboxMessagesResponse) GetNextCursorId() string {
-	if x != nil {
-		return x.NextCursorId
+		return x.NextPageToken
 	}
 	return ""
 }
@@ -724,25 +692,23 @@ const file_message_proto_rawDesc = "" +
 	"\ais_read\x18\x02 \x01(\bB\x03\xe0A\x02R\x06isRead\x125\n" +
 	"\x05actor\x18\x03 \x01(\v2\x1a.message.InboxMessageActorB\x03\xe0A\x02R\x05actor\x12\"\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\x03B\x03\xe0A\x02R\tcreatedAt\"\xac\x01\n" +
-	"\x1fListCommentInboxMessagesRequest\x12*\n" +
-	"\x11cursor_created_at\x18\x01 \x01(\x03R\x0fcursorCreatedAt\x12\x1b\n" +
-	"\tcursor_id\x18\x02 \x01(\tR\bcursorId\x12@\n" +
-	"\vread_filter\x18\x03 \x01(\x0e2\x1f.message.InboxMessageReadFilterR\n" +
-	"readFilter\"\xc6\x01\n" +
+	"created_at\x18\x04 \x01(\x03B\x03\xe0A\x02R\tcreatedAt\"\x82\x01\n" +
+	"\x1fListCommentInboxMessagesRequest\x12@\n" +
+	"\vread_filter\x18\x01 \x01(\x0e2\x1f.message.InboxMessageReadFilterR\n" +
+	"readFilter\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\"\x8e\x01\n" +
 	" ListCommentInboxMessagesResponse\x12=\n" +
-	"\bmessages\x18\x01 \x03(\v2\x1c.message.CommentInboxMessageB\x03\xe0A\x02R\bmessages\x128\n" +
-	"\x16next_cursor_created_at\x18\x02 \x01(\x03B\x03\xe0A\x02R\x13nextCursorCreatedAt\x12)\n" +
-	"\x0enext_cursor_id\x18\x03 \x01(\tB\x03\xe0A\x02R\fnextCursorId\"\xab\x01\n" +
-	"\x1eListFollowInboxMessagesRequest\x12*\n" +
-	"\x11cursor_created_at\x18\x01 \x01(\x03R\x0fcursorCreatedAt\x12\x1b\n" +
-	"\tcursor_id\x18\x02 \x01(\tR\bcursorId\x12@\n" +
-	"\vread_filter\x18\x03 \x01(\x0e2\x1f.message.InboxMessageReadFilterR\n" +
-	"readFilter\"\xc4\x01\n" +
+	"\bmessages\x18\x01 \x03(\v2\x1c.message.CommentInboxMessageB\x03\xe0A\x02R\bmessages\x12+\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\x03\xe0A\x02R\rnextPageToken\"\x81\x01\n" +
+	"\x1eListFollowInboxMessagesRequest\x12@\n" +
+	"\vread_filter\x18\x01 \x01(\x0e2\x1f.message.InboxMessageReadFilterR\n" +
+	"readFilter\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\"\x8c\x01\n" +
 	"\x1fListFollowInboxMessagesResponse\x12<\n" +
-	"\bmessages\x18\x01 \x03(\v2\x1b.message.FollowInboxMessageB\x03\xe0A\x02R\bmessages\x128\n" +
-	"\x16next_cursor_created_at\x18\x02 \x01(\x03B\x03\xe0A\x02R\x13nextCursorCreatedAt\x12)\n" +
-	"\x0enext_cursor_id\x18\x03 \x01(\tB\x03\xe0A\x02R\fnextCursorId\"2\n" +
+	"\bmessages\x18\x01 \x03(\v2\x1b.message.FollowInboxMessageB\x03\xe0A\x02R\bmessages\x12+\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\x03\xe0A\x02R\rnextPageToken\"2\n" +
 	"\x19DeleteInboxMessageRequest\x12\x15\n" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\"L\n" +
 	" MarkAllInboxMessagesReadResponse\x12(\n" +

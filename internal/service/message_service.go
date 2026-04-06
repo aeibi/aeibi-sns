@@ -6,10 +6,14 @@ import (
 	"aeibi/util"
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type MessageService struct {
@@ -21,12 +25,17 @@ func NewMessageService(dbx *sql.DB) *MessageService {
 }
 
 func (s *MessageService) ListCommentInboxMessages(ctx context.Context, uid string, req *api.ListCommentInboxMessagesRequest) (*api.ListCommentInboxMessagesResponse, error) {
+	cursorCreatedAt, cursorID, err := decodeAndValidateInboxPageToken(req.GetPageToken(), req.ReadFilter)
+	if err != nil {
+		return nil, err
+	}
+
 	isReadFilter := readFilterToIsReadFilter(req.ReadFilter)
 	rows, err := s.db.ListCommentInboxMessages(ctx, db.ListCommentInboxMessagesParams{
 		ReceiverUid:     util.UUID(uid),
 		IsRead:          isReadFilter,
-		CursorCreatedAt: sql.NullTime{Time: time.Unix(req.CursorCreatedAt, 0).UTC(), Valid: req.CursorCreatedAt != 0},
-		CursorID:        uuid.NullUUID{UUID: util.UUID(req.CursorId), Valid: req.CursorId != ""},
+		CursorCreatedAt: cursorCreatedAt,
+		CursorID:        cursorID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list comment inbox messages: %w", err)
@@ -67,28 +76,37 @@ func (s *MessageService) ListCommentInboxMessages(ctx context.Context, uid strin
 		})
 	}
 
-	var nextCursorCreatedAt int64
-	var nextCursorID string
+	var nextPageToken string
 	if len(rows) > 0 {
 		last := rows[len(rows)-1]
-		nextCursorCreatedAt = last.CreatedAt.Unix()
-		nextCursorID = last.Uid.String()
+		nextPageToken, err = encodeInboxPageToken(inboxPageToken{
+			ReadFilter:      int32(req.ReadFilter),
+			CursorCreatedAt: last.CreatedAt.Unix(),
+			CursorID:        last.Uid.String(),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("encode page token: %w", err)
+		}
 	}
 
 	return &api.ListCommentInboxMessagesResponse{
-		Messages:            messages,
-		NextCursorCreatedAt: nextCursorCreatedAt,
-		NextCursorId:        nextCursorID,
+		Messages:      messages,
+		NextPageToken: nextPageToken,
 	}, nil
 }
 
 func (s *MessageService) ListFollowInboxMessages(ctx context.Context, uid string, req *api.ListFollowInboxMessagesRequest) (*api.ListFollowInboxMessagesResponse, error) {
+	cursorCreatedAt, cursorID, err := decodeAndValidateInboxPageToken(req.GetPageToken(), req.ReadFilter)
+	if err != nil {
+		return nil, err
+	}
+
 	isReadFilter := readFilterToIsReadFilter(req.ReadFilter)
 	rows, err := s.db.ListFollowInboxMessages(ctx, db.ListFollowInboxMessagesParams{
 		ReceiverUid:     util.UUID(uid),
 		IsRead:          isReadFilter,
-		CursorCreatedAt: sql.NullTime{Time: time.Unix(req.CursorCreatedAt, 0).UTC(), Valid: req.CursorCreatedAt != 0},
-		CursorID:        uuid.NullUUID{UUID: util.UUID(req.CursorId), Valid: req.CursorId != ""},
+		CursorCreatedAt: cursorCreatedAt,
+		CursorID:        cursorID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list follow inbox messages: %w", err)
@@ -121,18 +139,22 @@ func (s *MessageService) ListFollowInboxMessages(ctx context.Context, uid string
 		})
 	}
 
-	var nextCursorCreatedAt int64
-	var nextCursorID string
+	var nextPageToken string
 	if len(rows) > 0 {
 		last := rows[len(rows)-1]
-		nextCursorCreatedAt = last.CreatedAt.Unix()
-		nextCursorID = last.Uid.String()
+		nextPageToken, err = encodeInboxPageToken(inboxPageToken{
+			ReadFilter:      int32(req.ReadFilter),
+			CursorCreatedAt: last.CreatedAt.Unix(),
+			CursorID:        last.Uid.String(),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("encode page token: %w", err)
+		}
 	}
 
 	return &api.ListFollowInboxMessagesResponse{
-		Messages:            messages,
-		NextCursorCreatedAt: nextCursorCreatedAt,
-		NextCursorId:        nextCursorID,
+		Messages:      messages,
+		NextPageToken: nextPageToken,
 	}, nil
 }
 
@@ -181,4 +203,48 @@ func readFilterToIsReadFilter(readFilter api.InboxMessageReadFilter) sql.NullBoo
 	default:
 		return sql.NullBool{Valid: false}
 	}
+}
+
+type inboxPageToken struct {
+	ReadFilter      int32  `json:"read_filter,omitempty"`
+	CursorCreatedAt int64  `json:"cursor_created_at,omitempty"`
+	CursorID        string `json:"cursor_id,omitempty"`
+}
+
+func decodeAndValidateInboxPageToken(pageToken string, readFilter api.InboxMessageReadFilter) (sql.NullTime, uuid.NullUUID, error) {
+	if pageToken == "" {
+		return sql.NullTime{}, uuid.NullUUID{}, nil
+	}
+
+	raw, err := base64.RawURLEncoding.DecodeString(pageToken)
+	if err != nil {
+		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	var token inboxPageToken
+	if err := json.Unmarshal(raw, &token); err != nil {
+		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	if token.ReadFilter != int32(readFilter) {
+		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "page_token does not match current filters")
+	}
+	if token.CursorCreatedAt <= 0 || token.CursorID == "" {
+		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	cursorID, err := uuid.Parse(token.CursorID)
+	if err != nil {
+		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	return sql.NullTime{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true}, uuid.NullUUID{UUID: cursorID, Valid: true}, nil
+}
+
+func encodeInboxPageToken(token inboxPageToken) (string, error) {
+	raw, err := json.Marshal(token)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
 }

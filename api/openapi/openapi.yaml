@@ -276,15 +276,11 @@ paths:
             description: GET /api/v1/me/followers 粉丝列表
             operationId: FollowService_ListMyFollowers
             parameters:
-                - name: cursorCreatedAt
-                  in: query
-                  schema:
-                    type: string
-                - name: cursorId
-                  in: query
-                  schema:
-                    type: string
                 - name: query
+                  in: query
+                  schema:
+                    type: string
+                - name: pageToken
                   in: query
                   schema:
                     type: string
@@ -302,15 +298,11 @@ paths:
             description: GET /api/v1/me/following 关注列表
             operationId: FollowService_ListMyFollowing
             parameters:
-                - name: cursorCreatedAt
-                  in: query
-                  schema:
-                    type: string
-                - name: cursorId
-                  in: query
-                  schema:
-                    type: string
                 - name: query
+                  in: query
+                  schema:
+                    type: string
+                - name: pageToken
                   in: query
                   schema:
                     type: string
@@ -328,19 +320,15 @@ paths:
             description: GET /api/v1/me/inbox/messages/comments 当前用户评论消息列表
             operationId: MessageService_ListCommentInboxMessages
             parameters:
-                - name: cursorCreatedAt
-                  in: query
-                  schema:
-                    type: string
-                - name: cursorId
-                  in: query
-                  schema:
-                    type: string
                 - name: readFilter
                   in: query
                   schema:
                     type: integer
                     format: enum
+                - name: pageToken
+                  in: query
+                  schema:
+                    type: string
             responses:
                 "200":
                     description: OK
@@ -355,19 +343,15 @@ paths:
             description: GET /api/v1/me/inbox/messages/follows 当前用户关注消息列表
             operationId: MessageService_ListFollowInboxMessages
             parameters:
-                - name: cursorCreatedAt
-                  in: query
-                  schema:
-                    type: string
-                - name: cursorId
-                  in: query
-                  schema:
-                    type: string
                 - name: readFilter
                   in: query
                   schema:
                     type: integer
                     format: enum
+                - name: pageToken
+                  in: query
+                  schema:
+                    type: string
             responses:
                 "200":
                     description: OK
@@ -1064,32 +1048,26 @@ components:
         follow.ListMyFollowersResponse:
             required:
                 - users
-                - nextCursorCreatedAt
-                - nextCursorId
+                - nextPageToken
             type: object
             properties:
                 users:
                     type: array
                     items:
                         $ref: '#/components/schemas/common.User'
-                nextCursorCreatedAt:
-                    type: string
-                nextCursorId:
+                nextPageToken:
                     type: string
         follow.ListMyFollowingResponse:
             required:
                 - users
-                - nextCursorCreatedAt
-                - nextCursorId
+                - nextPageToken
             type: object
             properties:
                 users:
                     type: array
                     items:
                         $ref: '#/components/schemas/common.User'
-                nextCursorCreatedAt:
-                    type: string
-                nextCursorId:
+                nextPageToken:
                     type: string
         message.CommentInboxMessage:
             required:
@@ -1165,32 +1143,26 @@ components:
         message.ListCommentInboxMessagesResponse:
             required:
                 - messages
-                - nextCursorCreatedAt
-                - nextCursorId
+                - nextPageToken
             type: object
             properties:
                 messages:
                     type: array
                     items:
                         $ref: '#/components/schemas/message.CommentInboxMessage'
-                nextCursorCreatedAt:
-                    type: string
-                nextCursorId:
+                nextPageToken:
                     type: string
         message.ListFollowInboxMessagesResponse:
             required:
                 - messages
-                - nextCursorCreatedAt
-                - nextCursorId
+                - nextPageToken
             type: object
             properties:
                 messages:
                     type: array
                     items:
                         $ref: '#/components/schemas/message.FollowInboxMessage'
-                nextCursorCreatedAt:
-                    type: string
-                nextCursorId:
+                nextPageToken:
                     type: string
         message.MarkAllInboxMessagesReadResponse:
             required:

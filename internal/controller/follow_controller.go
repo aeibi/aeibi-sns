@@ -40,9 +40,6 @@ func (h *FollowHandler) ListMyFollowers(ctx context.Context, req *api.ListMyFoll
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
-	if (req.CursorCreatedAt == 0 && req.CursorId != "") || (req.CursorCreatedAt != 0 && req.CursorId == "") {
-		return nil, status.Error(codes.InvalidArgument, "cursor is required")
-	}
 	uid, ok := auth.SubjectFromContext(ctx)
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
@@ -53,9 +50,6 @@ func (h *FollowHandler) ListMyFollowers(ctx context.Context, req *api.ListMyFoll
 func (h *FollowHandler) ListMyFollowing(ctx context.Context, req *api.ListMyFollowingRequest) (*api.ListMyFollowingResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
-	}
-	if (req.CursorCreatedAt == 0 && req.CursorId != "") || (req.CursorCreatedAt != 0 && req.CursorId == "") {
-		return nil, status.Error(codes.InvalidArgument, "cursor is required")
 	}
 	uid, ok := auth.SubjectFromContext(ctx)
 	if !ok || uid == "" {

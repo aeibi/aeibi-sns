@@ -24,9 +24,6 @@ func (h *MessageHandler) ListCommentInboxMessages(ctx context.Context, req *api.
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
-	if (req.CursorCreatedAt == 0 && req.CursorId != "") || (req.CursorCreatedAt != 0 && req.CursorId == "") {
-		return nil, status.Error(codes.InvalidArgument, "cursor is required")
-	}
 	uid, ok := auth.SubjectFromContext(ctx)
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
@@ -37,9 +34,6 @@ func (h *MessageHandler) ListCommentInboxMessages(ctx context.Context, req *api.
 func (h *MessageHandler) ListFollowInboxMessages(ctx context.Context, req *api.ListFollowInboxMessagesRequest) (*api.ListFollowInboxMessagesResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
-	}
-	if (req.CursorCreatedAt == 0 && req.CursorId != "") || (req.CursorCreatedAt != 0 && req.CursorId == "") {
-		return nil, status.Error(codes.InvalidArgument, "cursor is required")
 	}
 	uid, ok := auth.SubjectFromContext(ctx)
 	if !ok || uid == "" {
