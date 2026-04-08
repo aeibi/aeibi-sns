@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"aeibi/internal/auth"
 	"aeibi/internal/config"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -14,9 +13,8 @@ import (
 
 // StartGateway starts the gRPC-Gateway HTTP server and returns it plus an error channel.
 func StartGateway(ctx context.Context, cfg *config.Config, registrars []ServiceRegistrar) (*http.Server, <-chan error, error) {
-	mux := runtime.NewServeMux(
-		runtime.WithMetadata(auth.GatewayMetadataExtractor),
-	)
+	mux := runtime.NewServeMux()
+
 	for _, registrar := range registrars {
 		if registrar.RegisterGateway == nil {
 			continue

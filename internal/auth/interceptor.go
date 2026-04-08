@@ -10,13 +10,10 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-const metadataAuthorizationKey = "authorization"
-
 func NewAuthUnaryServerInterceptor(secret string) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-		md, _ := metadata.FromIncomingContext(ctx)
 		accessToken := ""
-		for _, authHeader := range md.Get(metadataAuthorizationKey) {
+		for _, authHeader := range metadata.ValueFromIncomingContext(ctx, "authorization") {
 			if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
 				accessToken = strings.TrimSpace(authHeader[7:])
 			}
