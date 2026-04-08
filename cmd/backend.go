@@ -14,9 +14,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "aeibi",
-	Short: "Start the AeiBi backend server",
+func init() {
+	rootCmd.AddCommand(backendCmd)
+}
+
+var backendCmd = &cobra.Command{
+	Use:   "backend",
+	Short: "Start backend services only (gRPC and gateway)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		configPath, err := cmd.Flags().GetString("config")
 		if err != nil {
@@ -28,12 +32,11 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		return RunRoot(cmd.Context(), cfg)
+		return RunBackend(cmd.Context(), cfg)
 	},
 }
 
-// Run boots the application with the provided configuration.
-func RunRoot(ctx context.Context, cfg *config.Config) error {
+func RunBackend(ctx context.Context, cfg *config.Config) error {
 	// Initialize shared runtime dependencies.
 	dbConn, err := env.InitDB(ctx, cfg.Database)
 	if err != nil {
@@ -46,20 +49,14 @@ func RunRoot(ctx context.Context, cfg *config.Config) error {
 		return err
 	}
 
-	// Start gRPC server
+	// Start gRPC server.
 	grpcServer, grpcErrCh, err := server.StartGRPCServer(ctx, cfg, dbConn, ossClient)
 	if err != nil {
 		return err
 	}
 
-	// Build gateway + frontend handlers on one HTTP server.
+	// Build gateway handler.
 	gatewayHandler, err := server.NewGatewayHandler(ctx, cfg)
-	if err != nil {
-		grpcServer.GracefulStop()
-		return err
-	}
-
-	frontendHandler, err := server.NewFrontendHandler()
 	if err != nil {
 		grpcServer.GracefulStop()
 		return err
@@ -68,15 +65,13 @@ func RunRoot(ctx context.Context, cfg *config.Config) error {
 	httpMux := http.NewServeMux()
 	httpMux.Handle("/api/", gatewayHandler)
 	httpMux.Handle("/file/", gatewayHandler)
-	httpMux.Handle("/", frontendHandler)
 
 	httpServer, httpErrCh := server.StartHTTPServer(cfg.Server.HTTPAddr, httpMux)
 
 	slog.Info("gRPC server listening", "addr", cfg.Server.GRPCAddr)
 	slog.Info("HTTP server listening", "addr", cfg.Server.HTTPAddr)
-	slog.Info("web frontend available", "url", "http://localhost"+cfg.Server.HTTPAddr)
 
-	// Wait for termination
+	// Wait for termination.
 	select {
 	case err := <-grpcErrCh:
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
