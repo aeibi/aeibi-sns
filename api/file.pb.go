@@ -401,12 +401,12 @@ const file_file_proto_rawDesc = "" +
 	".file.FileB\x03\xe0A\x02R\x04file\x12\x15\n" +
 	"\x03url\x18\x02 \x01(\tB\x03\xe0A\x02R\x03url\"'\n" +
 	"\x0eGetFileRequest\x12\x15\n" +
-	"\x03url\x18\x01 \x01(\tB\x03\xe0A\x02R\x03url2\xb0\x02\n" +
+	"\x03url\x18\x01 \x01(\tB\x03\xe0A\x02R\x03url2\xa0\x02\n" +
 	"\vFileService\x12Y\n" +
 	"\n" +
 	"UploadFile\x12\x17.file.UploadFileRequest\x1a\x18.file.UploadFileResponse\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/api/v1/files\x12g\n" +
-	"\vGetFileMeta\x12\x18.file.GetFileMetaRequest\x1a\x19.file.GetFileMetaResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/api/v1/files/meta/{url=**}\x12]\n" +
-	"\aGetFile\x12\x14.file.GetFileRequest\x1a\x14.google.api.HttpBody\"&\x82\xd3\xe4\x93\x02 \x12\x1e/api/v1/files/content/{url=**}B\x0fZ\raeibi/api;apib\x06proto3"
+	"\vGetFileMeta\x12\x18.file.GetFileMetaRequest\x1a\x19.file.GetFileMetaResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/api/v1/files/meta/{url=**}\x12M\n" +
+	"\aGetFile\x12\x14.file.GetFileRequest\x1a\x14.google.api.HttpBody\"\x16\x82\xd3\xe4\x93\x02\x10\x12\x0e/{url=file/**}B\x0fZ\raeibi/api;apib\x06proto3"
 
 var (
 	file_file_proto_rawDescOnce sync.Once

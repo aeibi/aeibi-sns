@@ -181,17 +181,6 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/file.UploadFileResponse'
-    /api/v1/files/content/**:
-        get:
-            tags:
-                - FileService
-            description: GET /api/v1/files/content/{url} 获取文件内容
-            operationId: FileService_GetFile
-            responses:
-                "200":
-                    description: OK
-                    content:
-                        '*/*': {}
     /api/v1/files/meta/**:
         get:
             tags:
@@ -770,6 +759,24 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/follow.FollowResponse'
+    /file/{file}:
+        get:
+            tags:
+                - FileService
+            description: GET /{url=file/**} 获取文件内容
+            operationId: FileService_GetFile
+            parameters:
+                - name: file
+                  in: path
+                  description: The file id.
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        '*/*': {}
 components:
     schemas:
         comment.Comment:

@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -14,8 +13,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// StartGateway starts the gRPC-Gateway HTTP server and returns it plus an error channel.
-func StartGateway(ctx context.Context, cfg *config.Config) (*http.Server, <-chan error, error) {
+// NewGatewayHandler builds the gRPC-Gateway HTTP handler.
+func NewGatewayHandler(ctx context.Context, cfg *config.Config) (http.Handler, error) {
 	mux := runtime.NewServeMux()
 
 	// Gateway proxies to the local gRPC server.
@@ -24,38 +23,37 @@ func StartGateway(ctx context.Context, cfg *config.Config) (*http.Server, <-chan
 
 	// Fail fast if any gateway handler cannot be registered.
 	if err := api.RegisterUserServiceHandlerFromEndpoint(ctx, mux, gatewayEndpoint, gatewayDialOpts); err != nil {
-		return nil, nil, fmt.Errorf("register gateway handlers: %w", err)
+		return nil, fmt.Errorf("register gateway handlers: %w", err)
 	}
 	if err := api.RegisterFollowServiceHandlerFromEndpoint(ctx, mux, gatewayEndpoint, gatewayDialOpts); err != nil {
-		return nil, nil, fmt.Errorf("register gateway handlers: %w", err)
+		return nil, fmt.Errorf("register gateway handlers: %w", err)
 	}
 	if err := api.RegisterPostServiceHandlerFromEndpoint(ctx, mux, gatewayEndpoint, gatewayDialOpts); err != nil {
-		return nil, nil, fmt.Errorf("register gateway handlers: %w", err)
+		return nil, fmt.Errorf("register gateway handlers: %w", err)
 	}
 	if err := api.RegisterFileServiceHandlerFromEndpoint(ctx, mux, gatewayEndpoint, gatewayDialOpts); err != nil {
-		return nil, nil, fmt.Errorf("register gateway handlers: %w", err)
+		return nil, fmt.Errorf("register gateway handlers: %w", err)
 	}
 	if err := api.RegisterCommentServiceHandlerFromEndpoint(ctx, mux, gatewayEndpoint, gatewayDialOpts); err != nil {
-		return nil, nil, fmt.Errorf("register gateway handlers: %w", err)
+		return nil, fmt.Errorf("register gateway handlers: %w", err)
 	}
 	if err := api.RegisterMessageServiceHandlerFromEndpoint(ctx, mux, gatewayEndpoint, gatewayDialOpts); err != nil {
-		return nil, nil, fmt.Errorf("register gateway handlers: %w", err)
+		return nil, fmt.Errorf("register gateway handlers: %w", err)
 	}
 	if err := api.RegisterReportServiceHandlerFromEndpoint(ctx, mux, gatewayEndpoint, gatewayDialOpts); err != nil {
-		return nil, nil, fmt.Errorf("register gateway handlers: %w", err)
+		return nil, fmt.Errorf("register gateway handlers: %w", err)
 	}
 
-	httpServer := &http.Server{
-		Addr:    cfg.Server.HTTPAddr,
-		Handler: mux,
+	return mux, nil
+}
+
+// StartGateway starts the gRPC-Gateway HTTP server and returns it plus an error channel.
+func StartGateway(ctx context.Context, cfg *config.Config) (*http.Server, <-chan error, error) {
+	handler, err := NewGatewayHandler(ctx, cfg)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	errCh := make(chan error, 1)
-	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errCh <- err
-		}
-	}()
-
+	httpServer, errCh := StartHTTPServer(cfg.Server.HTTPAddr, handler)
 	return httpServer, errCh, nil
 }

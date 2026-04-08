@@ -35,7 +35,7 @@ type FileServiceClient interface {
 	UploadFile(ctx context.Context, in *UploadFileRequest, opts ...grpc.CallOption) (*UploadFileResponse, error)
 	// GET /api/v1/files/meta/{url} 获取文件元数据（不含内容）
 	GetFileMeta(ctx context.Context, in *GetFileMetaRequest, opts ...grpc.CallOption) (*GetFileMetaResponse, error)
-	// GET /api/v1/files/content/{url} 获取文件内容
+	// GET /{url=file/**} 获取文件内容
 	GetFile(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (*httpbody.HttpBody, error)
 }
 
@@ -87,7 +87,7 @@ type FileServiceServer interface {
 	UploadFile(context.Context, *UploadFileRequest) (*UploadFileResponse, error)
 	// GET /api/v1/files/meta/{url} 获取文件元数据（不含内容）
 	GetFileMeta(context.Context, *GetFileMetaRequest) (*GetFileMetaResponse, error)
-	// GET /api/v1/files/content/{url} 获取文件内容
+	// GET /{url=file/**} 获取文件内容
 	GetFile(context.Context, *GetFileRequest) (*httpbody.HttpBody, error)
 	mustEmbedUnimplementedFileServiceServer()
 }

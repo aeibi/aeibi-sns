@@ -192,7 +192,7 @@ func RegisterFileServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/file.FileService/GetFile", runtime.WithHTTPPathPattern("/api/v1/files/content/{url=**}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/file.FileService/GetFile", runtime.WithHTTPPathPattern("/{url=file/**}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -284,7 +284,7 @@ func RegisterFileServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/file.FileService/GetFile", runtime.WithHTTPPathPattern("/api/v1/files/content/{url=**}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/file.FileService/GetFile", runtime.WithHTTPPathPattern("/{url=file/**}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -303,7 +303,7 @@ func RegisterFileServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 var (
 	pattern_FileService_UploadFile_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "files"}, ""))
 	pattern_FileService_GetFileMeta_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 3, 0, 4, 1, 5, 4}, []string{"api", "v1", "files", "meta", "url"}, ""))
-	pattern_FileService_GetFile_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 3, 0, 4, 1, 5, 4}, []string{"api", "v1", "files", "content", "url"}, ""))
+	pattern_FileService_GetFile_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 3, 0, 4, 2, 5, 1}, []string{"file", "url"}, ""))
 )
 
 var (

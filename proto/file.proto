@@ -25,10 +25,10 @@ service FileService {
     };
   }
 
-  // GET /api/v1/files/content/{url} 获取文件内容
+  // GET /{url=file/**} 获取文件内容
   rpc GetFile(GetFileRequest) returns (google.api.HttpBody) {
     option (google.api.http) = {
-      get: "/api/v1/files/content/{url=**}"
+      get: "/{url=file/**}"
     };
   }
 }

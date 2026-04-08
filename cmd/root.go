@@ -52,15 +52,28 @@ func RootRun(ctx context.Context, cfg *config.Config) error {
 		return err
 	}
 
-	// Start gRPC-Gateway HTTP server
-	httpServer, httpErrCh, err := server.StartGateway(ctx, cfg)
+	// Build gateway + frontend handlers on one HTTP server.
+	gatewayHandler, err := server.NewGatewayHandler(ctx, cfg)
 	if err != nil {
 		grpcServer.GracefulStop()
 		return err
 	}
 
+	frontendHandler, err := server.NewFrontendHandler()
+	if err != nil {
+		grpcServer.GracefulStop()
+		return err
+	}
+
+	httpMux := http.NewServeMux()
+	httpMux.Handle("/api/", gatewayHandler)
+	httpMux.Handle("/file/", gatewayHandler)
+	httpMux.Handle("/", frontendHandler)
+
+	httpServer, httpErrCh := server.StartHTTPServer(cfg.Server.HTTPAddr, httpMux)
+
 	slog.Info("gRPC server listening", "addr", cfg.Server.GRPCAddr)
-	slog.Info("HTTP gateway listening", "addr", cfg.Server.HTTPAddr)
+	slog.Info("HTTP server listening", "addr", cfg.Server.HTTPAddr, "routes", "gateway=/api/*|/file/*, frontend=/*")
 
 	// Wait for termination
 	select {
