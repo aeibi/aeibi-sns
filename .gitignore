@@ -18,6 +18,7 @@ web/yarn-error.log*
 web/pnpm-debug.log*
 web/lerna-debug.log*
 web/node_modules
+web/dist
 web/dist-ssr
 web/*.local
 web/aeibi-web-dist.tar.gz
