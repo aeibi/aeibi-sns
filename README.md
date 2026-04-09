@@ -53,29 +53,51 @@ Prerequisites:
 - Node.js `22.x` (LTS recommended)
 - pnpm `10+`
 
-### Backend
+### Startup Modes
 
-Run from the repository root:
+Start required dependencies first (from repository root):
 
 ```bash
 docker compose -f docker/docker-compose.yaml up -d
-go run ./cmd --config ./config.example.yaml
 ```
 
-Notes:
+Mode 1: Frontend dev server + backend-only API
 
-- Database migrations are applied automatically on startup.
-- OSS bucket is checked/created automatically on startup.
-
-### Frontend
-
-Run in the `web` directory:
+Frontend:
 
 ```bash
 cd web
 pnpm install
 pnpm run dev
 ```
+
+Backend:
+
+```bash
+go run ./cmd backend --config ./config.example.yaml
+```
+
+Mode 2: Embedded frontend release + full backend
+
+Build frontend release assets first (from `web`):
+
+```bash
+cd web
+pnpm install
+pnpm run release
+cd ..
+```
+
+Start full service:
+
+```bash
+go run ./cmd --config ./config.example.yaml
+```
+
+Notes:
+
+- In Mode 1, frontend is served by Vite dev server; backend serves API routes only (`/api/*` and `/file/*`).
+- In Mode 2, backend serves embedded frontend assets from `web/dist`.
 
 ## Star History
 

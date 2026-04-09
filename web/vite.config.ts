@@ -18,7 +18,7 @@ export default defineConfig({
         changeOrigin: true,
       },
       "/file": {
-        target: "http://127.0.0.1:38081/api/v1/files/content",
+        target: "http://127.0.0.1:38081",
         changeOrigin: true,
       },
     },
