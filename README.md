@@ -1,30 +1,16 @@
 <div align="center">
   <img src="./docs/images/aeibi.svg" alt="AeiBi Logo" width="180" />
-  <h1>AeiBi</h1>
   <p>
     A lightweight community platform focused on posting, discussion,
     relationships, and inbox notifications.
   </p>
-  <p>
-    <a href="https://aeibi.com">
-      <img alt="Live Demo" src="https://img.shields.io/badge/Live%20Demo-aeibi.com-0ea5e9?logo=vercel&logoColor=white&style=flat-square" />
-    </a>
-    <a href="https://github.com/aeibi/aeibi-sns/graphs/contributors">
-      <img alt="Contributors" src="https://img.shields.io/github/contributors/aeibi/aeibi-sns.svg?style=flat-square" />
-    </a>
-    <a href="https://github.com/aeibi/aeibi-sns/network/members">
-      <img alt="Forks" src="https://img.shields.io/github/forks/aeibi/aeibi-sns.svg?style=flat-square" />
-    </a>
-    <a href="https://github.com/aeibi/aeibi-sns/stargazers">
-      <img alt="Stars" src="https://img.shields.io/github/stars/aeibi/aeibi-sns.svg?style=flat-square" />
-    </a>
-    <img alt="Status" src="https://img.shields.io/badge/Status-Early%20Stage-f59e0b?style=flat-square" />
-    <img alt="Backend" src="https://img.shields.io/badge/Backend-Go%201.25-00ADD8?logo=go&logoColor=white&style=flat-square" />
-    <img alt="Frontend" src="https://img.shields.io/badge/Frontend-React%2019-61DAFB?logo=react&logoColor=0A0A0A&style=flat-square" />
-    <img alt="Database" src="https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white&style=flat-square" />
-    <img alt="API" src="https://img.shields.io/badge/API-gRPC-244c5a?logo=grpc&logoColor=white&style=flat-square" />
-  </p>
 </div>
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-aeibi.com-0ea5e9?logoColor=white&style=flat)](https://aeibi.com)
+[![Contributors](https://img.shields.io/github/contributors/aeibi/aeibi-sns.svg?style=flat)](https://github.com/aeibi/aeibi-sns/graphs/contributors)
+[![Forks](https://img.shields.io/github/forks/aeibi/aeibi-sns.svg?style=flat)](https://github.com/aeibi/aeibi-sns/network/members)
+[![Stars](https://img.shields.io/github/stars/aeibi/aeibi-sns.svg?style=flat)](https://github.com/aeibi/aeibi-sns/stargazers)
+![Status](https://img.shields.io/badge/Status-Early%20Stage-f59e0b?style=flat)
 
 ![AeiBi Home Screenshot](./docs/images/home.png)
 > Live Demo: https://aeibi.com
