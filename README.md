@@ -1,16 +1,19 @@
 <div align="center">
   <img src="./docs/images/aeibi.svg" alt="AeiBi Logo" width="180" />
   <p>
-    A lightweight community platform focused on posting, discussion,
-    relationships, and inbox notifications.
+    A lightweight community platform focused on posting, discussion, relationships, and inbox notifications.
   </p>
 </div>
+
+<div align="center">
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-aeibi.com-0ea5e9?logoColor=white&style=flat)](https://aeibi.com)
 [![Contributors](https://img.shields.io/github/contributors/aeibi/aeibi-sns.svg?style=flat)](https://github.com/aeibi/aeibi-sns/graphs/contributors)
 [![Forks](https://img.shields.io/github/forks/aeibi/aeibi-sns.svg?style=flat)](https://github.com/aeibi/aeibi-sns/network/members)
 [![Stars](https://img.shields.io/github/stars/aeibi/aeibi-sns.svg?style=flat)](https://github.com/aeibi/aeibi-sns/stargazers)
 ![Status](https://img.shields.io/badge/Status-Early%20Stage-f59e0b?style=flat)
+
+</div>
 
 ![AeiBi Home Screenshot](./docs/images/home.png)
 > Live Demo: https://aeibi.com
@@ -30,6 +33,20 @@ The project is in an early stage. Core community flows are already in place, and
 - Moderation: report posts, comments, and users
 - File service: upload files, query metadata, retrieve file content (S3-compatible object storage)
 
+## Quick Start (Docker Compose)
+
+Use this mode when you want to run the full stack quickly with prebuilt images.
+
+Start services:
+
+```bash
+docker compose -f docker/docker-compose.yaml up -d
+```
+
+Open: `http://localhost:38081`
+
+> For production deployments, make sure to update credentials in `docker/docker-compose.yaml` and `docker/runtime/config.runtime.yaml` with strong, unique passwords/secrets before starting services.
+
 ## Local Development
 
 Prerequisites:
@@ -43,7 +60,7 @@ Prerequisites:
 Start required dependencies first (from repository root):
 
 ```bash
-docker compose -f docker/docker-compose.yaml up -d
+docker compose -f docker/docker-compose.dev.yaml up -d
 ```
 
 Mode 1: Frontend dev server + backend-only API
