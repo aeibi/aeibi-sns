@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-IMAGE_NAME="${IMAGE_NAME:-aeibi-api:latest}"
-OUT_TAR="${OUT_TAR:-release/aeibi-api-image.tar}"
+IMAGE_NAME="${IMAGE_NAME:-aeibi:latest}"
+OUT_TAR="${OUT_TAR:-release/aeibi-image.tar}"
 GOOS_TARGET="${GOOS_TARGET:-linux}"
 GOARCH_TARGET="${GOARCH_TARGET:-amd64}"
 RUNTIME_DOCKERFILE="${RUNTIME_DOCKERFILE:-docker/runtime/Dockerfile}"

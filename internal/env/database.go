@@ -24,7 +24,7 @@ func InitDB(ctx context.Context, cfg config.DatabaseConfig) (*sql.DB, error) {
 
 	if err := dbConn.PingContext(ctx); err != nil {
 		dbConn.Close()
-		return nil, fmt.Errorf("ping sqlite: %w", err)
+		return nil, fmt.Errorf("ping postgres: %w", err)
 	}
 
 	return dbConn, nil

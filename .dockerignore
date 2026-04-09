@@ -1,0 +1,36 @@
+# VCS / editor metadata
+.git
+.github
+.idea
+.vscode
+.DS_Store
+**/.DS_Store
+
+# Local runtime config / secrets
+config.yaml
+.env
+.env.*
+
+# Frontend development artifacts
+web/node_modules
+web/logs
+web/dist-ssr
+web/*.log
+web/npm-debug.log*
+web/yarn-debug.log*
+web/yarn-error.log*
+web/pnpm-debug.log*
+web/lerna-debug.log*
+web/*.local
+web/aeibi-web-dist.tar.gz
+
+# Temporary / test outputs
+tmp
+dist
+coverage
+*.swp
+
+# Keep only the runtime binary from release artifacts
+release/*
+!release/bin/
+!release/bin/aeibi
