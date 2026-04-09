@@ -1,0 +1,55 @@
+name: Build Web Dist
+
+on:
+  push:
+    paths:
+      - "web/**"
+      - "!web/dist/**"
+      - ".github/workflows/build-web-dist.yml"
+  workflow_dispatch:
+
+jobs:
+  build-and-commit-dist:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend release
+        working-directory: web
+        run: pnpm run release
+
+      - name: Commit and push web/dist if changed
+        run: |
+          if [ -z "$(git status --porcelain -- web/dist)" ]; then
+            echo "No changes in web/dist."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A web/dist
+          git commit -m "chore(web): update web/dist [skip ci]"
+          git push

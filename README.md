@@ -50,8 +50,7 @@ Prerequisites:
 - Go `1.25.4+`
 - Docker Engine `28+`
 - Docker Compose `v2+`
-- Node.js `22.x` (LTS recommended)
-- pnpm `10+`
+- Node.js `22.x` + pnpm `10+` (only required for Mode 1 frontend development or manual frontend rebuild)
 
 ### Startup Modes
 
@@ -79,15 +78,6 @@ go run ./cmd backend --config ./config.example.yaml
 
 Mode 2: Embedded frontend release + full backend
 
-Build frontend release assets first (from `web`):
-
-```bash
-cd web
-pnpm install
-pnpm run release
-cd ..
-```
-
 Start full service:
 
 ```bash
@@ -98,6 +88,7 @@ Notes:
 
 - In Mode 1, frontend is served by Vite dev server; backend serves API routes only (`/api/*` and `/file/*`).
 - In Mode 2, backend serves embedded frontend assets from `web/dist`.
+- `web/dist` is built by GitHub Actions (`.github/workflows/build-web-dist.yml`) whenever frontend source files change, so a fresh clone can run Mode 2 without local Node.js/pnpm.
 
 ## Star History
 
