@@ -19,7 +19,8 @@ CREATE TABLE posts (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_posts_author ON posts (author);
+CREATE INDEX idx_posts_author_keyset_normal ON posts (author, created_at DESC, uid DESC)
+WHERE status = 'NORMAL'::post_status;
 CREATE INDEX idx_posts_keyset_normal ON posts (created_at DESC, uid DESC)
 WHERE status = 'NORMAL'::post_status;
 -- tags table
@@ -41,8 +42,7 @@ CREATE TABLE post_likes (
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (post_uid, user_uid)
 );
-CREATE INDEX idx_post_likes_user_uid ON post_likes (user_uid);
-CREATE INDEX idx_post_likes_post_uid_created_at ON post_likes (post_uid, created_at DESC);
+CREATE INDEX idx_post_likes_user_uid_post_uid ON post_likes (user_uid, post_uid);
 -- post_collections table
 CREATE TABLE post_collections (
     post_uid uuid NOT NULL REFERENCES posts(uid) ON DELETE CASCADE,
@@ -50,5 +50,4 @@ CREATE TABLE post_collections (
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (post_uid, user_uid)
 );
-CREATE INDEX idx_post_collections_user_uid ON post_collections (user_uid);
-CREATE INDEX idx_post_collections_post_uid_created_at ON post_collections (post_uid, created_at DESC);
+CREATE INDEX idx_post_collections_user_uid_post_uid ON post_collections (user_uid, post_uid);

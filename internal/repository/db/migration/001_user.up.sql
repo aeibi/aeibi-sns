@@ -18,5 +18,3 @@ CREATE TABLE users (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_user_uid ON users (uid);
-CREATE INDEX idx_user_username ON users (username);

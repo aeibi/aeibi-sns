@@ -11,5 +11,3 @@ CREATE TABLE files (
     status file_status NOT NULL DEFAULT 'NORMAL',
     created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_file_uploader ON files (uploader);
-CREATE INDEX idx_file_checksum ON files (checksum);

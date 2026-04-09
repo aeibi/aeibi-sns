@@ -20,3 +20,6 @@ WHERE status = 'NORMAL'::message_status;
 CREATE INDEX idx_inbox_messages_receiver_unread_normal ON inbox_messages (receiver_uid)
 WHERE status = 'NORMAL'::message_status
     AND is_read = false;
+CREATE INDEX idx_inbox_messages_follow_exists_normal ON inbox_messages (receiver_uid, actor_uid)
+WHERE status = 'NORMAL'::message_status
+    AND type = 'FOLLOW'::message_type;

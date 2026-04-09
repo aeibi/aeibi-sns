@@ -6,4 +6,3 @@ CREATE TABLE refresh_tokens (
     expires_at timestamptz NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_refresh_token_token ON refresh_tokens (token);

@@ -30,5 +30,3 @@ CREATE TABLE comment_likes (
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (comment_uid, user_uid)
 );
-CREATE INDEX idx_comment_likes_user_uid ON comment_likes (user_uid);
-CREATE INDEX idx_comment_likes_comment_uid_created_at ON comment_likes (comment_uid, created_at DESC);

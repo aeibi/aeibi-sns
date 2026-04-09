@@ -14,5 +14,3 @@ CREATE TABLE reports (
 );
 CREATE UNIQUE INDEX uq_reports_open_unique ON reports (reporter_uid, report_target_type, target_uid)
 WHERE status = 'NORMAL'::report_status;
-CREATE INDEX idx_reports_status_created_at ON reports (status, created_at ASC, uid ASC);
-CREATE INDEX idx_reports_target ON reports (report_target_type, target_uid);
