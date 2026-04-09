@@ -15,7 +15,7 @@ export function NavMain({
   const { pathname, search } = useLocation()
   return (
     <SidebarGroup>
-      <SidebarMenu>
+      <SidebarMenu className="gap-2">
         {items.map((item) => (
           <SidebarMenuItem key={item.name}>
             <SidebarMenuButton isActive={isMenuItemActive(item.url, pathname, search)} render={<Link to={item.url} />}>
