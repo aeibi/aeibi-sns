@@ -13,71 +13,127 @@ import (
 	"github.com/google/uuid"
 )
 
-const addFollow = `-- name: AddFollow :one
-WITH inserted AS (
-  INSERT INTO user_follows (follower_uid, followee_uid)
-  VALUES ($1, $2) ON CONFLICT DO NOTHING
-  RETURNING 1
-),
-updated_following AS (
-  UPDATE users
-  SET following_count = following_count + 1
-  WHERE uid = $1
-    AND EXISTS (
-      SELECT 1
-      FROM inserted
-    )
-  RETURNING following_count
-),
-updated_followers AS (
-  UPDATE users
-  SET followers_count = followers_count + 1
-  WHERE uid = $2
-    AND EXISTS (
-      SELECT 1
-      FROM inserted
-    )
-  RETURNING followers_count
-)
-SELECT COALESCE(
-    (
-      SELECT following_count
-      FROM updated_following
-    ),
-    (
-      SELECT following_count
-      FROM users
-      WHERE users.uid = $1
-    )
-  )::int4 AS following_count,
-  COALESCE(
-    (
-      SELECT followers_count
-      FROM updated_followers
-    ),
-    (
-      SELECT followers_count
-      FROM users
-      WHERE users.uid = $2
-    )
-  )::int4 AS followers_count
+const decrementFollowersCount = `-- name: DecrementFollowersCount :one
+UPDATE users
+SET followers_count = GREATEST(followers_count - 1, 0)
+WHERE uid = $1
+RETURNING followers_count
 `
 
-type AddFollowParams struct {
+func (q *Queries) DecrementFollowersCount(ctx context.Context, uid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, decrementFollowersCount, uid)
+	var followers_count int32
+	err := row.Scan(&followers_count)
+	return followers_count, err
+}
+
+const decrementFollowingCount = `-- name: DecrementFollowingCount :one
+UPDATE users
+SET following_count = GREATEST(following_count - 1, 0)
+WHERE uid = $1
+RETURNING following_count
+`
+
+func (q *Queries) DecrementFollowingCount(ctx context.Context, uid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, decrementFollowingCount, uid)
+	var following_count int32
+	err := row.Scan(&following_count)
+	return following_count, err
+}
+
+const deleteFollowEdge = `-- name: DeleteFollowEdge :one
+WITH deleted AS (
+  DELETE FROM user_follows
+  WHERE follower_uid = $1
+    AND followee_uid = $2
+  RETURNING 1
+)
+SELECT EXISTS (SELECT 1 FROM deleted) AS applied
+`
+
+type DeleteFollowEdgeParams struct {
 	FollowerUid uuid.UUID
 	FolloweeUid uuid.UUID
 }
 
-type AddFollowRow struct {
+func (q *Queries) DeleteFollowEdge(ctx context.Context, arg DeleteFollowEdgeParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, deleteFollowEdge, arg.FollowerUid, arg.FolloweeUid)
+	var applied bool
+	err := row.Scan(&applied)
+	return applied, err
+}
+
+const getFollowCounts = `-- name: GetFollowCounts :one
+SELECT
+  (SELECT u.following_count FROM users u WHERE u.uid = $1)::int4 AS following_count,
+  (SELECT u.followers_count FROM user u WHERE u.uid = $2)::int4 AS followers_count
+`
+
+type GetFollowCountsParams struct {
+	FollowerUid uuid.UUID
+	FolloweeUid uuid.UUID
+}
+
+type GetFollowCountsRow struct {
 	FollowingCount int32
 	FollowersCount int32
 }
 
-func (q *Queries) AddFollow(ctx context.Context, arg AddFollowParams) (AddFollowRow, error) {
-	row := q.db.QueryRowContext(ctx, addFollow, arg.FollowerUid, arg.FolloweeUid)
-	var i AddFollowRow
+func (q *Queries) GetFollowCounts(ctx context.Context, arg GetFollowCountsParams) (GetFollowCountsRow, error) {
+	row := q.db.QueryRowContext(ctx, getFollowCounts, arg.FollowerUid, arg.FolloweeUid)
+	var i GetFollowCountsRow
 	err := row.Scan(&i.FollowingCount, &i.FollowersCount)
 	return i, err
+}
+
+const incrementFollowersCount = `-- name: IncrementFollowersCount :one
+UPDATE users
+SET followers_count = followers_count + 1
+WHERE uid = $1
+RETURNING followers_count
+`
+
+func (q *Queries) IncrementFollowersCount(ctx context.Context, uid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, incrementFollowersCount, uid)
+	var followers_count int32
+	err := row.Scan(&followers_count)
+	return followers_count, err
+}
+
+const incrementFollowingCount = `-- name: IncrementFollowingCount :one
+UPDATE users
+SET following_count = following_count + 1
+WHERE uid = $1
+RETURNING following_count
+`
+
+func (q *Queries) IncrementFollowingCount(ctx context.Context, uid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, incrementFollowingCount, uid)
+	var following_count int32
+	err := row.Scan(&following_count)
+	return following_count, err
+}
+
+const insertFollowEdge = `-- name: InsertFollowEdge :one
+WITH inserted AS (
+  INSERT INTO user_follows (follower_uid, followee_uid)
+  VALUES ($1, $2)
+  ON CONFLICT DO NOTHING
+  RETURNING 1
+)
+SELECT EXISTS (SELECT 1 FROM inserted) AS applied
+`
+
+type InsertFollowEdgeParams struct {
+	FollowerUid uuid.UUID
+	FolloweeUid uuid.UUID
+}
+
+func (q *Queries) InsertFollowEdge(ctx context.Context, arg InsertFollowEdgeParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, insertFollowEdge, arg.FollowerUid, arg.FolloweeUid)
+	var applied bool
+	err := row.Scan(&applied)
+	return applied, err
 }
 
 const isFollowing = `-- name: IsFollowing :one
@@ -284,72 +340,4 @@ func (q *Queries) ListFollowing(ctx context.Context, arg ListFollowingParams) ([
 		return nil, err
 	}
 	return items, nil
-}
-
-const removeFollow = `-- name: RemoveFollow :one
-WITH deleted AS (
-  DELETE FROM user_follows
-  WHERE follower_uid = $1
-    AND followee_uid = $2
-  RETURNING 1
-),
-updated_following AS (
-  UPDATE users
-  SET following_count = GREATEST(following_count - 1, 0)
-  WHERE uid = $1
-    AND EXISTS (
-      SELECT 1
-      FROM deleted
-    )
-  RETURNING following_count
-),
-updated_followers AS (
-  UPDATE users
-  SET followers_count = GREATEST(followers_count - 1, 0)
-  WHERE uid = $2
-    AND EXISTS (
-      SELECT 1
-      FROM deleted
-    )
-  RETURNING followers_count
-)
-SELECT COALESCE(
-    (
-      SELECT following_count
-      FROM updated_following
-    ),
-    (
-      SELECT following_count
-      FROM users
-      WHERE users.uid = $1
-    )
-  )::int4 AS following_count,
-  COALESCE(
-    (
-      SELECT followers_count
-      FROM updated_followers
-    ),
-    (
-      SELECT followers_count
-      FROM users
-      WHERE users.uid = $2
-    )
-  )::int4 AS followers_count
-`
-
-type RemoveFollowParams struct {
-	FollowerUid uuid.UUID
-	FolloweeUid uuid.UUID
-}
-
-type RemoveFollowRow struct {
-	FollowingCount int32
-	FollowersCount int32
-}
-
-func (q *Queries) RemoveFollow(ctx context.Context, arg RemoveFollowParams) (RemoveFollowRow, error) {
-	row := q.db.QueryRowContext(ctx, removeFollow, arg.FollowerUid, arg.FolloweeUid)
-	var i RemoveFollowRow
-	err := row.Scan(&i.FollowingCount, &i.FollowersCount)
-	return i, err
 }

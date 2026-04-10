@@ -18,42 +18,108 @@ import (
 )
 
 type FollowService struct {
-	db *db.Queries
+	db  *db.Queries
+	dbx *sql.DB
 }
 
 func NewFollowService(dbx *sql.DB) *FollowService {
-	return &FollowService{db: db.New(dbx)}
+	return &FollowService{db: db.New(dbx), dbx: dbx}
 }
 
 func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowRequest) (*api.FollowResponse, error) {
+	followerUID := util.UUID(uid)
+	followeeUID := util.UUID(req.Uid)
+
+	if followerUID == followeeUID {
+		return nil, fmt.Errorf("follow: cannot follow yourself")
+	}
+
 	var followingCount int32
 	var followersCount int32
-	switch req.Action {
-	case api.ToggleAction_TOGGLE_ACTION_ADD:
-		row, err := s.db.AddFollow(ctx, db.AddFollowParams{
-			FollowerUid: util.UUID(uid),
-			FolloweeUid: util.UUID(req.Uid),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("follow: %w", err)
+	var createdFollowMessage bool
+
+	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+		switch req.Action {
+		case api.ToggleAction_TOGGLE_ACTION_ADD:
+			applied, err := qtx.InsertFollowEdge(ctx, db.InsertFollowEdgeParams{
+				FollowerUid: followerUID,
+				FolloweeUid: followeeUID,
+			})
+			if err != nil {
+				return fmt.Errorf("follow: insert follow edge: %w", err)
+			}
+
+			if applied {
+				followingCount, err = qtx.IncrementFollowingCount(ctx, followerUID)
+				if err != nil {
+					return fmt.Errorf("follow: increment following_count: %w", err)
+				}
+
+				followersCount, err = qtx.IncrementFollowersCount(ctx, followeeUID)
+				if err != nil {
+					return fmt.Errorf("follow: increment followers_count: %w", err)
+				}
+
+				createdFollowMessage = true
+			} else {
+				row, err := qtx.GetFollowCounts(ctx, db.GetFollowCountsParams{
+					FollowerUid: followerUID,
+					FolloweeUid: followeeUID,
+				})
+				if err != nil {
+					return fmt.Errorf("follow: get follow counts: %w", err)
+				}
+				followingCount = row.FollowingCount
+				followersCount = row.FollowersCount
+			}
+
+		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
+			applied, err := qtx.DeleteFollowEdge(ctx, db.DeleteFollowEdgeParams{
+				FollowerUid: followerUID,
+				FolloweeUid: followeeUID,
+			})
+			if err != nil {
+				return fmt.Errorf("follow: delete follow edge: %w", err)
+			}
+
+			if applied {
+				followingCount, err = qtx.DecrementFollowingCount(ctx, followerUID)
+				if err != nil {
+					return fmt.Errorf("follow: decrement following_count: %w", err)
+				}
+
+				followersCount, err = qtx.DecrementFollowersCount(ctx, followeeUID)
+				if err != nil {
+					return fmt.Errorf("follow: decrement followers_count: %w", err)
+				}
+			} else {
+				row, err := qtx.GetFollowCounts(ctx, db.GetFollowCountsParams{
+					FollowerUid: followerUID,
+					FolloweeUid: followeeUID,
+				})
+				if err != nil {
+					return fmt.Errorf("follow: get follow counts: %w", err)
+				}
+				followingCount = row.FollowingCount
+				followersCount = row.FollowersCount
+			}
+
+		default:
+			return fmt.Errorf("follow: unsupported action: %v", req.Action)
 		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	if createdFollowMessage {
+		// TODO: move this to async processing
 		_, _ = s.db.CreateFollowInboxMessage(ctx, db.CreateFollowInboxMessageParams{
 			Uid:         uuid.New(),
-			ReceiverUid: util.UUID(req.Uid),
-			ActorUid:    util.UUID(uid),
+			ReceiverUid: followeeUID,
+			ActorUid:    followerUID,
 		})
-		followingCount = row.FollowingCount
-		followersCount = row.FollowersCount
-	default:
-		row, err := s.db.RemoveFollow(ctx, db.RemoveFollowParams{
-			FollowerUid: util.UUID(uid),
-			FolloweeUid: util.UUID(req.Uid),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("follow: %w", err)
-		}
-		followingCount = row.FollowingCount
-		followersCount = row.FollowersCount
 	}
 
 	return &api.FollowResponse{

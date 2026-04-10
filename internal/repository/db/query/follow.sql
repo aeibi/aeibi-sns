@@ -1,100 +1,43 @@
--- name: AddFollow :one
+-- name: InsertFollowEdge :one
 WITH inserted AS (
   INSERT INTO user_follows (follower_uid, followee_uid)
-  VALUES (@follower_uid, @followee_uid) ON CONFLICT DO NOTHING
+  VALUES (@follower_uid, @followee_uid)
+  ON CONFLICT DO NOTHING
   RETURNING 1
-),
-updated_following AS (
-  UPDATE users
-  SET following_count = following_count + 1
-  WHERE uid = @follower_uid
-    AND EXISTS (
-      SELECT 1
-      FROM inserted
-    )
-  RETURNING following_count
-),
-updated_followers AS (
-  UPDATE users
-  SET followers_count = followers_count + 1
-  WHERE uid = @followee_uid
-    AND EXISTS (
-      SELECT 1
-      FROM inserted
-    )
-  RETURNING followers_count
 )
-SELECT COALESCE(
-    (
-      SELECT following_count
-      FROM updated_following
-    ),
-    (
-      SELECT following_count
-      FROM users
-      WHERE users.uid = @follower_uid
-    )
-  )::int4 AS following_count,
-  COALESCE(
-    (
-      SELECT followers_count
-      FROM updated_followers
-    ),
-    (
-      SELECT followers_count
-      FROM users
-      WHERE users.uid = @followee_uid
-    )
-  )::int4 AS followers_count;
--- name: RemoveFollow :one
+SELECT EXISTS (SELECT 1 FROM inserted) AS applied;
+-- name: DeleteFollowEdge :one
 WITH deleted AS (
   DELETE FROM user_follows
   WHERE follower_uid = @follower_uid
     AND followee_uid = @followee_uid
   RETURNING 1
-),
-updated_following AS (
-  UPDATE users
-  SET following_count = GREATEST(following_count - 1, 0)
-  WHERE uid = @follower_uid
-    AND EXISTS (
-      SELECT 1
-      FROM deleted
-    )
-  RETURNING following_count
-),
-updated_followers AS (
-  UPDATE users
-  SET followers_count = GREATEST(followers_count - 1, 0)
-  WHERE uid = @followee_uid
-    AND EXISTS (
-      SELECT 1
-      FROM deleted
-    )
-  RETURNING followers_count
 )
-SELECT COALESCE(
-    (
-      SELECT following_count
-      FROM updated_following
-    ),
-    (
-      SELECT following_count
-      FROM users
-      WHERE users.uid = @follower_uid
-    )
-  )::int4 AS following_count,
-  COALESCE(
-    (
-      SELECT followers_count
-      FROM updated_followers
-    ),
-    (
-      SELECT followers_count
-      FROM users
-      WHERE users.uid = @followee_uid
-    )
-  )::int4 AS followers_count;
+SELECT EXISTS (SELECT 1 FROM deleted) AS applied;
+-- name: IncrementFollowingCount :one
+UPDATE users
+SET following_count = following_count + 1
+WHERE uid = @uid
+RETURNING following_count;
+-- name: IncrementFollowersCount :one
+UPDATE users
+SET followers_count = followers_count + 1
+WHERE uid = @uid
+RETURNING followers_count;
+-- name: DecrementFollowingCount :one
+UPDATE users
+SET following_count = GREATEST(following_count - 1, 0)
+WHERE uid = @uid
+RETURNING following_count;
+-- name: DecrementFollowersCount :one
+UPDATE users
+SET followers_count = GREATEST(followers_count - 1, 0)
+WHERE uid = @uid
+RETURNING followers_count;
+-- name: GetFollowCounts :one
+SELECT
+  (SELECT u.following_count FROM users u WHERE u.uid = @follower_uid)::int4 AS following_count,
+  (SELECT u.followers_count FROM user u WHERE u.uid = @followee_uid)::int4 AS followers_count;
 -- name: ListFollowers :many
 SELECT uf.created_at AS followed_at,
   u.uid,
