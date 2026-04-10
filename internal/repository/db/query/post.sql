@@ -1,5 +1,6 @@
 -- name: CreatePost :one
 INSERT INTO posts (
+    uid,
     author,
     text,
     images,
@@ -9,6 +10,7 @@ INSERT INTO posts (
     ip
   )
 VALUES (
+    @uid,
     @author,
     @text,
     COALESCE(@images::text [], '{}'::text []),

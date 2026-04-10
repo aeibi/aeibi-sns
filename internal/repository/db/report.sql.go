@@ -13,16 +13,18 @@ import (
 
 const createReport = `-- name: CreateReport :exec
 INSERT INTO reports (
+    uid,
     reporter_uid,
     report_target_type,
     target_uid,
     content
   )
-VALUES ($1, $2, $3, $4) ON CONFLICT (reporter_uid, report_target_type, target_uid)
+VALUES ($1, $2, $3, $4, $5) ON CONFLICT (reporter_uid, report_target_type, target_uid)
 WHERE status = 'NORMAL'::report_status DO NOTHING
 `
 
 type CreateReportParams struct {
+	Uid              uuid.UUID
 	ReporterUid      uuid.UUID
 	ReportTargetType ReportTargetType
 	TargetUid        uuid.UUID
@@ -31,6 +33,7 @@ type CreateReportParams struct {
 
 func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) error {
 	_, err := q.db.ExecContext(ctx, createReport,
+		arg.Uid,
 		arg.ReporterUid,
 		arg.ReportTargetType,
 		arg.TargetUid,

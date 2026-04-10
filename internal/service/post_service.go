@@ -37,6 +37,7 @@ func (s *PostService) CreatePost(ctx context.Context, uid string, req *api.Creat
 	var resp *api.CreatePostResponse
 	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
 		row, err := qtx.CreatePost(ctx, db.CreatePostParams{
+			Uid:         uuid.New(),
 			Author:      util.UUID(uid),
 			Text:        req.Text,
 			Images:      req.Images,

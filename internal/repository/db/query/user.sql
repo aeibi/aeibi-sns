@@ -1,12 +1,13 @@
 -- name: CreateUser :exec
 INSERT INTO users (
+    uid,
     username,
     nickname,
     password_hash,
     email,
     avatar_url
   )
-VALUES ($1, $2, $3, $4, $5);
+VALUES ($1, $2, $3, $4, $5, $6);
 -- name: GetUserByUid :one
 SELECT uid,
   username,

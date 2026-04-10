@@ -62,6 +62,7 @@ func (s *CommentService) CreateTopComment(ctx context.Context, uid string, req *
 		}
 		if postRow.Author != authorUid {
 			_, _ = qtx.CreateCommentInboxMessage(ctx, db.CreateCommentInboxMessageParams{
+				Uid:         uuid.New(),
 				ReceiverUid: postRow.Author,
 				ActorUid:    authorUid,
 				CommentUid:  uuid.NullUUID{UUID: commentUid, Valid: true},
@@ -108,6 +109,7 @@ func (s *CommentService) CreateReply(ctx context.Context, uid string, req *api.C
 		}
 		if commentRow.AuthorUid != authorUid {
 			_, _ = qtx.CreateCommentInboxMessage(ctx, db.CreateCommentInboxMessageParams{
+				Uid:         uuid.New(),
 				ReceiverUid: commentRow.AuthorUid,
 				ActorUid:    authorUid,
 				CommentUid:  uuid.NullUUID{UUID: replyUid, Valid: true},

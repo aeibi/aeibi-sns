@@ -47,6 +47,7 @@ func (s *UserService) CreateUser(ctx context.Context, req *api.CreateUserRequest
 	}
 	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
 		err = qtx.CreateUser(ctx, db.CreateUserParams{
+			Uid:          uid,
 			Username:     req.Username,
 			Email:        req.Email,
 			Nickname:     req.Nickname,

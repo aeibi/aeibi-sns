@@ -38,6 +38,7 @@ func (q *Queries) ArchivePostByUidAndAuthor(ctx context.Context, arg ArchivePost
 
 const createPost = `-- name: CreatePost :one
 INSERT INTO posts (
+    uid,
     author,
     text,
     images,
@@ -49,20 +50,22 @@ INSERT INTO posts (
 VALUES (
     $1,
     $2,
-    COALESCE($3::text [], '{}'::text []),
+    $3,
     COALESCE($4::text [], '{}'::text []),
+    COALESCE($5::text [], '{}'::text []),
     COALESCE(
-      $5::post_visibility,
+      $6::post_visibility,
       'PUBLIC'::post_visibility
     ),
-    $6,
-    $7
+    $7,
+    $8
   )
 RETURNING id,
   uid
 `
 
 type CreatePostParams struct {
+	Uid         uuid.UUID
 	Author      uuid.UUID
 	Text        string
 	Images      []string
@@ -79,6 +82,7 @@ type CreatePostRow struct {
 
 func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (CreatePostRow, error) {
 	row := q.db.QueryRowContext(ctx, createPost,
+		arg.Uid,
 		arg.Author,
 		arg.Text,
 		pq.Array(arg.Images),

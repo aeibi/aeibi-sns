@@ -7,6 +7,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 type ReportService struct {
@@ -31,6 +33,7 @@ func (s *ReportService) CreateReport(ctx context.Context, uid string, req *api.C
 	}
 
 	if err := s.db.CreateReport(ctx, db.CreateReportParams{
+		Uid:              uuid.New(),
 		ReporterUid:      util.UUID(uid),
 		ReportTargetType: targetType,
 		TargetUid:        util.UUID(req.TargetUid),

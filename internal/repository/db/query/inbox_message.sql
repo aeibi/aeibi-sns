@@ -1,5 +1,6 @@
 -- name: CreateCommentInboxMessage :one
 INSERT INTO inbox_messages (
+    uid,
     receiver_uid,
     type,
     actor_uid,
@@ -8,6 +9,7 @@ INSERT INTO inbox_messages (
     parent_uid
   )
 VALUES (
+    @uid,
     @receiver_uid,
     'COMMENT'::message_type,
     @actor_uid,
@@ -18,8 +20,9 @@ VALUES (
 RETURNING id,
   uid;
 -- name: CreateFollowInboxMessage :execrows
-INSERT INTO inbox_messages (receiver_uid, type, actor_uid)
-SELECT @receiver_uid,
+INSERT INTO inbox_messages (uid, receiver_uid, type, actor_uid)
+SELECT @uid,
+  @receiver_uid,
   'FOLLOW'::message_type,
   @actor_uid
 WHERE NOT EXISTS (

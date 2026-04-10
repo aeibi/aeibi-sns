@@ -64,6 +64,7 @@ func (q *Queries) CountUnreadInboxMessagesByReceiver(ctx context.Context, receiv
 
 const createCommentInboxMessage = `-- name: CreateCommentInboxMessage :one
 INSERT INTO inbox_messages (
+    uid,
     receiver_uid,
     type,
     actor_uid,
@@ -73,17 +74,19 @@ INSERT INTO inbox_messages (
   )
 VALUES (
     $1,
-    'COMMENT'::message_type,
     $2,
+    'COMMENT'::message_type,
     $3,
     $4,
-    $5
+    $5,
+    $6
   )
 RETURNING id,
   uid
 `
 
 type CreateCommentInboxMessageParams struct {
+	Uid         uuid.UUID
 	ReceiverUid uuid.UUID
 	ActorUid    uuid.UUID
 	CommentUid  uuid.NullUUID
@@ -98,6 +101,7 @@ type CreateCommentInboxMessageRow struct {
 
 func (q *Queries) CreateCommentInboxMessage(ctx context.Context, arg CreateCommentInboxMessageParams) (CreateCommentInboxMessageRow, error) {
 	row := q.db.QueryRowContext(ctx, createCommentInboxMessage,
+		arg.Uid,
 		arg.ReceiverUid,
 		arg.ActorUid,
 		arg.CommentUid,
@@ -110,27 +114,29 @@ func (q *Queries) CreateCommentInboxMessage(ctx context.Context, arg CreateComme
 }
 
 const createFollowInboxMessage = `-- name: CreateFollowInboxMessage :execrows
-INSERT INTO inbox_messages (receiver_uid, type, actor_uid)
+INSERT INTO inbox_messages (uid, receiver_uid, type, actor_uid)
 SELECT $1,
+  $2,
   'FOLLOW'::message_type,
-  $2
+  $3
 WHERE NOT EXISTS (
     SELECT 1
     FROM inbox_messages im
-    WHERE im.receiver_uid = $1
-      AND im.actor_uid = $2
+    WHERE im.receiver_uid = $2
+      AND im.actor_uid = $3
       AND im.type = 'FOLLOW'::message_type
       AND im.status = 'NORMAL'::message_status
   )
 `
 
 type CreateFollowInboxMessageParams struct {
+	Uid         uuid.UUID
 	ReceiverUid uuid.UUID
 	ActorUid    uuid.UUID
 }
 
 func (q *Queries) CreateFollowInboxMessage(ctx context.Context, arg CreateFollowInboxMessageParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, createFollowInboxMessage, arg.ReceiverUid, arg.ActorUid)
+	result, err := q.db.ExecContext(ctx, createFollowInboxMessage, arg.Uid, arg.ReceiverUid, arg.ActorUid)
 	if err != nil {
 		return 0, err
 	}

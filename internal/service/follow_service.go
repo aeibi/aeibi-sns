@@ -38,6 +38,7 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 			return nil, fmt.Errorf("follow: %w", err)
 		}
 		_, _ = s.db.CreateFollowInboxMessage(ctx, db.CreateFollowInboxMessageParams{
+			Uid:         uuid.New(),
 			ReceiverUid: util.UUID(req.Uid),
 			ActorUid:    util.UUID(uid),
 		})
