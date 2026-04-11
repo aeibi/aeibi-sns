@@ -35,6 +35,7 @@ func NewPostService(dbx *sql.DB, ossClient *oss.OSS) *PostService {
 
 func (s *PostService) CreatePost(ctx context.Context, uid string, req *api.CreatePostRequest) (*api.CreatePostResponse, error) {
 	var resp *api.CreatePostResponse
+
 	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
 		row, err := qtx.CreatePost(ctx, db.CreatePostParams{
 			Uid:         uuid.New(),
@@ -48,13 +49,21 @@ func (s *PostService) CreatePost(ctx context.Context, uid string, req *api.Creat
 		if err != nil {
 			return fmt.Errorf("create post: %w", err)
 		}
-		err = qtx.UpsertPostTags(ctx, db.UpsertPostTagsParams{
-			PostID: row.ID,
-			Tags:   util.NormalizeStrings(req.Tags),
-		})
-		if err != nil {
-			return fmt.Errorf("create post: %w", err)
+
+		tags := util.NormalizeStrings(req.Tags)
+		if len(tags) > 0 {
+			if err := qtx.InsertTagsIfNotExists(ctx, tags); err != nil {
+				return fmt.Errorf("insert tags if not exists: %w", err)
+			}
+
+			if err := qtx.InsertPostTagsByNames(ctx, db.InsertPostTagsByNamesParams{
+				PostID: row.ID,
+				Tags:   tags,
+			}); err != nil {
+				return fmt.Errorf("insert post tags: %w", err)
+			}
 		}
+
 		resp = &api.CreatePostResponse{
 			Uid: row.Uid.String(),
 		}
@@ -62,6 +71,7 @@ func (s *PostService) CreatePost(ctx context.Context, uid string, req *api.Creat
 	}); err != nil {
 		return nil, err
 	}
+
 	return resp, nil
 }
 
@@ -324,10 +334,12 @@ func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.Updat
 			Uid:    util.UUID(req.Uid),
 			Author: util.UUID(uid),
 		}
+
 		paths := make(map[string]struct{}, len(req.UpdateMask.GetPaths()))
 		for _, path := range req.UpdateMask.GetPaths() {
 			paths[path] = struct{}{}
 		}
+
 		if _, ok := paths["text"]; ok {
 			params.Text = sql.NullString{String: req.Post.Text, Valid: true}
 		}
@@ -351,19 +363,38 @@ func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.Updat
 			}
 			return fmt.Errorf("update post: %w", err)
 		}
+
 		if _, ok := paths["tags"]; ok {
-			err = qtx.UpsertPostTags(ctx, db.UpsertPostTagsParams{
+			tags := util.NormalizeStrings(req.Post.Tags)
+
+			if len(tags) > 0 {
+				if err := qtx.InsertTagsIfNotExists(ctx, tags); err != nil {
+					return fmt.Errorf("update post: insert tags if not exists: %w", err)
+				}
+			}
+
+			if err := qtx.DeletePostTagsNotInNames(ctx, db.DeletePostTagsNotInNamesParams{
 				PostID: id,
-				Tags:   util.NormalizeStrings(req.Post.Tags),
-			})
-			if err != nil {
-				return fmt.Errorf("update post: %w", err)
+				Tags:   tags,
+			}); err != nil {
+				return fmt.Errorf("update post: delete obsolete post tags: %w", err)
+			}
+
+			if len(tags) > 0 {
+				if err := qtx.InsertPostTagsByNames(ctx, db.InsertPostTagsByNamesParams{
+					PostID: id,
+					Tags:   tags,
+				}); err != nil {
+					return fmt.Errorf("update post: insert post tags: %w", err)
+				}
 			}
 		}
+
 		return nil
 	}); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -397,18 +428,18 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 				UserUid: userUid,
 			})
 			if err != nil {
-				return fmt.Errorf("post like: insert post like edge: %w", err)
+				return fmt.Errorf("insert post like edge: %w", err)
 			}
 
 			if applied {
 				count, err = qtx.IncrementPostLikeCount(ctx, postUid)
 				if err != nil {
-					return fmt.Errorf("post like: increment post like count: %w", err)
+					return fmt.Errorf("increment post like count: %w", err)
 				}
 			} else {
 				count, err = qtx.GetPostLikeCount(ctx, postUid)
 				if err != nil {
-					return fmt.Errorf("post like: get post like count: %w", err)
+					return fmt.Errorf("get post like count: %w", err)
 				}
 			}
 
@@ -418,23 +449,23 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 				UserUid: userUid,
 			})
 			if err != nil {
-				return fmt.Errorf("post like: delete post like edge: %w", err)
+				return fmt.Errorf("delete post like edge: %w", err)
 			}
 
 			if applied {
 				count, err = qtx.DecrementPostLikeCount(ctx, postUid)
 				if err != nil {
-					return fmt.Errorf("post like: decrement post like count: %w", err)
+					return fmt.Errorf("decrement post like count: %w", err)
 				}
 			} else {
 				count, err = qtx.GetPostLikeCount(ctx, postUid)
 				if err != nil {
-					return fmt.Errorf("post like: get post like count: %w", err)
+					return fmt.Errorf("get post like count: %w", err)
 				}
 			}
 
 		default:
-			return fmt.Errorf("post like: unsupported action: %v", req.Action)
+			return fmt.Errorf("unsupported action: %v", req.Action)
 		}
 
 		return nil

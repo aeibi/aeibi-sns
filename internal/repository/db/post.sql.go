@@ -96,6 +96,29 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (CreateP
 	return i, err
 }
 
+const deletePostTagsNotInNames = `-- name: DeletePostTagsNotInNames :exec
+DELETE FROM post_tags pt
+WHERE pt.post_id = $1
+  AND NOT EXISTS (
+    SELECT 1
+    FROM tags t
+    JOIN (
+      SELECT DISTINCT unnest($2::text[]) AS name
+    ) i ON i.name = t.name
+    WHERE t.id = pt.tag_id
+  )
+`
+
+type DeletePostTagsNotInNamesParams struct {
+	PostID int32
+	Tags   []string
+}
+
+func (q *Queries) DeletePostTagsNotInNames(ctx context.Context, arg DeletePostTagsNotInNamesParams) error {
+	_, err := q.db.ExecContext(ctx, deletePostTagsNotInNames, arg.PostID, pq.Array(arg.Tags))
+	return err
+}
+
 const getPostByUid = `-- name: GetPostByUid :one
 SELECT p.uid,
   p.author,
@@ -202,6 +225,42 @@ func (q *Queries) GetPostByUid(ctx context.Context, arg GetPostByUidParams) (Get
 		pq.Array(&i.TagNames),
 	)
 	return i, err
+}
+
+const insertPostTagsByNames = `-- name: InsertPostTagsByNames :exec
+WITH input AS (
+  SELECT DISTINCT unnest($2::text[]) AS name
+)
+INSERT INTO post_tags (post_id, tag_id)
+SELECT $1, t.id
+FROM tags t
+JOIN input i ON i.name = t.name
+ON CONFLICT (post_id, tag_id) DO NOTHING
+`
+
+type InsertPostTagsByNamesParams struct {
+	PostID int32
+	Tags   []string
+}
+
+func (q *Queries) InsertPostTagsByNames(ctx context.Context, arg InsertPostTagsByNamesParams) error {
+	_, err := q.db.ExecContext(ctx, insertPostTagsByNames, arg.PostID, pq.Array(arg.Tags))
+	return err
+}
+
+const insertTagsIfNotExists = `-- name: InsertTagsIfNotExists :exec
+WITH input AS (
+  SELECT DISTINCT unnest($1::text[]) AS name
+)
+INSERT INTO tags (name)
+SELECT name
+FROM input
+ON CONFLICT (name) DO NOTHING
+`
+
+func (q *Queries) InsertTagsIfNotExists(ctx context.Context, tags []string) error {
+	_, err := q.db.ExecContext(ctx, insertTagsIfNotExists, pq.Array(tags))
+	return err
 }
 
 const listPosts = `-- name: ListPosts :many
@@ -465,45 +524,4 @@ func (q *Queries) UpdatePostByUidAndAuthor(ctx context.Context, arg UpdatePostBy
 	var id int32
 	err := row.Scan(&id)
 	return id, err
-}
-
-const upsertPostTags = `-- name: UpsertPostTags :exec
-WITH input AS (
-  SELECT DISTINCT unnest($2::text []) AS name
-),
-upsert AS (
-  INSERT INTO tags(name)
-  SELECT name
-  FROM input ON CONFLICT (name) DO
-  UPDATE
-  SET name = EXCLUDED.name
-  RETURNING id
-),
-new_ids AS (
-  SELECT id AS tag_id
-  FROM upsert
-),
-del AS (
-  DELETE FROM post_tags pt
-  WHERE pt.post_id = $1
-    AND NOT EXISTS (
-      SELECT 1
-      FROM new_ids n
-      WHERE n.tag_id = pt.tag_id
-    )
-)
-INSERT INTO post_tags (post_id, tag_id)
-SELECT $1,
-  tag_id
-FROM new_ids ON CONFLICT (post_id, tag_id) DO NOTHING
-`
-
-type UpsertPostTagsParams struct {
-	PostID int32
-	Tags   []string
-}
-
-func (q *Queries) UpsertPostTags(ctx context.Context, arg UpsertPostTagsParams) error {
-	_, err := q.db.ExecContext(ctx, upsertPostTags, arg.PostID, pq.Array(arg.Tags))
-	return err
 }

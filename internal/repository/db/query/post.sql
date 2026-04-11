@@ -24,35 +24,34 @@ VALUES (
   )
 RETURNING id,
   uid;
--- name: UpsertPostTags :exec
+-- name: InsertTagsIfNotExists :exec
 WITH input AS (
-  SELECT DISTINCT unnest(@tags::text []) AS name
-),
-upsert AS (
-  INSERT INTO tags(name)
-  SELECT name
-  FROM input ON CONFLICT (name) DO
-  UPDATE
-  SET name = EXCLUDED.name
-  RETURNING id
-),
-new_ids AS (
-  SELECT id AS tag_id
-  FROM upsert
-),
-del AS (
-  DELETE FROM post_tags pt
-  WHERE pt.post_id = @post_id
-    AND NOT EXISTS (
-      SELECT 1
-      FROM new_ids n
-      WHERE n.tag_id = pt.tag_id
-    )
+  SELECT DISTINCT unnest(@tags::text[]) AS name
+)
+INSERT INTO tags (name)
+SELECT name
+FROM input
+ON CONFLICT (name) DO NOTHING;
+-- name: DeletePostTagsNotInNames :exec
+DELETE FROM post_tags pt
+WHERE pt.post_id = @post_id
+  AND NOT EXISTS (
+    SELECT 1
+    FROM tags t
+    JOIN (
+      SELECT DISTINCT unnest(@tags::text[]) AS name
+    ) i ON i.name = t.name
+    WHERE t.id = pt.tag_id
+  );
+-- name: InsertPostTagsByNames :exec
+WITH input AS (
+  SELECT DISTINCT unnest(@tags::text[]) AS name
 )
 INSERT INTO post_tags (post_id, tag_id)
-SELECT @post_id,
-  tag_id
-FROM new_ids ON CONFLICT (post_id, tag_id) DO NOTHING;
+SELECT @post_id, t.id
+FROM tags t
+JOIN input i ON i.name = t.name
+ON CONFLICT (post_id, tag_id) DO NOTHING;
 -- name: GetPostByUid :one
 SELECT p.uid,
   p.author,
