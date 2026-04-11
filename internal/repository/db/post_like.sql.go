@@ -11,75 +11,89 @@ import (
 	"github.com/google/uuid"
 )
 
-const addPostLike = `-- name: AddPostLike :one
-WITH inserted AS (
-  INSERT INTO post_likes (post_uid, user_uid)
-  VALUES ($1, $2) ON CONFLICT DO NOTHING
-  RETURNING 1
-),
-updated AS (
-  UPDATE posts
-  SET like_count = like_count + 1,
+const decrementPostLikeCount = `-- name: DecrementPostLikeCount :one
+UPDATE posts
+SET like_count = GREATEST(like_count - 1, 0),
     updated_at = now()
-  WHERE uid = $1
-    AND EXISTS (SELECT 1 FROM inserted)
-  RETURNING like_count
-)
-SELECT like_count
-FROM updated
-UNION ALL
-SELECT like_count
-FROM posts
 WHERE uid = $1
-  AND NOT EXISTS (SELECT 1 FROM updated)
-LIMIT 1
+RETURNING like_count::int4
 `
 
-type AddPostLikeParams struct {
-	PostUid uuid.UUID
-	UserUid uuid.UUID
-}
-
-func (q *Queries) AddPostLike(ctx context.Context, arg AddPostLikeParams) (int32, error) {
-	row := q.db.QueryRowContext(ctx, addPostLike, arg.PostUid, arg.UserUid)
+func (q *Queries) DecrementPostLikeCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, decrementPostLikeCount, postUid)
 	var like_count int32
 	err := row.Scan(&like_count)
 	return like_count, err
 }
 
-const removePostLike = `-- name: RemovePostLike :one
+const deletePostLikeEdge = `-- name: DeletePostLikeEdge :one
 WITH deleted AS (
   DELETE FROM post_likes
   WHERE post_uid = $1
     AND user_uid = $2
   RETURNING 1
-),
-updated AS (
-  UPDATE posts
-  SET like_count = GREATEST(like_count - 1, 0),
-    updated_at = now()
-  WHERE uid = $1
-    AND EXISTS (SELECT 1 FROM deleted)
-  RETURNING like_count
 )
-SELECT like_count
-FROM updated
-UNION ALL
-SELECT like_count
-FROM posts
-WHERE uid = $1
-  AND NOT EXISTS (SELECT 1 FROM updated)
-LIMIT 1
+SELECT EXISTS (SELECT 1 FROM deleted)
 `
 
-type RemovePostLikeParams struct {
+type DeletePostLikeEdgeParams struct {
 	PostUid uuid.UUID
 	UserUid uuid.UUID
 }
 
-func (q *Queries) RemovePostLike(ctx context.Context, arg RemovePostLikeParams) (int32, error) {
-	row := q.db.QueryRowContext(ctx, removePostLike, arg.PostUid, arg.UserUid)
+func (q *Queries) DeletePostLikeEdge(ctx context.Context, arg DeletePostLikeEdgeParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, deletePostLikeEdge, arg.PostUid, arg.UserUid)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const getPostLikeCount = `-- name: GetPostLikeCount :one
+SELECT like_count::int4
+FROM posts
+WHERE uid = $1
+`
+
+func (q *Queries) GetPostLikeCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, getPostLikeCount, postUid)
 	var like_count int32
 	err := row.Scan(&like_count)
 	return like_count, err
+}
+
+const incrementPostLikeCount = `-- name: IncrementPostLikeCount :one
+UPDATE posts
+SET like_count = like_count + 1,
+    updated_at = now()
+WHERE uid = $1
+RETURNING like_count::int4
+`
+
+func (q *Queries) IncrementPostLikeCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, incrementPostLikeCount, postUid)
+	var like_count int32
+	err := row.Scan(&like_count)
+	return like_count, err
+}
+
+const insertPostLikeEdge = `-- name: InsertPostLikeEdge :one
+WITH inserted AS (
+  INSERT INTO post_likes (post_uid, user_uid)
+  VALUES ($1, $2)
+  ON CONFLICT DO NOTHING
+  RETURNING 1
+)
+SELECT EXISTS (SELECT 1 FROM inserted)
+`
+
+type InsertPostLikeEdgeParams struct {
+	PostUid uuid.UUID
+	UserUid uuid.UUID
+}
+
+func (q *Queries) InsertPostLikeEdge(ctx context.Context, arg InsertPostLikeEdgeParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, insertPostLikeEdge, arg.PostUid, arg.UserUid)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }

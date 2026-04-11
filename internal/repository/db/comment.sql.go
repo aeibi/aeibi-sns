@@ -14,42 +14,6 @@ import (
 	"github.com/lib/pq"
 )
 
-const addCommentLike = `-- name: AddCommentLike :one
-WITH inserted AS (
-  INSERT INTO comment_likes (comment_uid, user_uid)
-  VALUES ($1, $2) ON CONFLICT DO NOTHING
-  RETURNING 1
-),
-updated AS (
-  UPDATE post_comments
-  SET like_count = like_count + 1,
-    updated_at = now()
-  WHERE uid = $1
-    AND EXISTS (SELECT 1 FROM inserted)
-  RETURNING like_count
-)
-SELECT like_count
-FROM updated
-UNION ALL
-SELECT like_count
-FROM post_comments
-WHERE uid = $1
-  AND NOT EXISTS (SELECT 1 FROM updated)
-LIMIT 1
-`
-
-type AddCommentLikeParams struct {
-	CommentUid uuid.UUID
-	UserUid    uuid.UUID
-}
-
-func (q *Queries) AddCommentLike(ctx context.Context, arg AddCommentLikeParams) (int32, error) {
-	row := q.db.QueryRowContext(ctx, addCommentLike, arg.CommentUid, arg.UserUid)
-	var like_count int32
-	err := row.Scan(&like_count)
-	return like_count, err
-}
-
 const archiveCommentByUidAndAuthor = `-- name: ArchiveCommentByUidAndAuthor :execrows
 UPDATE post_comments
 SET status = 'ARCHIVED'::comment_status,
@@ -133,6 +97,21 @@ func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (C
 	return i, err
 }
 
+const decrementCommentLikeCount = `-- name: DecrementCommentLikeCount :one
+UPDATE post_comments
+SET like_count = GREATEST(like_count - 1, 0),
+    updated_at = now()
+WHERE uid = $1
+RETURNING like_count::int4
+`
+
+func (q *Queries) DecrementCommentLikeCount(ctx context.Context, commentUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, decrementCommentLikeCount, commentUid)
+	var like_count int32
+	err := row.Scan(&like_count)
+	return like_count, err
+}
+
 const decrementCommentReplyCount = `-- name: DecrementCommentReplyCount :one
 UPDATE post_comments
 SET reply_count = GREATEST(reply_count - 1, 0),
@@ -163,6 +142,28 @@ func (q *Queries) DecrementPostCommentCount(ctx context.Context, postUid uuid.UU
 	var comment_count int32
 	err := row.Scan(&comment_count)
 	return comment_count, err
+}
+
+const deleteCommentLikeEdge = `-- name: DeleteCommentLikeEdge :one
+WITH deleted AS (
+  DELETE FROM comment_likes
+  WHERE comment_uid = $1
+    AND user_uid = $2
+  RETURNING 1
+)
+SELECT EXISTS (SELECT 1 FROM deleted)
+`
+
+type DeleteCommentLikeEdgeParams struct {
+	CommentUid uuid.UUID
+	UserUid    uuid.UUID
+}
+
+func (q *Queries) DeleteCommentLikeEdge(ctx context.Context, arg DeleteCommentLikeEdgeParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, deleteCommentLikeEdge, arg.CommentUid, arg.UserUid)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const getCommentByUid = `-- name: GetCommentByUid :one
@@ -245,6 +246,19 @@ func (q *Queries) GetCommentByUid(ctx context.Context, arg GetCommentByUidParams
 	return i, err
 }
 
+const getCommentLikeCount = `-- name: GetCommentLikeCount :one
+SELECT like_count::int4
+FROM post_comments
+WHERE uid = $1
+`
+
+func (q *Queries) GetCommentLikeCount(ctx context.Context, commentUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, getCommentLikeCount, commentUid)
+	var like_count int32
+	err := row.Scan(&like_count)
+	return like_count, err
+}
+
 const getCommentMetaByUid = `-- name: GetCommentMetaByUid :one
 SELECT post_uid,
   author_uid,
@@ -273,6 +287,21 @@ func (q *Queries) GetCommentMetaByUid(ctx context.Context, uid uuid.UUID) (GetCo
 		&i.Content,
 	)
 	return i, err
+}
+
+const incrementCommentLikeCount = `-- name: IncrementCommentLikeCount :one
+UPDATE post_comments
+SET like_count = like_count + 1,
+    updated_at = now()
+WHERE uid = $1
+RETURNING like_count::int4
+`
+
+func (q *Queries) IncrementCommentLikeCount(ctx context.Context, commentUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, incrementCommentLikeCount, commentUid)
+	var like_count int32
+	err := row.Scan(&like_count)
+	return like_count, err
 }
 
 const incrementCommentReplyCount = `-- name: IncrementCommentReplyCount :one
@@ -306,6 +335,28 @@ func (q *Queries) IncrementPostCommentCount(ctx context.Context, postUid uuid.UU
 	var comment_count int32
 	err := row.Scan(&comment_count)
 	return comment_count, err
+}
+
+const insertCommentLikeEdge = `-- name: InsertCommentLikeEdge :one
+WITH inserted AS (
+  INSERT INTO comment_likes (comment_uid, user_uid)
+  VALUES ($1, $2)
+  ON CONFLICT DO NOTHING
+  RETURNING 1
+)
+SELECT EXISTS (SELECT 1 FROM inserted)
+`
+
+type InsertCommentLikeEdgeParams struct {
+	CommentUid uuid.UUID
+	UserUid    uuid.UUID
+}
+
+func (q *Queries) InsertCommentLikeEdge(ctx context.Context, arg InsertCommentLikeEdgeParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, insertCommentLikeEdge, arg.CommentUid, arg.UserUid)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const listReplies = `-- name: ListReplies :many
@@ -525,41 +576,4 @@ func (q *Queries) ListTopComments(ctx context.Context, arg ListTopCommentsParams
 		return nil, err
 	}
 	return items, nil
-}
-
-const removeCommentLike = `-- name: RemoveCommentLike :one
-WITH deleted AS (
-  DELETE FROM comment_likes
-  WHERE comment_uid = $1
-    AND user_uid = $2
-  RETURNING 1
-),
-updated AS (
-  UPDATE post_comments
-  SET like_count = GREATEST(like_count - 1, 0),
-    updated_at = now()
-  WHERE uid = $1
-    AND EXISTS (SELECT 1 FROM deleted)
-  RETURNING like_count
-)
-SELECT like_count
-FROM updated
-UNION ALL
-SELECT like_count
-FROM post_comments
-WHERE uid = $1
-  AND NOT EXISTS (SELECT 1 FROM updated)
-LIMIT 1
-`
-
-type RemoveCommentLikeParams struct {
-	CommentUid uuid.UUID
-	UserUid    uuid.UUID
-}
-
-func (q *Queries) RemoveCommentLike(ctx context.Context, arg RemoveCommentLikeParams) (int32, error) {
-	row := q.db.QueryRowContext(ctx, removeCommentLike, arg.CommentUid, arg.UserUid)
-	var like_count int32
-	err := row.Scan(&like_count)
-	return like_count, err
 }

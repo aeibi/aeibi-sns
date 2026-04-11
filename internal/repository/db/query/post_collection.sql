@@ -1,48 +1,35 @@
--- name: AddPostCollection :one
+-- name: InsertPostCollectionEdge :one
 WITH inserted AS (
   INSERT INTO post_collections (post_uid, user_uid)
-  VALUES (@post_uid, @user_uid) ON CONFLICT DO NOTHING
+  VALUES (@post_uid, @user_uid)
+  ON CONFLICT DO NOTHING
   RETURNING 1
-),
-updated AS (
-  UPDATE posts
-  SET collection_count = collection_count + 1,
-    updated_at = now()
-  WHERE uid = @post_uid
-    AND EXISTS (SELECT 1 FROM inserted)
-  RETURNING collection_count
 )
-SELECT collection_count::int4
-FROM updated
-UNION ALL
-SELECT collection_count::int4
-FROM posts
-WHERE uid = @post_uid
-  AND NOT EXISTS (SELECT 1 FROM updated)
-LIMIT 1;
--- name: RemovePostCollection :one
+SELECT EXISTS (SELECT 1 FROM inserted);
+-- name: DeletePostCollectionEdge :one
 WITH deleted AS (
   DELETE FROM post_collections
   WHERE post_uid = @post_uid
     AND user_uid = @user_uid
   RETURNING 1
-),
-updated AS (
-  UPDATE posts
-  SET collection_count = GREATEST(collection_count - 1, 0),
-    updated_at = now()
-  WHERE uid = @post_uid
-    AND EXISTS (SELECT 1 FROM deleted)
-  RETURNING collection_count
 )
-SELECT collection_count::int4
-FROM updated
-UNION ALL
+SELECT EXISTS (SELECT 1 FROM deleted);
+-- name: IncrementPostCollectionCount :one
+UPDATE posts
+SET collection_count = collection_count + 1,
+    updated_at = now()
+WHERE uid = @post_uid
+RETURNING collection_count::int4;
+-- name: DecrementPostCollectionCount :one
+UPDATE posts
+SET collection_count = GREATEST(collection_count - 1, 0),
+    updated_at = now()
+WHERE uid = @post_uid
+RETURNING collection_count::int4;
+-- name: GetPostCollectionCount :one
 SELECT collection_count::int4
 FROM posts
-WHERE uid = @post_uid
-  AND NOT EXISTS (SELECT 1 FROM updated)
-LIMIT 1;
+WHERE uid = @post_uid;
 -- name: ListPostsByCollector :many
 SELECT p.uid,
   p.author,

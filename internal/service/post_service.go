@@ -387,26 +387,61 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 	postUid := util.UUID(req.Uid)
 	userUid := util.UUID(uid)
 
-	var (
-		count int32
-		err   error
-	)
+	var count int32
 
-	switch req.Action {
-	case api.ToggleAction_TOGGLE_ACTION_ADD:
-		count, err = s.db.AddPostLike(ctx, db.AddPostLikeParams{
-			PostUid: postUid,
-			UserUid: userUid,
-		})
-	default:
-		count, err = s.db.RemovePostLike(ctx, db.RemovePostLikeParams{
-			PostUid: postUid,
-			UserUid: userUid,
-		})
+	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+		switch req.Action {
+		case api.ToggleAction_TOGGLE_ACTION_ADD:
+			applied, err := qtx.InsertPostLikeEdge(ctx, db.InsertPostLikeEdgeParams{
+				PostUid: postUid,
+				UserUid: userUid,
+			})
+			if err != nil {
+				return fmt.Errorf("post like: insert post like edge: %w", err)
+			}
+
+			if applied {
+				count, err = qtx.IncrementPostLikeCount(ctx, postUid)
+				if err != nil {
+					return fmt.Errorf("post like: increment post like count: %w", err)
+				}
+			} else {
+				count, err = qtx.GetPostLikeCount(ctx, postUid)
+				if err != nil {
+					return fmt.Errorf("post like: get post like count: %w", err)
+				}
+			}
+
+		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
+			applied, err := qtx.DeletePostLikeEdge(ctx, db.DeletePostLikeEdgeParams{
+				PostUid: postUid,
+				UserUid: userUid,
+			})
+			if err != nil {
+				return fmt.Errorf("post like: delete post like edge: %w", err)
+			}
+
+			if applied {
+				count, err = qtx.DecrementPostLikeCount(ctx, postUid)
+				if err != nil {
+					return fmt.Errorf("post like: decrement post like count: %w", err)
+				}
+			} else {
+				count, err = qtx.GetPostLikeCount(ctx, postUid)
+				if err != nil {
+					return fmt.Errorf("post like: get post like count: %w", err)
+				}
+			}
+
+		default:
+			return fmt.Errorf("post like: unsupported action: %v", req.Action)
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-	if err != nil {
-		return nil, fmt.Errorf("post like: %w", err)
-	}
+
 	return &api.LikePostResponse{
 		Count: count,
 	}, nil
@@ -416,26 +451,61 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 	postUid := util.UUID(req.Uid)
 	userUid := util.UUID(uid)
 
-	var (
-		count int32
-		err   error
-	)
+	var count int32
 
-	switch req.Action {
-	case api.ToggleAction_TOGGLE_ACTION_ADD:
-		count, err = s.db.AddPostCollection(ctx, db.AddPostCollectionParams{
-			PostUid: postUid,
-			UserUid: userUid,
-		})
-	default:
-		count, err = s.db.RemovePostCollection(ctx, db.RemovePostCollectionParams{
-			PostUid: postUid,
-			UserUid: userUid,
-		})
+	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+		switch req.Action {
+		case api.ToggleAction_TOGGLE_ACTION_ADD:
+			applied, err := qtx.InsertPostCollectionEdge(ctx, db.InsertPostCollectionEdgeParams{
+				PostUid: postUid,
+				UserUid: userUid,
+			})
+			if err != nil {
+				return fmt.Errorf("post collection: insert post collection edge: %w", err)
+			}
+
+			if applied {
+				count, err = qtx.IncrementPostCollectionCount(ctx, postUid)
+				if err != nil {
+					return fmt.Errorf("post collection: increment post collection count: %w", err)
+				}
+			} else {
+				count, err = qtx.GetPostCollectionCount(ctx, postUid)
+				if err != nil {
+					return fmt.Errorf("post collection: get post collection count: %w", err)
+				}
+			}
+
+		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
+			applied, err := qtx.DeletePostCollectionEdge(ctx, db.DeletePostCollectionEdgeParams{
+				PostUid: postUid,
+				UserUid: userUid,
+			})
+			if err != nil {
+				return fmt.Errorf("post collection: delete post collection edge: %w", err)
+			}
+
+			if applied {
+				count, err = qtx.DecrementPostCollectionCount(ctx, postUid)
+				if err != nil {
+					return fmt.Errorf("post collection: decrement post collection count: %w", err)
+				}
+			} else {
+				count, err = qtx.GetPostCollectionCount(ctx, postUid)
+				if err != nil {
+					return fmt.Errorf("post collection: get post collection count: %w", err)
+				}
+			}
+
+		default:
+			return fmt.Errorf("post collection: unsupported action: %v", req.Action)
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-	if err != nil {
-		return nil, fmt.Errorf("post collection: %w", err)
-	}
+
 	return &api.CollectPostResponse{
 		Count: count,
 	}, nil

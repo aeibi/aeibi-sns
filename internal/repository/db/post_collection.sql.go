@@ -14,40 +14,91 @@ import (
 	"github.com/lib/pq"
 )
 
-const addPostCollection = `-- name: AddPostCollection :one
-WITH inserted AS (
-  INSERT INTO post_collections (post_uid, user_uid)
-  VALUES ($1, $2) ON CONFLICT DO NOTHING
-  RETURNING 1
-),
-updated AS (
-  UPDATE posts
-  SET collection_count = collection_count + 1,
+const decrementPostCollectionCount = `-- name: DecrementPostCollectionCount :one
+UPDATE posts
+SET collection_count = GREATEST(collection_count - 1, 0),
     updated_at = now()
-  WHERE uid = $1
-    AND EXISTS (SELECT 1 FROM inserted)
-  RETURNING collection_count
-)
-SELECT collection_count::int4
-FROM updated
-UNION ALL
-SELECT collection_count::int4
-FROM posts
 WHERE uid = $1
-  AND NOT EXISTS (SELECT 1 FROM updated)
-LIMIT 1
+RETURNING collection_count::int4
 `
 
-type AddPostCollectionParams struct {
+func (q *Queries) DecrementPostCollectionCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, decrementPostCollectionCount, postUid)
+	var collection_count int32
+	err := row.Scan(&collection_count)
+	return collection_count, err
+}
+
+const deletePostCollectionEdge = `-- name: DeletePostCollectionEdge :one
+WITH deleted AS (
+  DELETE FROM post_collections
+  WHERE post_uid = $1
+    AND user_uid = $2
+  RETURNING 1
+)
+SELECT EXISTS (SELECT 1 FROM deleted)
+`
+
+type DeletePostCollectionEdgeParams struct {
 	PostUid uuid.UUID
 	UserUid uuid.UUID
 }
 
-func (q *Queries) AddPostCollection(ctx context.Context, arg AddPostCollectionParams) (int32, error) {
-	row := q.db.QueryRowContext(ctx, addPostCollection, arg.PostUid, arg.UserUid)
+func (q *Queries) DeletePostCollectionEdge(ctx context.Context, arg DeletePostCollectionEdgeParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, deletePostCollectionEdge, arg.PostUid, arg.UserUid)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const getPostCollectionCount = `-- name: GetPostCollectionCount :one
+SELECT collection_count::int4
+FROM posts
+WHERE uid = $1
+`
+
+func (q *Queries) GetPostCollectionCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, getPostCollectionCount, postUid)
 	var collection_count int32
 	err := row.Scan(&collection_count)
 	return collection_count, err
+}
+
+const incrementPostCollectionCount = `-- name: IncrementPostCollectionCount :one
+UPDATE posts
+SET collection_count = collection_count + 1,
+    updated_at = now()
+WHERE uid = $1
+RETURNING collection_count::int4
+`
+
+func (q *Queries) IncrementPostCollectionCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRowContext(ctx, incrementPostCollectionCount, postUid)
+	var collection_count int32
+	err := row.Scan(&collection_count)
+	return collection_count, err
+}
+
+const insertPostCollectionEdge = `-- name: InsertPostCollectionEdge :one
+WITH inserted AS (
+  INSERT INTO post_collections (post_uid, user_uid)
+  VALUES ($1, $2)
+  ON CONFLICT DO NOTHING
+  RETURNING 1
+)
+SELECT EXISTS (SELECT 1 FROM inserted)
+`
+
+type InsertPostCollectionEdgeParams struct {
+	PostUid uuid.UUID
+	UserUid uuid.UUID
+}
+
+func (q *Queries) InsertPostCollectionEdge(ctx context.Context, arg InsertPostCollectionEdgeParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, insertPostCollectionEdge, arg.PostUid, arg.UserUid)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const listPostsByCollector = `-- name: ListPostsByCollector :many
@@ -188,41 +239,4 @@ func (q *Queries) ListPostsByCollector(ctx context.Context, arg ListPostsByColle
 		return nil, err
 	}
 	return items, nil
-}
-
-const removePostCollection = `-- name: RemovePostCollection :one
-WITH deleted AS (
-  DELETE FROM post_collections
-  WHERE post_uid = $1
-    AND user_uid = $2
-  RETURNING 1
-),
-updated AS (
-  UPDATE posts
-  SET collection_count = GREATEST(collection_count - 1, 0),
-    updated_at = now()
-  WHERE uid = $1
-    AND EXISTS (SELECT 1 FROM deleted)
-  RETURNING collection_count
-)
-SELECT collection_count::int4
-FROM updated
-UNION ALL
-SELECT collection_count::int4
-FROM posts
-WHERE uid = $1
-  AND NOT EXISTS (SELECT 1 FROM updated)
-LIMIT 1
-`
-
-type RemovePostCollectionParams struct {
-	PostUid uuid.UUID
-	UserUid uuid.UUID
-}
-
-func (q *Queries) RemovePostCollection(ctx context.Context, arg RemovePostCollectionParams) (int32, error) {
-	row := q.db.QueryRowContext(ctx, removePostCollection, arg.PostUid, arg.UserUid)
-	var collection_count int32
-	err := row.Scan(&collection_count)
-	return collection_count, err
 }

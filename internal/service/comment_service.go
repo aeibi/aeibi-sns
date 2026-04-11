@@ -335,26 +335,61 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 	commentUid := util.UUID(req.Uid)
 	userUid := util.UUID(uid)
 
-	var (
-		count int32
-		err   error
-	)
+	var count int32
 
-	switch req.Action {
-	case api.ToggleAction_TOGGLE_ACTION_ADD:
-		count, err = s.db.AddCommentLike(ctx, db.AddCommentLikeParams{
-			CommentUid: commentUid,
-			UserUid:    userUid,
-		})
-	default:
-		count, err = s.db.RemoveCommentLike(ctx, db.RemoveCommentLikeParams{
-			CommentUid: commentUid,
-			UserUid:    userUid,
-		})
+	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+		switch req.Action {
+		case api.ToggleAction_TOGGLE_ACTION_ADD:
+			applied, err := qtx.InsertCommentLikeEdge(ctx, db.InsertCommentLikeEdgeParams{
+				CommentUid: commentUid,
+				UserUid:    userUid,
+			})
+			if err != nil {
+				return fmt.Errorf("comment like: insert comment like edge: %w", err)
+			}
+
+			if applied {
+				count, err = qtx.IncrementCommentLikeCount(ctx, commentUid)
+				if err != nil {
+					return fmt.Errorf("comment like: increment comment like count: %w", err)
+				}
+			} else {
+				count, err = qtx.GetCommentLikeCount(ctx, commentUid)
+				if err != nil {
+					return fmt.Errorf("comment like: get comment like count: %w", err)
+				}
+			}
+
+		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
+			applied, err := qtx.DeleteCommentLikeEdge(ctx, db.DeleteCommentLikeEdgeParams{
+				CommentUid: commentUid,
+				UserUid:    userUid,
+			})
+			if err != nil {
+				return fmt.Errorf("comment like: delete comment like edge: %w", err)
+			}
+
+			if applied {
+				count, err = qtx.DecrementCommentLikeCount(ctx, commentUid)
+				if err != nil {
+					return fmt.Errorf("comment like: decrement comment like count: %w", err)
+				}
+			} else {
+				count, err = qtx.GetCommentLikeCount(ctx, commentUid)
+				if err != nil {
+					return fmt.Errorf("comment like: get comment like count: %w", err)
+				}
+			}
+
+		default:
+			return fmt.Errorf("comment like: unsupported action: %v", req.Action)
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-	if err != nil {
-		return nil, fmt.Errorf("comment like: %w", err)
-	}
+
 	return &api.LikeCommentResponse{
 		Count: count,
 	}, nil

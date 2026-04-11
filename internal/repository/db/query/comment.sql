@@ -67,51 +67,38 @@ FROM post_comments c
 WHERE c.status = 'NORMAL'::comment_status
   AND c.uid = @uid
 LIMIT 1;
--- name: AddCommentLike :one
+-- name: InsertCommentLikeEdge :one
 WITH inserted AS (
   INSERT INTO comment_likes (comment_uid, user_uid)
-  VALUES (@comment_uid, @user_uid) ON CONFLICT DO NOTHING
+  VALUES (@comment_uid, @user_uid)
+  ON CONFLICT DO NOTHING
   RETURNING 1
-),
-updated AS (
-  UPDATE post_comments
-  SET like_count = like_count + 1,
-    updated_at = now()
-  WHERE uid = @comment_uid
-    AND EXISTS (SELECT 1 FROM inserted)
-  RETURNING like_count
 )
-SELECT like_count
-FROM updated
-UNION ALL
-SELECT like_count
-FROM post_comments
-WHERE uid = @comment_uid
-  AND NOT EXISTS (SELECT 1 FROM updated)
-LIMIT 1;
--- name: RemoveCommentLike :one
+SELECT EXISTS (SELECT 1 FROM inserted);
+-- name: DeleteCommentLikeEdge :one
 WITH deleted AS (
   DELETE FROM comment_likes
   WHERE comment_uid = @comment_uid
     AND user_uid = @user_uid
   RETURNING 1
-),
-updated AS (
-  UPDATE post_comments
-  SET like_count = GREATEST(like_count - 1, 0),
-    updated_at = now()
-  WHERE uid = @comment_uid
-    AND EXISTS (SELECT 1 FROM deleted)
-  RETURNING like_count
 )
-SELECT like_count
-FROM updated
-UNION ALL
-SELECT like_count
-FROM post_comments
+SELECT EXISTS (SELECT 1 FROM deleted);
+-- name: IncrementCommentLikeCount :one
+UPDATE post_comments
+SET like_count = like_count + 1,
+    updated_at = now()
 WHERE uid = @comment_uid
-  AND NOT EXISTS (SELECT 1 FROM updated)
-LIMIT 1;
+RETURNING like_count::int4;
+-- name: DecrementCommentLikeCount :one
+UPDATE post_comments
+SET like_count = GREATEST(like_count - 1, 0),
+    updated_at = now()
+WHERE uid = @comment_uid
+RETURNING like_count::int4;
+-- name: GetCommentLikeCount :one
+SELECT like_count::int4
+FROM post_comments
+WHERE uid = @comment_uid;
 -- name: ListTopComments :many
 SELECT c.uid,
   u.uid AS author_uid,
