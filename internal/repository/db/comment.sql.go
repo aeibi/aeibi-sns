@@ -7,11 +7,9 @@ package db
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const archiveCommentByUidAndAuthor = `-- name: ArchiveCommentByUidAndAuthor :execrows
@@ -29,11 +27,11 @@ type ArchiveCommentByUidAndAuthorParams struct {
 }
 
 func (q *Queries) ArchiveCommentByUidAndAuthor(ctx context.Context, arg ArchiveCommentByUidAndAuthorParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, archiveCommentByUidAndAuthor, arg.Uid, arg.AuthorUid)
+	result, err := q.db.Exec(ctx, archiveCommentByUidAndAuthor, arg.Uid, arg.AuthorUid)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const createComment = `-- name: CreateComment :one
@@ -81,7 +79,7 @@ type CreateCommentRow struct {
 }
 
 func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (CreateCommentRow, error) {
-	row := q.db.QueryRowContext(ctx, createComment,
+	row := q.db.QueryRow(ctx, createComment,
 		arg.Uid,
 		arg.PostUid,
 		arg.AuthorUid,
@@ -89,7 +87,7 @@ func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (C
 		arg.ParentUid,
 		arg.ReplyToAuthorUid,
 		arg.Content,
-		pq.Array(arg.Images),
+		arg.Images,
 		arg.Ip,
 	)
 	var i CreateCommentRow
@@ -106,7 +104,7 @@ RETURNING like_count::int4
 `
 
 func (q *Queries) DecrementCommentLikeCount(ctx context.Context, commentUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, decrementCommentLikeCount, commentUid)
+	row := q.db.QueryRow(ctx, decrementCommentLikeCount, commentUid)
 	var like_count int32
 	err := row.Scan(&like_count)
 	return like_count, err
@@ -122,7 +120,7 @@ RETURNING reply_count
 `
 
 func (q *Queries) DecrementCommentReplyCount(ctx context.Context, commentUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, decrementCommentReplyCount, commentUid)
+	row := q.db.QueryRow(ctx, decrementCommentReplyCount, commentUid)
 	var reply_count int32
 	err := row.Scan(&reply_count)
 	return reply_count, err
@@ -138,7 +136,7 @@ RETURNING comment_count
 `
 
 func (q *Queries) DecrementPostCommentCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, decrementPostCommentCount, postUid)
+	row := q.db.QueryRow(ctx, decrementPostCommentCount, postUid)
 	var comment_count int32
 	err := row.Scan(&comment_count)
 	return comment_count, err
@@ -160,7 +158,7 @@ type DeleteCommentLikeEdgeParams struct {
 }
 
 func (q *Queries) DeleteCommentLikeEdge(ctx context.Context, arg DeleteCommentLikeEdgeParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, deleteCommentLikeEdge, arg.CommentUid, arg.UserUid)
+	row := q.db.QueryRow(ctx, deleteCommentLikeEdge, arg.CommentUid, arg.UserUid)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -206,8 +204,8 @@ type GetCommentByUidRow struct {
 	AuthorUid              uuid.UUID
 	AuthorNickname         string
 	AuthorAvatarUrl        string
-	ReplyToAuthorNickname  sql.NullString
-	ReplyToAuthorAvatarUrl sql.NullString
+	ReplyToAuthorNickname  pgtype.Text
+	ReplyToAuthorAvatarUrl pgtype.Text
 	PostUid                uuid.UUID
 	RootUid                uuid.UUID
 	ParentUid              uuid.NullUUID
@@ -217,12 +215,12 @@ type GetCommentByUidRow struct {
 	ReplyCount             int32
 	LikeCount              int32
 	Liked                  bool
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
 }
 
 func (q *Queries) GetCommentByUid(ctx context.Context, arg GetCommentByUidParams) (GetCommentByUidRow, error) {
-	row := q.db.QueryRowContext(ctx, getCommentByUid, arg.Viewer, arg.Uid)
+	row := q.db.QueryRow(ctx, getCommentByUid, arg.Viewer, arg.Uid)
 	var i GetCommentByUidRow
 	err := row.Scan(
 		&i.Uid,
@@ -236,7 +234,7 @@ func (q *Queries) GetCommentByUid(ctx context.Context, arg GetCommentByUidParams
 		&i.ParentUid,
 		&i.ReplyToAuthorUid,
 		&i.Content,
-		pq.Array(&i.Images),
+		&i.Images,
 		&i.ReplyCount,
 		&i.LikeCount,
 		&i.Liked,
@@ -253,7 +251,7 @@ WHERE uid = $1
 `
 
 func (q *Queries) GetCommentLikeCount(ctx context.Context, commentUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, getCommentLikeCount, commentUid)
+	row := q.db.QueryRow(ctx, getCommentLikeCount, commentUid)
 	var like_count int32
 	err := row.Scan(&like_count)
 	return like_count, err
@@ -278,7 +276,7 @@ type GetCommentMetaByUidRow struct {
 }
 
 func (q *Queries) GetCommentMetaByUid(ctx context.Context, uid uuid.UUID) (GetCommentMetaByUidRow, error) {
-	row := q.db.QueryRowContext(ctx, getCommentMetaByUid, uid)
+	row := q.db.QueryRow(ctx, getCommentMetaByUid, uid)
 	var i GetCommentMetaByUidRow
 	err := row.Scan(
 		&i.PostUid,
@@ -298,7 +296,7 @@ RETURNING like_count::int4
 `
 
 func (q *Queries) IncrementCommentLikeCount(ctx context.Context, commentUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, incrementCommentLikeCount, commentUid)
+	row := q.db.QueryRow(ctx, incrementCommentLikeCount, commentUid)
 	var like_count int32
 	err := row.Scan(&like_count)
 	return like_count, err
@@ -314,7 +312,7 @@ RETURNING reply_count
 `
 
 func (q *Queries) IncrementCommentReplyCount(ctx context.Context, commentUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, incrementCommentReplyCount, commentUid)
+	row := q.db.QueryRow(ctx, incrementCommentReplyCount, commentUid)
 	var reply_count int32
 	err := row.Scan(&reply_count)
 	return reply_count, err
@@ -331,7 +329,7 @@ RETURNING comment_count
 `
 
 func (q *Queries) IncrementPostCommentCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, incrementPostCommentCount, postUid)
+	row := q.db.QueryRow(ctx, incrementPostCommentCount, postUid)
 	var comment_count int32
 	err := row.Scan(&comment_count)
 	return comment_count, err
@@ -353,7 +351,7 @@ type InsertCommentLikeEdgeParams struct {
 }
 
 func (q *Queries) InsertCommentLikeEdge(ctx context.Context, arg InsertCommentLikeEdgeParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, insertCommentLikeEdge, arg.CommentUid, arg.UserUid)
+	row := q.db.QueryRow(ctx, insertCommentLikeEdge, arg.CommentUid, arg.UserUid)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -404,8 +402,8 @@ type ListRepliesRow struct {
 	AuthorUid              uuid.UUID
 	AuthorNickname         string
 	AuthorAvatarUrl        string
-	ReplyToAuthorNickname  sql.NullString
-	ReplyToAuthorAvatarUrl sql.NullString
+	ReplyToAuthorNickname  pgtype.Text
+	ReplyToAuthorAvatarUrl pgtype.Text
 	PostUid                uuid.UUID
 	RootUid                uuid.UUID
 	ParentUid              uuid.NullUUID
@@ -415,13 +413,13 @@ type ListRepliesRow struct {
 	ReplyCount             int32
 	LikeCount              int32
 	Liked                  bool
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
 	Total                  int32
 }
 
 func (q *Queries) ListReplies(ctx context.Context, arg ListRepliesParams) ([]ListRepliesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listReplies, arg.Viewer, arg.RootUid, arg.Page)
+	rows, err := q.db.Query(ctx, listReplies, arg.Viewer, arg.RootUid, arg.Page)
 	if err != nil {
 		return nil, err
 	}
@@ -441,7 +439,7 @@ func (q *Queries) ListReplies(ctx context.Context, arg ListRepliesParams) ([]Lis
 			&i.ParentUid,
 			&i.ReplyToAuthorUid,
 			&i.Content,
-			pq.Array(&i.Images),
+			&i.Images,
 			&i.ReplyCount,
 			&i.LikeCount,
 			&i.Liked,
@@ -452,9 +450,6 @@ func (q *Queries) ListReplies(ctx context.Context, arg ListRepliesParams) ([]Lis
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -508,7 +503,7 @@ LIMIT 20
 type ListTopCommentsParams struct {
 	Viewer          uuid.NullUUID
 	PostUid         uuid.UUID
-	CursorCreatedAt sql.NullTime
+	CursorCreatedAt pgtype.Timestamptz
 	CursorID        uuid.NullUUID
 }
 
@@ -517,8 +512,8 @@ type ListTopCommentsRow struct {
 	AuthorUid              uuid.UUID
 	AuthorNickname         string
 	AuthorAvatarUrl        string
-	ReplyToAuthorNickname  sql.NullString
-	ReplyToAuthorAvatarUrl sql.NullString
+	ReplyToAuthorNickname  pgtype.Text
+	ReplyToAuthorAvatarUrl pgtype.Text
 	PostUid                uuid.UUID
 	RootUid                uuid.UUID
 	ParentUid              uuid.NullUUID
@@ -528,12 +523,12 @@ type ListTopCommentsRow struct {
 	ReplyCount             int32
 	LikeCount              int32
 	Liked                  bool
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
 }
 
 func (q *Queries) ListTopComments(ctx context.Context, arg ListTopCommentsParams) ([]ListTopCommentsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listTopComments,
+	rows, err := q.db.Query(ctx, listTopComments,
 		arg.Viewer,
 		arg.PostUid,
 		arg.CursorCreatedAt,
@@ -558,7 +553,7 @@ func (q *Queries) ListTopComments(ctx context.Context, arg ListTopCommentsParams
 			&i.ParentUid,
 			&i.ReplyToAuthorUid,
 			&i.Content,
-			pq.Array(&i.Images),
+			&i.Images,
 			&i.ReplyCount,
 			&i.LikeCount,
 			&i.Liked,
@@ -568,9 +563,6 @@ func (q *Queries) ListTopComments(ctx context.Context, arg ListTopCommentsParams
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

@@ -6,7 +6,6 @@ import (
 	"aeibi/internal/repository/oss"
 	"aeibi/util"
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -14,20 +13,22 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 )
 
 type FileService struct {
 	db                 *db.Queries
-	dbx                *sql.DB
+	pool               *pgxpool.Pool
 	oss                *oss.OSS
 	maxUploadSizeBytes int
 }
 
-func NewFileService(dbx *sql.DB, ossClient *oss.OSS, maxUploadSizeKB int) *FileService {
+func NewFileService(pool *pgxpool.Pool, ossClient *oss.OSS, maxUploadSizeKB int) *FileService {
 	return &FileService{
-		db:                 db.New(dbx),
-		dbx:                dbx,
+		db:                 db.New(pool),
+		pool:               pool,
 		oss:                ossClient,
 		maxUploadSizeBytes: maxUploadSizeKB * 1024,
 	}
@@ -78,7 +79,7 @@ func (s *FileService) UploadFile(ctx context.Context, uploader string, req *api.
 func (s *FileService) GetFileMeta(ctx context.Context, req *api.GetFileMetaRequest) (*api.GetFileMetaResponse, error) {
 	row, err := s.db.GetFileByURL(ctx, req.Url)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("file not found")
 		}
 		return nil, fmt.Errorf("get file: %w", err)
@@ -91,7 +92,7 @@ func (s *FileService) GetFileMeta(ctx context.Context, req *api.GetFileMetaReque
 			Size:        row.Size,
 			Checksum:    row.Checksum,
 			Uploader:    row.Uploader.String(),
-			CreatedAt:   row.CreatedAt.Unix(),
+			CreatedAt:   row.CreatedAt.Time.Unix(),
 		},
 		Url: row.Url,
 	}, nil

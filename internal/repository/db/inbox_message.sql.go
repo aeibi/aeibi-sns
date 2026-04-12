@@ -7,11 +7,9 @@ package db
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const archiveInboxMessageByUidAndReceiver = `-- name: ArchiveInboxMessageByUidAndReceiver :execrows
@@ -28,11 +26,11 @@ type ArchiveInboxMessageByUidAndReceiverParams struct {
 }
 
 func (q *Queries) ArchiveInboxMessageByUidAndReceiver(ctx context.Context, arg ArchiveInboxMessageByUidAndReceiverParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, archiveInboxMessageByUidAndReceiver, arg.Uid, arg.ReceiverUid)
+	result, err := q.db.Exec(ctx, archiveInboxMessageByUidAndReceiver, arg.Uid, arg.ReceiverUid)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const countUnreadInboxMessagesByReceiver = `-- name: CountUnreadInboxMessagesByReceiver :one
@@ -56,7 +54,7 @@ type CountUnreadInboxMessagesByReceiverRow struct {
 }
 
 func (q *Queries) CountUnreadInboxMessagesByReceiver(ctx context.Context, receiverUid uuid.UUID) (CountUnreadInboxMessagesByReceiverRow, error) {
-	row := q.db.QueryRowContext(ctx, countUnreadInboxMessagesByReceiver, receiverUid)
+	row := q.db.QueryRow(ctx, countUnreadInboxMessagesByReceiver, receiverUid)
 	var i CountUnreadInboxMessagesByReceiverRow
 	err := row.Scan(&i.UnreadCount, &i.FollowUnreadCount, &i.CommentUnreadCount)
 	return i, err
@@ -100,7 +98,7 @@ type CreateCommentInboxMessageRow struct {
 }
 
 func (q *Queries) CreateCommentInboxMessage(ctx context.Context, arg CreateCommentInboxMessageParams) (CreateCommentInboxMessageRow, error) {
-	row := q.db.QueryRowContext(ctx, createCommentInboxMessage,
+	row := q.db.QueryRow(ctx, createCommentInboxMessage,
 		arg.Uid,
 		arg.ReceiverUid,
 		arg.ActorUid,
@@ -136,11 +134,11 @@ type CreateFollowInboxMessageParams struct {
 }
 
 func (q *Queries) CreateFollowInboxMessage(ctx context.Context, arg CreateFollowInboxMessageParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, createFollowInboxMessage, arg.Uid, arg.ReceiverUid, arg.ActorUid)
+	result, err := q.db.Exec(ctx, createFollowInboxMessage, arg.Uid, arg.ReceiverUid, arg.ActorUid)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const listCommentInboxMessages = `-- name: ListCommentInboxMessages :many
@@ -191,8 +189,8 @@ LIMIT 20
 
 type ListCommentInboxMessagesParams struct {
 	ReceiverUid     uuid.UUID
-	IsRead          sql.NullBool
-	CursorCreatedAt sql.NullTime
+	IsRead          pgtype.Bool
+	CursorCreatedAt pgtype.Timestamptz
 	CursorID        uuid.NullUUID
 }
 
@@ -204,17 +202,17 @@ type ListCommentInboxMessagesRow struct {
 	ActorUid       uuid.UUID
 	ActorNickname  string
 	ActorAvatarUrl string
-	CreatedAt      time.Time
+	CreatedAt      pgtype.Timestamptz
 	Status         MessageStatus
 	CommentUid     uuid.NullUUID
-	CommentContent sql.NullString
+	CommentContent pgtype.Text
 	PostUid        uuid.NullUUID
 	ParentUid      uuid.NullUUID
 	ParentContent  string
 }
 
 func (q *Queries) ListCommentInboxMessages(ctx context.Context, arg ListCommentInboxMessagesParams) ([]ListCommentInboxMessagesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listCommentInboxMessages,
+	rows, err := q.db.Query(ctx, listCommentInboxMessages,
 		arg.ReceiverUid,
 		arg.IsRead,
 		arg.CursorCreatedAt,
@@ -246,9 +244,6 @@ func (q *Queries) ListCommentInboxMessages(ctx context.Context, arg ListCommentI
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -293,8 +288,8 @@ LIMIT 20
 
 type ListFollowInboxMessagesParams struct {
 	ReceiverUid     uuid.UUID
-	IsRead          sql.NullBool
-	CursorCreatedAt sql.NullTime
+	IsRead          pgtype.Bool
+	CursorCreatedAt pgtype.Timestamptz
 	CursorID        uuid.NullUUID
 }
 
@@ -306,12 +301,12 @@ type ListFollowInboxMessagesRow struct {
 	ActorUid       uuid.UUID
 	ActorNickname  string
 	ActorAvatarUrl string
-	CreatedAt      time.Time
+	CreatedAt      pgtype.Timestamptz
 	Status         MessageStatus
 }
 
 func (q *Queries) ListFollowInboxMessages(ctx context.Context, arg ListFollowInboxMessagesParams) ([]ListFollowInboxMessagesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listFollowInboxMessages,
+	rows, err := q.db.Query(ctx, listFollowInboxMessages,
 		arg.ReceiverUid,
 		arg.IsRead,
 		arg.CursorCreatedAt,
@@ -339,9 +334,6 @@ func (q *Queries) ListFollowInboxMessages(ctx context.Context, arg ListFollowInb
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -357,11 +349,11 @@ WHERE receiver_uid = $1
 `
 
 func (q *Queries) MarkAllInboxMessagesReadByReceiver(ctx context.Context, receiverUid uuid.UUID) (int64, error) {
-	result, err := q.db.ExecContext(ctx, markAllInboxMessagesReadByReceiver, receiverUid)
+	result, err := q.db.Exec(ctx, markAllInboxMessagesReadByReceiver, receiverUid)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const markInboxMessagesReadByUidsAndReceiver = `-- name: MarkInboxMessagesReadByUidsAndReceiver :execrows
@@ -379,9 +371,9 @@ type MarkInboxMessagesReadByUidsAndReceiverParams struct {
 }
 
 func (q *Queries) MarkInboxMessagesReadByUidsAndReceiver(ctx context.Context, arg MarkInboxMessagesReadByUidsAndReceiverParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, markInboxMessagesReadByUidsAndReceiver, arg.ReceiverUid, pq.Array(arg.Uids))
+	result, err := q.db.Exec(ctx, markInboxMessagesReadByUidsAndReceiver, arg.ReceiverUid, arg.Uids)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }

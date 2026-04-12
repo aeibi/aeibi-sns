@@ -7,10 +7,9 @@ package db
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createFile = `-- name: CreateFile :one
@@ -50,7 +49,7 @@ type CreateFileRow struct {
 }
 
 func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (CreateFileRow, error) {
-	row := q.db.QueryRowContext(ctx, createFile,
+	row := q.db.QueryRow(ctx, createFile,
 		arg.Url,
 		arg.Name,
 		arg.ContentType,
@@ -91,11 +90,11 @@ type GetFileByURLRow struct {
 	Checksum    string
 	Uploader    uuid.UUID
 	Status      FileStatus
-	CreatedAt   time.Time
+	CreatedAt   pgtype.Timestamptz
 }
 
 func (q *Queries) GetFileByURL(ctx context.Context, url string) (GetFileByURLRow, error) {
-	row := q.db.QueryRowContext(ctx, getFileByURL, url)
+	row := q.db.QueryRow(ctx, getFileByURL, url)
 	var i GetFileByURLRow
 	err := row.Scan(
 		&i.Url,
@@ -130,7 +129,7 @@ type GetFilesByUrlsRow struct {
 }
 
 func (q *Queries) GetFilesByUrls(ctx context.Context, urls []string) ([]GetFilesByUrlsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getFilesByUrls, pq.Array(urls))
+	rows, err := q.db.Query(ctx, getFilesByUrls, urls)
 	if err != nil {
 		return nil, err
 	}
@@ -148,9 +147,6 @@ func (q *Queries) GetFilesByUrls(ctx context.Context, urls []string) ([]GetFiles
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

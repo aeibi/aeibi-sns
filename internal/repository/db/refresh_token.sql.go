@@ -7,9 +7,9 @@ package db
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const deleteRefreshTokenByUid = `-- name: DeleteRefreshTokenByUid :execrows
@@ -18,11 +18,11 @@ WHERE uid = $1
 `
 
 func (q *Queries) DeleteRefreshTokenByUid(ctx context.Context, uid uuid.UUID) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteRefreshTokenByUid, uid)
+	result, err := q.db.Exec(ctx, deleteRefreshTokenByUid, uid)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const getRefreshToken = `-- name: GetRefreshToken :one
@@ -39,7 +39,7 @@ type GetRefreshTokenRow struct {
 }
 
 func (q *Queries) GetRefreshToken(ctx context.Context, token string) (GetRefreshTokenRow, error) {
-	row := q.db.QueryRowContext(ctx, getRefreshToken, token)
+	row := q.db.QueryRow(ctx, getRefreshToken, token)
 	var i GetRefreshTokenRow
 	err := row.Scan(&i.Uid, &i.Token)
 	return i, err
@@ -56,10 +56,10 @@ SET token = EXCLUDED.token,
 type UpsertRefreshTokenParams struct {
 	Uid       uuid.UUID
 	Token     string
-	ExpiresAt time.Time
+	ExpiresAt pgtype.Timestamptz
 }
 
 func (q *Queries) UpsertRefreshToken(ctx context.Context, arg UpsertRefreshTokenParams) error {
-	_, err := q.db.ExecContext(ctx, upsertRefreshToken, arg.Uid, arg.Token, arg.ExpiresAt)
+	_, err := q.db.Exec(ctx, upsertRefreshToken, arg.Uid, arg.Token, arg.ExpiresAt)
 	return err
 }

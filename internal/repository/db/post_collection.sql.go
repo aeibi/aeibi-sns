@@ -7,11 +7,9 @@ package db
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const decrementPostCollectionCount = `-- name: DecrementPostCollectionCount :one
@@ -23,7 +21,7 @@ RETURNING collection_count::int4
 `
 
 func (q *Queries) DecrementPostCollectionCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, decrementPostCollectionCount, postUid)
+	row := q.db.QueryRow(ctx, decrementPostCollectionCount, postUid)
 	var collection_count int32
 	err := row.Scan(&collection_count)
 	return collection_count, err
@@ -45,7 +43,7 @@ type DeletePostCollectionEdgeParams struct {
 }
 
 func (q *Queries) DeletePostCollectionEdge(ctx context.Context, arg DeletePostCollectionEdgeParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, deletePostCollectionEdge, arg.PostUid, arg.UserUid)
+	row := q.db.QueryRow(ctx, deletePostCollectionEdge, arg.PostUid, arg.UserUid)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -58,7 +56,7 @@ WHERE uid = $1
 `
 
 func (q *Queries) GetPostCollectionCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, getPostCollectionCount, postUid)
+	row := q.db.QueryRow(ctx, getPostCollectionCount, postUid)
 	var collection_count int32
 	err := row.Scan(&collection_count)
 	return collection_count, err
@@ -73,7 +71,7 @@ RETURNING collection_count::int4
 `
 
 func (q *Queries) IncrementPostCollectionCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, incrementPostCollectionCount, postUid)
+	row := q.db.QueryRow(ctx, incrementPostCollectionCount, postUid)
 	var collection_count int32
 	err := row.Scan(&collection_count)
 	return collection_count, err
@@ -95,7 +93,7 @@ type InsertPostCollectionEdgeParams struct {
 }
 
 func (q *Queries) InsertPostCollectionEdge(ctx context.Context, arg InsertPostCollectionEdgeParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, insertPostCollectionEdge, arg.PostUid, arg.UserUid)
+	row := q.db.QueryRow(ctx, insertPostCollectionEdge, arg.PostUid, arg.UserUid)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -166,7 +164,7 @@ LIMIT 20
 
 type ListPostsByCollectorParams struct {
 	Collector       uuid.UUID
-	CursorCreatedAt sql.NullTime
+	CursorCreatedAt pgtype.Timestamptz
 	CursorID        uuid.NullUUID
 }
 
@@ -184,11 +182,11 @@ type ListPostsByCollectorRow struct {
 	LikeCount       int32
 	Pinned          bool
 	Visibility      PostVisibility
-	LatestRepliedOn time.Time
+	LatestRepliedOn pgtype.Timestamptz
 	Ip              string
 	Status          PostStatus
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 	Collected       bool
 	Liked           bool
 	Following       bool
@@ -196,7 +194,7 @@ type ListPostsByCollectorRow struct {
 }
 
 func (q *Queries) ListPostsByCollector(ctx context.Context, arg ListPostsByCollectorParams) ([]ListPostsByCollectorRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPostsByCollector, arg.Collector, arg.CursorCreatedAt, arg.CursorID)
+	rows, err := q.db.Query(ctx, listPostsByCollector, arg.Collector, arg.CursorCreatedAt, arg.CursorID)
 	if err != nil {
 		return nil, err
 	}
@@ -211,8 +209,8 @@ func (q *Queries) ListPostsByCollector(ctx context.Context, arg ListPostsByColle
 			&i.AuthorNickname,
 			&i.AuthorAvatarUrl,
 			&i.Text,
-			pq.Array(&i.Images),
-			pq.Array(&i.Attachments),
+			&i.Images,
+			&i.Attachments,
 			&i.CommentCount,
 			&i.CollectionCount,
 			&i.LikeCount,
@@ -226,14 +224,11 @@ func (q *Queries) ListPostsByCollector(ctx context.Context, arg ListPostsByColle
 			&i.Collected,
 			&i.Liked,
 			&i.Following,
-			pq.Array(&i.TagNames),
+			&i.TagNames,
 		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

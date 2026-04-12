@@ -7,11 +7,9 @@ package db
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const archivePostByUidAndAuthor = `-- name: ArchivePostByUidAndAuthor :execrows
@@ -29,11 +27,11 @@ type ArchivePostByUidAndAuthorParams struct {
 }
 
 func (q *Queries) ArchivePostByUidAndAuthor(ctx context.Context, arg ArchivePostByUidAndAuthorParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, archivePostByUidAndAuthor, arg.Uid, arg.Author)
+	result, err := q.db.Exec(ctx, archivePostByUidAndAuthor, arg.Uid, arg.Author)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }
 
 const createPost = `-- name: CreatePost :one
@@ -81,12 +79,12 @@ type CreatePostRow struct {
 }
 
 func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (CreatePostRow, error) {
-	row := q.db.QueryRowContext(ctx, createPost,
+	row := q.db.QueryRow(ctx, createPost,
 		arg.Uid,
 		arg.Author,
 		arg.Text,
-		pq.Array(arg.Images),
-		pq.Array(arg.Attachments),
+		arg.Images,
+		arg.Attachments,
 		arg.Visibility,
 		arg.Pinned,
 		arg.Ip,
@@ -115,7 +113,7 @@ type DeletePostTagsNotInNamesParams struct {
 }
 
 func (q *Queries) DeletePostTagsNotInNames(ctx context.Context, arg DeletePostTagsNotInNamesParams) error {
-	_, err := q.db.ExecContext(ctx, deletePostTagsNotInNames, arg.PostID, pq.Array(arg.Tags))
+	_, err := q.db.Exec(ctx, deletePostTagsNotInNames, arg.PostID, arg.Tags)
 	return err
 }
 
@@ -186,11 +184,11 @@ type GetPostByUidRow struct {
 	LikeCount       int32
 	Pinned          bool
 	Visibility      PostVisibility
-	LatestRepliedOn time.Time
+	LatestRepliedOn pgtype.Timestamptz
 	Ip              string
 	Status          PostStatus
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 	Liked           bool
 	Collected       bool
 	Following       bool
@@ -198,7 +196,7 @@ type GetPostByUidRow struct {
 }
 
 func (q *Queries) GetPostByUid(ctx context.Context, arg GetPostByUidParams) (GetPostByUidRow, error) {
-	row := q.db.QueryRowContext(ctx, getPostByUid, arg.Viewer, arg.Uid)
+	row := q.db.QueryRow(ctx, getPostByUid, arg.Viewer, arg.Uid)
 	var i GetPostByUidRow
 	err := row.Scan(
 		&i.Uid,
@@ -207,8 +205,8 @@ func (q *Queries) GetPostByUid(ctx context.Context, arg GetPostByUidParams) (Get
 		&i.AuthorNickname,
 		&i.AuthorAvatarUrl,
 		&i.Text,
-		pq.Array(&i.Images),
-		pq.Array(&i.Attachments),
+		&i.Images,
+		&i.Attachments,
 		&i.CommentCount,
 		&i.CollectionCount,
 		&i.LikeCount,
@@ -222,7 +220,7 @@ func (q *Queries) GetPostByUid(ctx context.Context, arg GetPostByUidParams) (Get
 		&i.Liked,
 		&i.Collected,
 		&i.Following,
-		pq.Array(&i.TagNames),
+		&i.TagNames,
 	)
 	return i, err
 }
@@ -244,7 +242,7 @@ type InsertPostTagsByNamesParams struct {
 }
 
 func (q *Queries) InsertPostTagsByNames(ctx context.Context, arg InsertPostTagsByNamesParams) error {
-	_, err := q.db.ExecContext(ctx, insertPostTagsByNames, arg.PostID, pq.Array(arg.Tags))
+	_, err := q.db.Exec(ctx, insertPostTagsByNames, arg.PostID, arg.Tags)
 	return err
 }
 
@@ -259,7 +257,7 @@ ON CONFLICT (name) DO NOTHING
 `
 
 func (q *Queries) InsertTagsIfNotExists(ctx context.Context, tags []string) error {
-	_, err := q.db.ExecContext(ctx, insertTagsIfNotExists, pq.Array(tags))
+	_, err := q.db.Exec(ctx, insertTagsIfNotExists, tags)
 	return err
 }
 
@@ -395,12 +393,12 @@ LIMIT 20
 
 type ListPostsParams struct {
 	Viewer          uuid.NullUUID
-	Query           sql.NullString
+	Query           pgtype.Text
 	AuthorUid       uuid.NullUUID
-	TagName         sql.NullString
-	CursorCreatedAt sql.NullTime
+	TagName         pgtype.Text
+	CursorCreatedAt pgtype.Timestamptz
 	CursorID        uuid.NullUUID
-	CursorScore     sql.NullFloat64
+	CursorScore     pgtype.Float8
 }
 
 type ListPostsRow struct {
@@ -417,11 +415,11 @@ type ListPostsRow struct {
 	LikeCount       int32
 	Pinned          bool
 	Visibility      PostVisibility
-	LatestRepliedOn time.Time
+	LatestRepliedOn pgtype.Timestamptz
 	Ip              string
 	Status          PostStatus
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 	Score           float64
 	Liked           bool
 	Collected       bool
@@ -430,7 +428,7 @@ type ListPostsRow struct {
 }
 
 func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPosts,
+	rows, err := q.db.Query(ctx, listPosts,
 		arg.Viewer,
 		arg.Query,
 		arg.AuthorUid,
@@ -453,8 +451,8 @@ func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPos
 			&i.AuthorNickname,
 			&i.AuthorAvatarUrl,
 			&i.Text,
-			pq.Array(&i.Images),
-			pq.Array(&i.Attachments),
+			&i.Images,
+			&i.Attachments,
 			&i.CommentCount,
 			&i.CollectionCount,
 			&i.LikeCount,
@@ -469,14 +467,11 @@ func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPos
 			&i.Liked,
 			&i.Collected,
 			&i.Following,
-			pq.Array(&i.TagNames),
+			&i.TagNames,
 		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -502,20 +497,20 @@ RETURNING id
 `
 
 type UpdatePostByUidAndAuthorParams struct {
-	Text        sql.NullString
+	Text        pgtype.Text
 	Images      []string
 	Attachments []string
 	Visibility  NullPostVisibility
-	Pinned      sql.NullBool
+	Pinned      pgtype.Bool
 	Uid         uuid.UUID
 	Author      uuid.UUID
 }
 
 func (q *Queries) UpdatePostByUidAndAuthor(ctx context.Context, arg UpdatePostByUidAndAuthorParams) (int32, error) {
-	row := q.db.QueryRowContext(ctx, updatePostByUidAndAuthor,
+	row := q.db.QueryRow(ctx, updatePostByUidAndAuthor,
 		arg.Text,
-		pq.Array(arg.Images),
-		pq.Array(arg.Attachments),
+		arg.Images,
+		arg.Attachments,
 		arg.Visibility,
 		arg.Pinned,
 		arg.Uid,

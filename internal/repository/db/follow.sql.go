@@ -7,10 +7,9 @@ package db
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const decrementFollowersCount = `-- name: DecrementFollowersCount :one
@@ -21,7 +20,7 @@ RETURNING followers_count
 `
 
 func (q *Queries) DecrementFollowersCount(ctx context.Context, uid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, decrementFollowersCount, uid)
+	row := q.db.QueryRow(ctx, decrementFollowersCount, uid)
 	var followers_count int32
 	err := row.Scan(&followers_count)
 	return followers_count, err
@@ -35,7 +34,7 @@ RETURNING following_count
 `
 
 func (q *Queries) DecrementFollowingCount(ctx context.Context, uid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, decrementFollowingCount, uid)
+	row := q.db.QueryRow(ctx, decrementFollowingCount, uid)
 	var following_count int32
 	err := row.Scan(&following_count)
 	return following_count, err
@@ -57,7 +56,7 @@ type DeleteFollowEdgeParams struct {
 }
 
 func (q *Queries) DeleteFollowEdge(ctx context.Context, arg DeleteFollowEdgeParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, deleteFollowEdge, arg.FollowerUid, arg.FolloweeUid)
+	row := q.db.QueryRow(ctx, deleteFollowEdge, arg.FollowerUid, arg.FolloweeUid)
 	var applied bool
 	err := row.Scan(&applied)
 	return applied, err
@@ -80,7 +79,7 @@ type GetFollowCountsRow struct {
 }
 
 func (q *Queries) GetFollowCounts(ctx context.Context, arg GetFollowCountsParams) (GetFollowCountsRow, error) {
-	row := q.db.QueryRowContext(ctx, getFollowCounts, arg.FollowerUid, arg.FolloweeUid)
+	row := q.db.QueryRow(ctx, getFollowCounts, arg.FollowerUid, arg.FolloweeUid)
 	var i GetFollowCountsRow
 	err := row.Scan(&i.FollowingCount, &i.FollowersCount)
 	return i, err
@@ -94,7 +93,7 @@ RETURNING followers_count
 `
 
 func (q *Queries) IncrementFollowersCount(ctx context.Context, uid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, incrementFollowersCount, uid)
+	row := q.db.QueryRow(ctx, incrementFollowersCount, uid)
 	var followers_count int32
 	err := row.Scan(&followers_count)
 	return followers_count, err
@@ -108,7 +107,7 @@ RETURNING following_count
 `
 
 func (q *Queries) IncrementFollowingCount(ctx context.Context, uid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, incrementFollowingCount, uid)
+	row := q.db.QueryRow(ctx, incrementFollowingCount, uid)
 	var following_count int32
 	err := row.Scan(&following_count)
 	return following_count, err
@@ -130,7 +129,7 @@ type InsertFollowEdgeParams struct {
 }
 
 func (q *Queries) InsertFollowEdge(ctx context.Context, arg InsertFollowEdgeParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, insertFollowEdge, arg.FollowerUid, arg.FolloweeUid)
+	row := q.db.QueryRow(ctx, insertFollowEdge, arg.FollowerUid, arg.FolloweeUid)
 	var applied bool
 	err := row.Scan(&applied)
 	return applied, err
@@ -151,7 +150,7 @@ type IsFollowingParams struct {
 }
 
 func (q *Queries) IsFollowing(ctx context.Context, arg IsFollowingParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, isFollowing, arg.FollowerUid, arg.FolloweeUid)
+	row := q.db.QueryRow(ctx, isFollowing, arg.FollowerUid, arg.FolloweeUid)
 	var is_following bool
 	err := row.Scan(&is_following)
 	return is_following, err
@@ -195,13 +194,13 @@ LIMIT 20
 
 type ListFollowersParams struct {
 	Uid             uuid.UUID
-	Query           sql.NullString
-	CursorCreatedAt sql.NullTime
+	Query           pgtype.Text
+	CursorCreatedAt pgtype.Timestamptz
 	CursorID        uuid.NullUUID
 }
 
 type ListFollowersRow struct {
-	FollowedAt     time.Time
+	FollowedAt     pgtype.Timestamptz
 	Uid            uuid.UUID
 	Role           UserRole
 	Nickname       string
@@ -210,11 +209,11 @@ type ListFollowersRow struct {
 	FollowingCount int32
 	Following      bool
 	Status         UserStatus
-	CreatedAt      time.Time
+	CreatedAt      pgtype.Timestamptz
 }
 
 func (q *Queries) ListFollowers(ctx context.Context, arg ListFollowersParams) ([]ListFollowersRow, error) {
-	rows, err := q.db.QueryContext(ctx, listFollowers,
+	rows, err := q.db.Query(ctx, listFollowers,
 		arg.Uid,
 		arg.Query,
 		arg.CursorCreatedAt,
@@ -242,9 +241,6 @@ func (q *Queries) ListFollowers(ctx context.Context, arg ListFollowersParams) ([
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -287,13 +283,13 @@ LIMIT 20
 
 type ListFollowingParams struct {
 	Uid             uuid.UUID
-	Query           sql.NullString
-	CursorCreatedAt sql.NullTime
+	Query           pgtype.Text
+	CursorCreatedAt pgtype.Timestamptz
 	CursorID        uuid.NullUUID
 }
 
 type ListFollowingRow struct {
-	FollowedAt     time.Time
+	FollowedAt     pgtype.Timestamptz
 	Uid            uuid.UUID
 	Role           UserRole
 	Nickname       string
@@ -301,11 +297,11 @@ type ListFollowingRow struct {
 	FollowersCount int32
 	FollowingCount int32
 	Status         UserStatus
-	CreatedAt      time.Time
+	CreatedAt      pgtype.Timestamptz
 }
 
 func (q *Queries) ListFollowing(ctx context.Context, arg ListFollowingParams) ([]ListFollowingRow, error) {
-	rows, err := q.db.QueryContext(ctx, listFollowing,
+	rows, err := q.db.Query(ctx, listFollowing,
 		arg.Uid,
 		arg.Query,
 		arg.CursorCreatedAt,
@@ -332,9 +328,6 @@ func (q *Queries) ListFollowing(ctx context.Context, arg ListFollowingParams) ([
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

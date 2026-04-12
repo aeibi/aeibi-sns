@@ -5,7 +5,6 @@ import (
 	"aeibi/internal/repository/db"
 	"aeibi/util"
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -13,19 +12,22 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type CommentService struct {
-	db  *db.Queries
-	dbx *sql.DB
+	db   *db.Queries
+	pool *pgxpool.Pool
 }
 
-func NewCommentService(dbx *sql.DB) *CommentService {
+func NewCommentService(pool *pgxpool.Pool) *CommentService {
 	return &CommentService{
-		db:  db.New(dbx),
-		dbx: dbx,
+		db:   db.New(pool),
+		pool: pool,
 	}
 }
 
@@ -34,7 +36,9 @@ func (s *CommentService) CreateTopComment(ctx context.Context, uid string, req *
 	postUid := util.UUID(req.PostUid)
 	authorUid := util.UUID(uid)
 	var resp *api.CreateTopCommentResponse
-	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
 		postRow, err := qtx.GetPostByUid(ctx, db.GetPostByUidParams{
 			Uid:    postUid,
 			Viewer: uuid.NullUUID{UUID: authorUid, Valid: true},
@@ -90,7 +94,9 @@ func (s *CommentService) CreateReply(ctx context.Context, uid string, req *api.C
 		return nil, fmt.Errorf("get parent comment meta: %w", err)
 	}
 	var resp *api.CreateReplyResponse
-	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
 		_, err = qtx.CreateComment(ctx, db.CreateCommentParams{
 			Uid:              replyUid,
 			PostUid:          commentRow.PostUid,
@@ -171,8 +177,8 @@ func (s *CommentService) ListTopComments(ctx context.Context, viewerUid string, 
 			ReplyCount:    row.ReplyCount,
 			LikeCount:     row.LikeCount,
 			Liked:         row.Liked,
-			CreatedAt:     row.CreatedAt.Unix(),
-			UpdatedAt:     row.UpdatedAt.Unix(),
+			CreatedAt:     row.CreatedAt.Time.Unix(),
+			UpdatedAt:     row.UpdatedAt.Time.Unix(),
 		})
 	}
 
@@ -181,7 +187,7 @@ func (s *CommentService) ListTopComments(ctx context.Context, viewerUid string, 
 		last := rows[len(rows)-1]
 		nextPageToken, err = encodeTopCommentsPageToken(topCommentsPageToken{
 			PostUID:         req.GetPostUid(),
-			CursorCreatedAt: last.CreatedAt.Unix(),
+			CursorCreatedAt: last.CreatedAt.Time.Unix(),
 			CursorID:        last.Uid.String(),
 		})
 		if err != nil {
@@ -232,8 +238,8 @@ func (s *CommentService) ListReplies(ctx context.Context, viewerUid string, req 
 			ReplyCount:    row.ReplyCount,
 			LikeCount:     row.LikeCount,
 			Liked:         row.Liked,
-			CreatedAt:     row.CreatedAt.Unix(),
-			UpdatedAt:     row.UpdatedAt.Unix(),
+			CreatedAt:     row.CreatedAt.Time.Unix(),
+			UpdatedAt:     row.UpdatedAt.Time.Unix(),
 		})
 	}
 
@@ -255,7 +261,7 @@ func (s *CommentService) GetComment(ctx context.Context, viewerUid string, req *
 		Uid:    util.UUID(req.Uid),
 	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("comment not found")
 		}
 		return nil, fmt.Errorf("get comment: %w", err)
@@ -288,8 +294,8 @@ func (s *CommentService) GetComment(ctx context.Context, viewerUid string, req *
 			ReplyCount:    row.ReplyCount,
 			LikeCount:     row.LikeCount,
 			Liked:         row.Liked,
-			CreatedAt:     row.CreatedAt.Unix(),
-			UpdatedAt:     row.UpdatedAt.Unix(),
+			CreatedAt:     row.CreatedAt.Time.Unix(),
+			UpdatedAt:     row.UpdatedAt.Time.Unix(),
 		},
 	}, nil
 }
@@ -300,13 +306,15 @@ func (s *CommentService) DeleteComment(ctx context.Context, uid string, req *api
 
 	commentRow, err := s.db.GetCommentMetaByUid(ctx, commentUid)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("comment not found")
 		}
 		return fmt.Errorf("get comment: %w", err)
 	}
 
-	return db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
 		affected, err := qtx.ArchiveCommentByUidAndAuthor(ctx, db.ArchiveCommentByUidAndAuthorParams{
 			Uid:       commentUid,
 			AuthorUid: authorUid,
@@ -337,7 +345,9 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 
 	var count int32
 
-	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
 		switch req.Action {
 		case api.ToggleAction_TOGGLE_ACTION_ADD:
 			applied, err := qtx.InsertCommentLikeEdge(ctx, db.InsertCommentLikeEdgeParams{
@@ -401,34 +411,34 @@ type topCommentsPageToken struct {
 	CursorID        string `json:"cursor_id,omitempty"`
 }
 
-func decodeAndValidateTopCommentsPageToken(pageToken string, postUID string) (sql.NullTime, uuid.NullUUID, error) {
+func decodeAndValidateTopCommentsPageToken(pageToken string, postUID string) (pgtype.Timestamptz, uuid.NullUUID, error) {
 	if pageToken == "" {
-		return sql.NullTime{}, uuid.NullUUID{}, nil
+		return pgtype.Timestamptz{}, uuid.NullUUID{}, nil
 	}
 
 	raw, err := base64.RawURLEncoding.DecodeString(pageToken)
 	if err != nil {
-		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		return pgtype.Timestamptz{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
 	}
 
 	var token topCommentsPageToken
 	if err := json.Unmarshal(raw, &token); err != nil {
-		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		return pgtype.Timestamptz{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
 	}
 
 	if token.PostUID != postUID {
-		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "page_token does not match current filters")
+		return pgtype.Timestamptz{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "page_token does not match current filters")
 	}
 	if token.CursorCreatedAt <= 0 || token.CursorID == "" {
-		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		return pgtype.Timestamptz{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
 	}
 
 	cursorID, err := uuid.Parse(token.CursorID)
 	if err != nil {
-		return sql.NullTime{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		return pgtype.Timestamptz{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
 	}
 
-	return sql.NullTime{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true}, uuid.NullUUID{UUID: cursorID, Valid: true}, nil
+	return pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true}, uuid.NullUUID{UUID: cursorID, Valid: true}, nil
 }
 
 func encodeTopCommentsPageToken(token topCommentsPageToken) (string, error) {

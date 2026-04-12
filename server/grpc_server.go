@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"net"
@@ -14,22 +13,23 @@ import (
 	"aeibi/internal/repository/oss"
 	"aeibi/internal/service"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 )
 
 // StartGRPCServer starts the gRPC server and returns it plus an error channel.
-func StartGRPCServer(ctx context.Context, cfg *config.Config, dbConn *sql.DB, ossClient *oss.OSS) (*grpc.Server, <-chan error, error) {
+func StartGRPCServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, ossClient *oss.OSS) (*grpc.Server, <-chan error, error) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(auth.NewAuthUnaryServerInterceptor(cfg.Auth.JWTSecret)),
 	)
 
-	userSvc := service.NewUserService(dbConn, ossClient, cfg)
-	followSvc := service.NewFollowService(dbConn)
-	postSvc := service.NewPostService(dbConn, ossClient)
-	fileSvc := service.NewFileService(dbConn, ossClient, cfg.OSS.MaxUploadSizeKB)
-	commentSvc := service.NewCommentService(dbConn)
-	messageSvc := service.NewMessageService(dbConn)
-	reportSvc := service.NewReportService(dbConn)
+	userSvc := service.NewUserService(dbPool, ossClient, cfg)
+	followSvc := service.NewFollowService(dbPool)
+	postSvc := service.NewPostService(dbPool, ossClient)
+	fileSvc := service.NewFileService(dbPool, ossClient, cfg.OSS.MaxUploadSizeKB)
+	commentSvc := service.NewCommentService(dbPool)
+	messageSvc := service.NewMessageService(dbPool)
+	reportSvc := service.NewReportService(dbPool)
 
 	userHandler := controller.NewUserHandler(userSvc)
 	followHandler := controller.NewFollowHandler(followSvc)

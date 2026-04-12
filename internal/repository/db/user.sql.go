@@ -7,10 +7,9 @@ package db
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :exec
@@ -35,7 +34,7 @@ type CreateUserParams struct {
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
-	_, err := q.db.ExecContext(ctx, createUser,
+	_, err := q.db.Exec(ctx, createUser,
 		arg.Uid,
 		arg.Username,
 		arg.Nickname,
@@ -74,11 +73,11 @@ type GetUserByUidRow struct {
 	FollowingCount int32
 	Description    string
 	Status         UserStatus
-	CreatedAt      time.Time
+	CreatedAt      pgtype.Timestamptz
 }
 
 func (q *Queries) GetUserByUid(ctx context.Context, uid uuid.UUID) (GetUserByUidRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserByUid, uid)
+	row := q.db.QueryRow(ctx, getUserByUid, uid)
 	var i GetUserByUidRow
 	err := row.Scan(
 		&i.Uid,
@@ -125,12 +124,12 @@ type GetUserByUsernameRow struct {
 	FollowingCount int32
 	Description    string
 	Status         UserStatus
-	CreatedAt      time.Time
+	CreatedAt      pgtype.Timestamptz
 	PasswordHash   string
 }
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
+	row := q.db.QueryRow(ctx, getUserByUsername, username)
 	var i GetUserByUsernameRow
 	err := row.Scan(
 		&i.Uid,
@@ -157,7 +156,7 @@ WHERE uid = $1
 `
 
 func (q *Queries) GetUserPasswordHashByUid(ctx context.Context, uid uuid.UUID) (string, error) {
-	row := q.db.QueryRowContext(ctx, getUserPasswordHashByUid, uid)
+	row := q.db.QueryRow(ctx, getUserPasswordHashByUid, uid)
 	var password_hash string
 	err := row.Scan(&password_hash)
 	return password_hash, err
@@ -176,14 +175,14 @@ WHERE uid = $1
 
 type UpdateUserParams struct {
 	Uid       uuid.UUID
-	Username  sql.NullString
-	Email     sql.NullString
-	Nickname  sql.NullString
-	AvatarUrl sql.NullString
+	Username  pgtype.Text
+	Email     pgtype.Text
+	Nickname  pgtype.Text
+	AvatarUrl pgtype.Text
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
-	_, err := q.db.ExecContext(ctx, updateUser,
+	_, err := q.db.Exec(ctx, updateUser,
 		arg.Uid,
 		arg.Username,
 		arg.Email,
@@ -207,9 +206,9 @@ type UpdateUserPasswordByUidParams struct {
 }
 
 func (q *Queries) UpdateUserPasswordByUid(ctx context.Context, arg UpdateUserPasswordByUidParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateUserPasswordByUid, arg.Uid, arg.PasswordHash)
+	result, err := q.db.Exec(ctx, updateUserPasswordByUid, arg.Uid, arg.PasswordHash)
 	if err != nil {
 		return 0, err
 	}
-	return result.RowsAffected()
+	return result.RowsAffected(), nil
 }

@@ -20,7 +20,7 @@ RETURNING like_count::int4
 `
 
 func (q *Queries) DecrementPostLikeCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, decrementPostLikeCount, postUid)
+	row := q.db.QueryRow(ctx, decrementPostLikeCount, postUid)
 	var like_count int32
 	err := row.Scan(&like_count)
 	return like_count, err
@@ -42,7 +42,7 @@ type DeletePostLikeEdgeParams struct {
 }
 
 func (q *Queries) DeletePostLikeEdge(ctx context.Context, arg DeletePostLikeEdgeParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, deletePostLikeEdge, arg.PostUid, arg.UserUid)
+	row := q.db.QueryRow(ctx, deletePostLikeEdge, arg.PostUid, arg.UserUid)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -55,7 +55,7 @@ WHERE uid = $1
 `
 
 func (q *Queries) GetPostLikeCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, getPostLikeCount, postUid)
+	row := q.db.QueryRow(ctx, getPostLikeCount, postUid)
 	var like_count int32
 	err := row.Scan(&like_count)
 	return like_count, err
@@ -70,7 +70,7 @@ RETURNING like_count::int4
 `
 
 func (q *Queries) IncrementPostLikeCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
-	row := q.db.QueryRowContext(ctx, incrementPostLikeCount, postUid)
+	row := q.db.QueryRow(ctx, incrementPostLikeCount, postUid)
 	var like_count int32
 	err := row.Scan(&like_count)
 	return like_count, err
@@ -92,7 +92,7 @@ type InsertPostLikeEdgeParams struct {
 }
 
 func (q *Queries) InsertPostLikeEdge(ctx context.Context, arg InsertPostLikeEdgeParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, insertPostLikeEdge, arg.PostUid, arg.UserUid)
+	row := q.db.QueryRow(ctx, insertPostLikeEdge, arg.PostUid, arg.UserUid)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err

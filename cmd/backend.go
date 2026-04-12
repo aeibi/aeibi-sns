@@ -38,19 +38,19 @@ var backendCmd = &cobra.Command{
 
 func RunBackend(ctx context.Context, cfg *config.Config) error {
 	// Initialize shared runtime dependencies.
-	dbConn, err := env.InitDB(ctx, cfg.Database)
+	dbPool, err := env.InitDB(ctx, cfg.Database)
 	if err != nil {
 		return err
 	}
-	defer dbConn.Close()
+	defer dbPool.Close()
 
 	ossClient, err := env.InitOSS(ctx, cfg.OSS)
 	if err != nil {
 		return err
 	}
 
-	// Start gRPC server.
-	grpcServer, grpcErrCh, err := server.StartGRPCServer(ctx, cfg, dbConn, ossClient)
+	// Start gRPC server
+	grpcServer, grpcErrCh, err := server.StartGRPCServer(ctx, cfg, dbPool, ossClient)
 	if err != nil {
 		return err
 	}

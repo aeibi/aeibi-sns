@@ -32,7 +32,7 @@ type CreateReportParams struct {
 }
 
 func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) error {
-	_, err := q.db.ExecContext(ctx, createReport,
+	_, err := q.db.Exec(ctx, createReport,
 		arg.Uid,
 		arg.ReporterUid,
 		arg.ReportTargetType,

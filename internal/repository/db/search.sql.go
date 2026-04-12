@@ -7,9 +7,9 @@ package db
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const searchTags = `-- name: SearchTags :many
@@ -30,7 +30,7 @@ type SearchTagsRow struct {
 }
 
 func (q *Queries) SearchTags(ctx context.Context, query string) ([]SearchTagsRow, error) {
-	rows, err := q.db.QueryContext(ctx, searchTags, query)
+	rows, err := q.db.Query(ctx, searchTags, query)
 	if err != nil {
 		return nil, err
 	}
@@ -42,9 +42,6 @@ func (q *Queries) SearchTags(ctx context.Context, query string) ([]SearchTagsRow
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -82,12 +79,12 @@ type SearchUsersRow struct {
 	FollowingCount int32
 	Description    string
 	Status         UserStatus
-	CreatedAt      time.Time
+	CreatedAt      pgtype.Timestamptz
 	Score          float64
 }
 
 func (q *Queries) SearchUsers(ctx context.Context, query string) ([]SearchUsersRow, error) {
-	rows, err := q.db.QueryContext(ctx, searchUsers, query)
+	rows, err := q.db.Query(ctx, searchUsers, query)
 	if err != nil {
 		return nil, err
 	}
@@ -111,9 +108,6 @@ func (q *Queries) SearchUsers(ctx context.Context, query string) ([]SearchUsersR
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -131,7 +125,7 @@ LIMIT 10
 `
 
 func (q *Queries) SuggestTagsByPrefix(ctx context.Context, prefix string) ([]Tag, error) {
-	rows, err := q.db.QueryContext(ctx, suggestTagsByPrefix, prefix)
+	rows, err := q.db.Query(ctx, suggestTagsByPrefix, prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -143,9 +137,6 @@ func (q *Queries) SuggestTagsByPrefix(ctx context.Context, prefix string) ([]Tag
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -181,7 +172,7 @@ type SuggestUsersByNicknamePrefixRow struct {
 }
 
 func (q *Queries) SuggestUsersByNicknamePrefix(ctx context.Context, prefix string) ([]SuggestUsersByNicknamePrefixRow, error) {
-	rows, err := q.db.QueryContext(ctx, suggestUsersByNicknamePrefix, prefix)
+	rows, err := q.db.Query(ctx, suggestUsersByNicknamePrefix, prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -201,9 +192,6 @@ func (q *Queries) SuggestUsersByNicknamePrefix(ctx context.Context, prefix strin
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

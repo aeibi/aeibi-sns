@@ -5,18 +5,18 @@ import (
 	"aeibi/internal/repository/db"
 	"aeibi/util"
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ReportService struct {
 	db *db.Queries
 }
 
-func NewReportService(dbx *sql.DB) *ReportService {
-	return &ReportService{db: db.New(dbx)}
+func NewReportService(pool *pgxpool.Pool) *ReportService {
+	return &ReportService{db: db.New(pool)}
 }
 
 func (s *ReportService) CreateReport(ctx context.Context, uid string, req *api.CreateReportRequest) error {

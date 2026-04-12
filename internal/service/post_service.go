@@ -6,7 +6,6 @@ import (
 	"aeibi/internal/repository/oss"
 	"aeibi/util"
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -15,28 +14,33 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type PostService struct {
-	db  *db.Queries
-	dbx *sql.DB
-	oss *oss.OSS
+	db   *db.Queries
+	pool *pgxpool.Pool
+	oss  *oss.OSS
 }
 
-func NewPostService(dbx *sql.DB, ossClient *oss.OSS) *PostService {
+func NewPostService(pool *pgxpool.Pool, ossClient *oss.OSS) *PostService {
 	return &PostService{
-		db:  db.New(dbx),
-		dbx: dbx,
-		oss: ossClient,
+		db:   db.New(pool),
+		pool: pool,
+		oss:  ossClient,
 	}
 }
 
 func (s *PostService) CreatePost(ctx context.Context, uid string, req *api.CreatePostRequest) (*api.CreatePostResponse, error) {
 	var resp *api.CreatePostResponse
 
-	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
 		row, err := qtx.CreatePost(ctx, db.CreatePostParams{
 			Uid:         uuid.New(),
 			Author:      util.UUID(uid),
@@ -81,7 +85,7 @@ func (s *PostService) GetPost(ctx context.Context, viewerUid string, req *api.Ge
 		Viewer: uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
 	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("post not found")
 		}
 		return nil, fmt.Errorf("get post: %w", err)
@@ -90,7 +94,7 @@ func (s *PostService) GetPost(ctx context.Context, viewerUid string, req *api.Ge
 		return nil, fmt.Errorf("post not found")
 	}
 	fileRow, err := s.db.GetFilesByUrls(ctx, postRow.Attachments)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil {
 		return nil, fmt.Errorf("get attachments: %w", err)
 	}
 	attachments := make([]*api.Attachment, 0, len(postRow.Attachments))
@@ -119,13 +123,13 @@ func (s *PostService) GetPost(ctx context.Context, viewerUid string, req *api.Ge
 		CollectionCount: postRow.CollectionCount,
 		LikeCount:       postRow.LikeCount,
 		Visibility:      string(postRow.Visibility),
-		LatestRepliedOn: postRow.LatestRepliedOn.Unix(),
+		LatestRepliedOn: postRow.LatestRepliedOn.Time.Unix(),
 		Ip:              postRow.Ip,
 		Pinned:          postRow.Pinned,
 		Liked:           postRow.Liked,
 		Collected:       postRow.Collected,
-		CreatedAt:       postRow.CreatedAt.Unix(),
-		UpdatedAt:       postRow.UpdatedAt.Unix(),
+		CreatedAt:       postRow.CreatedAt.Time.Unix(),
+		UpdatedAt:       postRow.UpdatedAt.Time.Unix(),
 	}}, nil
 }
 
@@ -141,9 +145,9 @@ func (s *PostService) ListPosts(ctx context.Context, viewerUid string, req *api.
 
 	rows, err := s.db.ListPosts(ctx, db.ListPostsParams{
 		Viewer:          uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
-		Query:           sql.NullString{String: filter.Query, Valid: filter.Query != ""},
+		Query:           pgtype.Text{String: filter.Query, Valid: filter.Query != ""},
 		AuthorUid:       authorUID,
-		TagName:         sql.NullString{String: filter.TagName, Valid: filter.TagName != ""},
+		TagName:         pgtype.Text{String: filter.TagName, Valid: filter.TagName != ""},
 		CursorCreatedAt: cursor.CreatedAt,
 		CursorID:        cursor.ID,
 		CursorScore:     cursor.Score,
@@ -179,13 +183,13 @@ func (s *PostService) ListPosts(ctx context.Context, viewerUid string, req *api.
 			CollectionCount: row.CollectionCount,
 			LikeCount:       row.LikeCount,
 			Visibility:      string(row.Visibility),
-			LatestRepliedOn: row.LatestRepliedOn.Unix(),
+			LatestRepliedOn: row.LatestRepliedOn.Time.Unix(),
 			Ip:              row.Ip,
 			Pinned:          row.Pinned,
 			Liked:           row.Liked,
 			Collected:       row.Collected,
-			CreatedAt:       row.CreatedAt.Unix(),
-			UpdatedAt:       row.UpdatedAt.Unix(),
+			CreatedAt:       row.CreatedAt.Time.Unix(),
+			UpdatedAt:       row.UpdatedAt.Time.Unix(),
 		})
 	}
 
@@ -196,7 +200,7 @@ func (s *PostService) ListPosts(ctx context.Context, viewerUid string, req *api.
 			Query:           filter.Query,
 			AuthorUID:       filter.AuthorUID,
 			TagName:         filter.TagName,
-			CursorCreatedAt: last.CreatedAt.Unix(),
+			CursorCreatedAt: last.CreatedAt.Time.Unix(),
 			CursorID:        last.Uid.String(),
 		}
 		if filter.Query != "" {
@@ -263,13 +267,13 @@ func (s *PostService) ListMyCollections(ctx context.Context, uid string, req *ap
 			CollectionCount: row.CollectionCount,
 			LikeCount:       row.LikeCount,
 			Visibility:      string(row.Visibility),
-			LatestRepliedOn: row.LatestRepliedOn.Unix(),
+			LatestRepliedOn: row.LatestRepliedOn.Time.Unix(),
 			Ip:              row.Ip,
 			Pinned:          row.Pinned,
 			Liked:           row.Liked,
 			Collected:       row.Collected,
-			CreatedAt:       row.CreatedAt.Unix(),
-			UpdatedAt:       row.UpdatedAt.Unix(),
+			CreatedAt:       row.CreatedAt.Time.Unix(),
+			UpdatedAt:       row.UpdatedAt.Time.Unix(),
 		})
 	}
 
@@ -277,7 +281,7 @@ func (s *PostService) ListMyCollections(ctx context.Context, uid string, req *ap
 	if len(rows) > 0 {
 		last := rows[len(rows)-1]
 		token := postPageToken{
-			CursorCreatedAt: last.CreatedAt.Unix(),
+			CursorCreatedAt: last.CreatedAt.Time.Unix(),
 			CursorID:        last.Uid.String(),
 		}
 		nextPageToken, err = encodePostPageToken(token)
@@ -329,7 +333,9 @@ func (s *PostService) SuggestTagsByPrefix(ctx context.Context, req *api.SuggestT
 }
 
 func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.UpdatePostRequest) error {
-	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
 		params := db.UpdatePostByUidAndAuthorParams{
 			Uid:    util.UUID(req.Uid),
 			Author: util.UUID(uid),
@@ -341,7 +347,7 @@ func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.Updat
 		}
 
 		if _, ok := paths["text"]; ok {
-			params.Text = sql.NullString{String: req.Post.Text, Valid: true}
+			params.Text = pgtype.Text{String: req.Post.Text, Valid: true}
 		}
 		if _, ok := paths["images"]; ok {
 			params.Images = req.Post.Images
@@ -353,12 +359,12 @@ func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.Updat
 			params.Visibility = db.NullPostVisibility{PostVisibility: db.PostVisibility(req.Post.Visibility), Valid: true}
 		}
 		if _, ok := paths["pinned"]; ok {
-			params.Pinned = sql.NullBool{Bool: req.Post.Pinned, Valid: true}
+			params.Pinned = pgtype.Bool{Bool: req.Post.Pinned, Valid: true}
 		}
 
 		id, err := qtx.UpdatePostByUidAndAuthor(ctx, params)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
+			if errors.Is(err, pgx.ErrNoRows) {
 				return fmt.Errorf("post not found")
 			}
 			return fmt.Errorf("update post: %w", err)
@@ -399,7 +405,8 @@ func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.Updat
 }
 
 func (s *PostService) DeletePost(ctx context.Context, uid string, req *api.DeletePostRequest) error {
-	return db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
 		affected, err := qtx.ArchivePostByUidAndAuthor(ctx, db.ArchivePostByUidAndAuthorParams{
 			Uid:    util.UUID(req.Uid),
 			Author: util.UUID(uid),
@@ -420,7 +427,9 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 
 	var count int32
 
-	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
 		switch req.Action {
 		case api.ToggleAction_TOGGLE_ACTION_ADD:
 			applied, err := qtx.InsertPostLikeEdge(ctx, db.InsertPostLikeEdgeParams{
@@ -484,7 +493,9 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 
 	var count int32
 
-	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
 		switch req.Action {
 		case api.ToggleAction_TOGGLE_ACTION_ADD:
 			applied, err := qtx.InsertPostCollectionEdge(ctx, db.InsertPostCollectionEdgeParams{
@@ -556,7 +567,7 @@ func (s *PostService) listAttachmentFileMap(ctx context.Context, attachmentLists
 	}
 
 	files, err := s.db.GetFilesByUrls(ctx, attachmentUrls)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil {
 		return nil, fmt.Errorf("get attachments: %w", err)
 	}
 
@@ -602,8 +613,8 @@ type postPageToken struct {
 }
 
 type postPageCursor struct {
-	Score     sql.NullFloat64
-	CreatedAt sql.NullTime
+	Score     pgtype.Float8
+	CreatedAt pgtype.Timestamptz
 	ID        uuid.NullUUID
 }
 
@@ -670,11 +681,11 @@ func decodeAndValidatePostPageToken(pageToken string, filter listPostsFilter) (p
 	}
 
 	cursor := postPageCursor{
-		CreatedAt: sql.NullTime{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true},
+		CreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true},
 		ID:        uuid.NullUUID{UUID: cursorID, Valid: true},
 	}
 	if token.CursorScore != nil {
-		cursor.Score = sql.NullFloat64{Float64: *token.CursorScore, Valid: true}
+		cursor.Score = pgtype.Float8{Float64: *token.CursorScore, Valid: true}
 	}
 
 	return cursor, nil

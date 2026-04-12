@@ -7,29 +7,31 @@ import (
 	"aeibi/internal/repository/oss"
 	"aeibi/util"
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService struct {
-	db  *db.Queries
-	dbx *sql.DB
-	oss *oss.OSS
-	cfg *config.Config
+	db   *db.Queries
+	pool *pgxpool.Pool
+	oss  *oss.OSS
+	cfg  *config.Config
 }
 
-func NewUserService(dbx *sql.DB, ossClient *oss.OSS, cfg *config.Config) *UserService {
+func NewUserService(pool *pgxpool.Pool, ossClient *oss.OSS, cfg *config.Config) *UserService {
 	return &UserService{
-		db:  db.New(dbx),
-		dbx: dbx,
-		oss: ossClient,
-		cfg: cfg,
+		db:   db.New(pool),
+		pool: pool,
+		oss:  ossClient,
+		cfg:  cfg,
 	}
 }
 
@@ -45,7 +47,9 @@ func (s *UserService) CreateUser(ctx context.Context, req *api.CreateUserRequest
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
 	}
-	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
 		err = qtx.CreateUser(ctx, db.CreateUserParams{
 			Uid:          uid,
 			Username:     req.Username,
@@ -70,7 +74,7 @@ func (s *UserService) CreateUser(ctx context.Context, req *api.CreateUserRequest
 func (s *UserService) GetUser(ctx context.Context, viewerUid string, req *api.GetUserRequest) (*api.GetUserResponse, error) {
 	row, err := s.db.GetUserByUid(ctx, util.UUID(req.Uid))
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("user not found")
 		}
 		return nil, fmt.Errorf("get user: %w", err)
@@ -152,7 +156,7 @@ func (s *UserService) SuggestUsersByPrefix(ctx context.Context, req *api.Suggest
 func (s *UserService) GetMe(ctx context.Context, uid string) (*api.GetMeResponse, error) {
 	row, err := s.db.GetUserByUid(ctx, util.UUID(uid))
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("user not found")
 		}
 		return nil, fmt.Errorf("get user: %w", err)
@@ -181,20 +185,20 @@ func (s *UserService) UpdateMe(ctx context.Context, uid string, req *api.UpdateM
 		paths[path] = struct{}{}
 	}
 	if _, ok := paths["username"]; ok {
-		params.Username = sql.NullString{String: req.User.Username, Valid: true}
+		params.Username = pgtype.Text{String: req.User.Username, Valid: true}
 	}
 	if _, ok := paths["email"]; ok {
-		params.Email = sql.NullString{String: req.User.Email, Valid: true}
+		params.Email = pgtype.Text{String: req.User.Email, Valid: true}
 	}
 	if _, ok := paths["nickname"]; ok {
-		params.Nickname = sql.NullString{String: req.User.Nickname, Valid: true}
+		params.Nickname = pgtype.Text{String: req.User.Nickname, Valid: true}
 	}
 	if _, ok := paths["avatar_url"]; ok {
-		params.AvatarUrl = sql.NullString{String: req.User.AvatarUrl, Valid: true}
+		params.AvatarUrl = pgtype.Text{String: req.User.AvatarUrl, Valid: true}
 	}
 	err := s.db.UpdateUser(ctx, params)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("user not found")
 		}
 		return fmt.Errorf("update user: %w", err)
@@ -204,10 +208,12 @@ func (s *UserService) UpdateMe(ctx context.Context, uid string, req *api.UpdateM
 
 func (s *UserService) ChangePassword(ctx context.Context, uid string, req *api.ChangePasswordRequest) error {
 	userUID := util.UUID(uid)
-	return db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
 		passwordHash, err := qtx.GetUserPasswordHashByUid(ctx, userUID)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
+			if errors.Is(err, pgx.ErrNoRows) {
 				return fmt.Errorf("user not found")
 			}
 			return fmt.Errorf("get user password: %w", err)
@@ -238,10 +244,12 @@ func (s *UserService) ChangePassword(ctx context.Context, uid string, req *api.C
 
 func (s *UserService) Login(ctx context.Context, req *api.LoginRequest) (*api.LoginResponse, error) {
 	var resp *api.LoginResponse
-	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
 		row, err := qtx.GetUserByUsername(ctx, req.Account)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
+			if errors.Is(err, pgx.ErrNoRows) {
 				return fmt.Errorf("invalid credentials")
 			}
 			return fmt.Errorf("get user: %w", err)
@@ -257,7 +265,7 @@ func (s *UserService) Login(ctx context.Context, req *api.LoginRequest) (*api.Lo
 		if err := qtx.UpsertRefreshToken(ctx, db.UpsertRefreshTokenParams{
 			Uid:       row.Uid,
 			Token:     refreshToken,
-			ExpiresAt: time.Now().Add(s.cfg.Auth.RefreshTTL),
+			ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(s.cfg.Auth.RefreshTTL), Valid: true},
 		}); err != nil {
 			return fmt.Errorf("save refresh token: %w", err)
 		}
@@ -278,10 +286,12 @@ func (s *UserService) Login(ctx context.Context, req *api.LoginRequest) (*api.Lo
 
 func (s *UserService) RefreshToken(ctx context.Context, req *api.RefreshTokenRequest) (*api.RefreshTokenResponse, error) {
 	var resp *api.RefreshTokenResponse
-	if err := db.WithTx(ctx, s.dbx, s.db, func(qtx *db.Queries) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
 		row, err := qtx.GetRefreshToken(ctx, req.RefreshToken)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
+			if errors.Is(err, pgx.ErrNoRows) {
 				return fmt.Errorf("invalid refresh token")
 			}
 			return fmt.Errorf("get refresh token: %w", err)
@@ -297,7 +307,7 @@ func (s *UserService) RefreshToken(ctx context.Context, req *api.RefreshTokenReq
 		if err := qtx.UpsertRefreshToken(ctx, db.UpsertRefreshTokenParams{
 			Uid:       uid,
 			Token:     refreshToken,
-			ExpiresAt: now.Add(s.cfg.Auth.RefreshTTL),
+			ExpiresAt: pgtype.Timestamptz{Time: now.Add(s.cfg.Auth.RefreshTTL), Valid: true},
 		}); err != nil {
 			return fmt.Errorf("save refresh token: %w", err)
 		}

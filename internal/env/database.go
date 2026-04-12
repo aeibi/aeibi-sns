@@ -2,30 +2,30 @@ package env
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"aeibi/internal/config"
 	"aeibi/internal/repository/db"
 
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// InitDB opens the database connection and pings it to ensure readiness.
-func InitDB(ctx context.Context, cfg config.DatabaseConfig) (*sql.DB, error) {
-	dbConn, err := sql.Open("postgres", cfg.DSN)
+// InitDB initializes the pgx pool, runs migrations, and verifies readiness.
+func InitDB(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
+	pool, err := pgxpool.New(ctx, cfg.DSN)
 	if err != nil {
-		return nil, fmt.Errorf("open database: %w", err)
+		return nil, fmt.Errorf("create pgx pool: %w", err)
 	}
 
-	if err := db.Migration(cfg.MigrationsSource, dbConn); err != nil {
-		return nil, fmt.Errorf("migrate database: %w", err)
-	}
-
-	if err := dbConn.PingContext(ctx); err != nil {
-		dbConn.Close()
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
 		return nil, fmt.Errorf("ping postgres: %w", err)
 	}
 
-	return dbConn, nil
+	if err := db.Migration(cfg.MigrationsSource, pool); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("migrate database: %w", err)
+	}
+
+	return pool, nil
 }

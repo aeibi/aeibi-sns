@@ -7,9 +7,9 @@ package db
 import (
 	"database/sql/driver"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type CommentStatus string
@@ -437,7 +437,7 @@ func (ns NullUserStatus) Value() (driver.Value, error) {
 type CommentLike struct {
 	CommentUid uuid.UUID
 	UserUid    uuid.UUID
-	CreatedAt  time.Time
+	CreatedAt  pgtype.Timestamptz
 }
 
 type File struct {
@@ -449,7 +449,7 @@ type File struct {
 	Checksum    string
 	Uploader    uuid.UUID
 	Status      FileStatus
-	CreatedAt   time.Time
+	CreatedAt   pgtype.Timestamptz
 }
 
 type InboxMessage struct {
@@ -459,7 +459,7 @@ type InboxMessage struct {
 	Type        MessageType
 	IsRead      bool
 	ActorUid    uuid.UUID
-	CreatedAt   time.Time
+	CreatedAt   pgtype.Timestamptz
 	Status      MessageStatus
 	CommentUid  uuid.NullUUID
 	PostUid     uuid.NullUUID
@@ -478,17 +478,17 @@ type Post struct {
 	LikeCount       int32
 	Pinned          bool
 	Visibility      PostVisibility
-	LatestRepliedOn time.Time
+	LatestRepliedOn pgtype.Timestamptz
 	Ip              string
 	Status          PostStatus
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 }
 
 type PostCollection struct {
 	PostUid   uuid.UUID
 	UserUid   uuid.UUID
-	CreatedAt time.Time
+	CreatedAt pgtype.Timestamptz
 }
 
 type PostComment struct {
@@ -505,14 +505,14 @@ type PostComment struct {
 	LikeCount        int32
 	Ip               string
 	Status           CommentStatus
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
 }
 
 type PostLike struct {
 	PostUid   uuid.UUID
 	UserUid   uuid.UUID
-	CreatedAt time.Time
+	CreatedAt pgtype.Timestamptz
 }
 
 type PostTag struct {
@@ -524,8 +524,8 @@ type RefreshToken struct {
 	ID        int32
 	Uid       uuid.UUID
 	Token     string
-	ExpiresAt time.Time
-	CreatedAt time.Time
+	ExpiresAt pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
 }
 
 type Report struct {
@@ -536,8 +536,8 @@ type Report struct {
 	TargetUid        uuid.UUID
 	Content          string
 	Status           ReportStatus
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
 }
 
 type Tag struct {
@@ -558,12 +558,12 @@ type User struct {
 	FollowingCount int32
 	Description    string
 	Status         UserStatus
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
 }
 
 type UserFollow struct {
 	FollowerUid uuid.UUID
 	FolloweeUid uuid.UUID
-	CreatedAt   time.Time
+	CreatedAt   pgtype.Timestamptz
 }
