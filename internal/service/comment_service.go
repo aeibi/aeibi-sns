@@ -2,6 +2,7 @@ package service
 
 import (
 	"aeibi/api"
+	"aeibi/internal/async"
 	"aeibi/internal/repository/db"
 	"aeibi/util"
 	"context"
@@ -15,19 +16,22 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type CommentService struct {
-	db   *db.Queries
-	pool *pgxpool.Pool
+	db       *db.Queries
+	pool     *pgxpool.Pool
+	producer *async.Producer
 }
 
-func NewCommentService(pool *pgxpool.Pool) *CommentService {
+func NewCommentService(pool *pgxpool.Pool, riverClient *river.Client[pgx.Tx]) *CommentService {
 	return &CommentService{
-		db:   db.New(pool),
-		pool: pool,
+		db:       db.New(pool),
+		pool:     pool,
+		producer: async.NewProducer(riverClient),
 	}
 }
 
@@ -65,14 +69,16 @@ func (s *CommentService) CreateTopComment(ctx context.Context, uid string, req *
 			return fmt.Errorf("increment post comment count: %w", err)
 		}
 		if postRow.Author != authorUid {
-			_, _ = qtx.CreateCommentInboxMessage(ctx, db.CreateCommentInboxMessageParams{
-				Uid:         uuid.New(),
-				ReceiverUid: postRow.Author,
-				ActorUid:    authorUid,
-				CommentUid:  uuid.NullUUID{UUID: commentUid, Valid: true},
-				PostUid:     uuid.NullUUID{UUID: postUid, Valid: true},
-				ParentUid:   uuid.NullUUID{UUID: postUid, Valid: true},
-			})
+			if err := s.producer.EnqueueCommentInboxTx(ctx, tx, async.CommentInboxArgs{
+				MessageUID:  uuid.New(),
+				ReceiverUID: postRow.Author,
+				ActorUID:    authorUid,
+				CommentUID:  commentUid,
+				PostUID:     postUid,
+				ParentUID:   postUid,
+			}); err != nil {
+				return fmt.Errorf("enqueue comment inbox job: %w", err)
+			}
 		}
 		resp = &api.CreateTopCommentResponse{
 			Uid:          commentUid.String(),
@@ -114,14 +120,16 @@ func (s *CommentService) CreateReply(ctx context.Context, uid string, req *api.C
 			return fmt.Errorf("increment comment reply count: %w", err)
 		}
 		if commentRow.AuthorUid != authorUid {
-			_, _ = qtx.CreateCommentInboxMessage(ctx, db.CreateCommentInboxMessageParams{
-				Uid:         uuid.New(),
-				ReceiverUid: commentRow.AuthorUid,
-				ActorUid:    authorUid,
-				CommentUid:  uuid.NullUUID{UUID: replyUid, Valid: true},
-				PostUid:     uuid.NullUUID{UUID: commentRow.PostUid, Valid: true},
-				ParentUid:   uuid.NullUUID{UUID: parentUid, Valid: true},
-			})
+			if err := s.producer.EnqueueCommentInboxTx(ctx, tx, async.CommentInboxArgs{
+				MessageUID:  uuid.New(),
+				ReceiverUID: commentRow.AuthorUid,
+				ActorUID:    authorUid,
+				CommentUID:  replyUid,
+				PostUID:     commentRow.PostUid,
+				ParentUID:   parentUid,
+			}); err != nil {
+				return fmt.Errorf("enqueue comment inbox job: %w", err)
+			}
 		}
 		resp = &api.CreateReplyResponse{
 			Uid:        replyUid.String(),

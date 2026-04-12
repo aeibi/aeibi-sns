@@ -13,21 +13,23 @@ import (
 	"aeibi/internal/repository/oss"
 	"aeibi/internal/service"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
 	"google.golang.org/grpc"
 )
 
 // StartGRPCServer starts the gRPC server and returns it plus an error channel.
-func StartGRPCServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, ossClient *oss.OSS) (*grpc.Server, <-chan error, error) {
+func StartGRPCServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, ossClient *oss.OSS, riverClient *river.Client[pgx.Tx]) (*grpc.Server, <-chan error, error) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(auth.NewAuthUnaryServerInterceptor(cfg.Auth.JWTSecret)),
 	)
 
 	userSvc := service.NewUserService(dbPool, ossClient, cfg)
-	followSvc := service.NewFollowService(dbPool)
+	followSvc := service.NewFollowService(dbPool, riverClient)
 	postSvc := service.NewPostService(dbPool, ossClient)
 	fileSvc := service.NewFileService(dbPool, ossClient, cfg.OSS.MaxUploadSizeKB)
-	commentSvc := service.NewCommentService(dbPool)
+	commentSvc := service.NewCommentService(dbPool, riverClient)
 	messageSvc := service.NewMessageService(dbPool)
 	reportSvc := service.NewReportService(dbPool)
 

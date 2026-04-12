@@ -2,6 +2,7 @@ package service
 
 import (
 	"aeibi/api"
+	"aeibi/internal/async"
 	"aeibi/internal/repository/db"
 	"aeibi/util"
 	"context"
@@ -15,17 +16,23 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type FollowService struct {
-	db   *db.Queries
-	pool *pgxpool.Pool
+	db       *db.Queries
+	pool     *pgxpool.Pool
+	producer *async.Producer
 }
 
-func NewFollowService(pool *pgxpool.Pool) *FollowService {
-	return &FollowService{db: db.New(pool), pool: pool}
+func NewFollowService(pool *pgxpool.Pool, riverClient *river.Client[pgx.Tx]) *FollowService {
+	return &FollowService{
+		db:       db.New(pool),
+		pool:     pool,
+		producer: async.NewProducer(riverClient),
+	}
 }
 
 func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowRequest) (*api.FollowResponse, error) {
@@ -112,18 +119,19 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 			return fmt.Errorf("follow: unsupported action: %v", req.Action)
 		}
 
+		if createdFollowMessage {
+			if err := s.producer.EnqueueFollowInboxTx(ctx, tx, async.FollowInboxArgs{
+				MessageUID:  uuid.New(),
+				ReceiverUID: followeeUID,
+				ActorUID:    followerUID,
+			}); err != nil {
+				return fmt.Errorf("follow: enqueue follow inbox job: %w", err)
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return nil, err
-	}
-
-	if createdFollowMessage {
-		// TODO: move this to async processing
-		_, _ = s.db.CreateFollowInboxMessage(ctx, db.CreateFollowInboxMessageParams{
-			Uid:         uuid.New(),
-			ReceiverUid: followeeUID,
-			ActorUid:    followerUID,
-		})
 	}
 
 	return &api.FollowResponse{
