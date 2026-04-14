@@ -31,7 +31,7 @@ func NewFollowService(pool *pgxpool.Pool, riverClient *river.Client[pgx.Tx]) *Fo
 	return &FollowService{
 		db:       db.New(pool),
 		pool:     pool,
-		producer: async.NewProducer(riverClient),
+		producer: async.New(riverClient),
 	}
 }
 

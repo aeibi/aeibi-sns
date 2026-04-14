@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"aeibi/internal/async"
-	"aeibi/internal/config"
+	searchrepo "aeibi/internal/repository/search"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,7 +12,7 @@ import (
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 )
 
-func InitRiverClient(cfg *config.Config, pool *pgxpool.Pool) (*river.Client[pgx.Tx], error) {
+func InitRiverClient(pool *pgxpool.Pool, search *searchrepo.Search) (*river.Client[pgx.Tx], error) {
 	workers := river.NewWorkers()
 
 	if err := river.AddWorkerSafely(workers, async.NewFollowInboxWorker(pool)); err != nil {
@@ -21,11 +21,24 @@ func InitRiverClient(cfg *config.Config, pool *pgxpool.Pool) (*river.Client[pgx.
 	if err := river.AddWorkerSafely(workers, async.NewCommentInboxWorker(pool)); err != nil {
 		return nil, fmt.Errorf("register comment inbox worker: %w", err)
 	}
+	if err := river.AddWorkerSafely(workers, async.NewUpdatePostSearchWorker(pool, search)); err != nil {
+		return nil, fmt.Errorf("register post search worker: %w", err)
+	}
+	if err := river.AddWorkerSafely(workers, async.NewUpdateUserSearchWorker(pool, search)); err != nil {
+		return nil, fmt.Errorf("register user search worker: %w", err)
+	}
+	if err := river.AddWorkerSafely(workers, async.NewUpdateTagSearchWorker(search)); err != nil {
+		return nil, fmt.Errorf("register tag search worker: %w", err)
+	}
 
 	client, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
 		Workers: workers,
 		Queues: map[string]river.QueueConfig{
-			river.QueueDefault: {MaxWorkers: 100},
+			async.QueueFollowInbox:  {MaxWorkers: 100},
+			async.QueueCommentInbox: {MaxWorkers: 100},
+			async.QueuePostSearch:   {MaxWorkers: 100},
+			async.QueueUserSearch:   {MaxWorkers: 100},
+			async.QueueTagSearch:    {MaxWorkers: 100},
 		},
 	})
 	if err != nil {

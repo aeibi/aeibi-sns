@@ -11,6 +11,7 @@ import (
 	"aeibi/internal/config"
 	"aeibi/internal/controller"
 	"aeibi/internal/repository/oss"
+	searchrepo "aeibi/internal/repository/search"
 	"aeibi/internal/service"
 
 	"github.com/jackc/pgx/v5"
@@ -20,14 +21,12 @@ import (
 )
 
 // StartGRPCServer starts the gRPC server and returns it plus an error channel.
-func StartGRPCServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, ossClient *oss.OSS, riverClient *river.Client[pgx.Tx]) (*grpc.Server, <-chan error, error) {
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(auth.NewAuthUnaryServerInterceptor(cfg.Auth.JWTSecret)),
-	)
+func StartGRPCServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, ossClient *oss.OSS, searchRepo *searchrepo.Search, riverClient *river.Client[pgx.Tx]) (*grpc.Server, <-chan error, error) {
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(auth.NewAuthUnaryServerInterceptor(cfg.Auth.JWTSecret)))
 
-	userSvc := service.NewUserService(dbPool, ossClient, cfg)
+	userSvc := service.NewUserService(dbPool, ossClient, searchRepo, cfg, riverClient)
 	followSvc := service.NewFollowService(dbPool, riverClient)
-	postSvc := service.NewPostService(dbPool, ossClient)
+	postSvc := service.NewPostService(dbPool, ossClient, searchRepo, riverClient)
 	fileSvc := service.NewFileService(dbPool, ossClient, cfg.OSS.MaxUploadSizeKB)
 	commentSvc := service.NewCommentService(dbPool, riverClient)
 	messageSvc := service.NewMessageService(dbPool)

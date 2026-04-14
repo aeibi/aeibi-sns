@@ -2,10 +2,7 @@ name: aeibi-dev
 
 services:
   postgres:
-    build:
-      context: ./postgres
-      dockerfile: Dockerfile
-    image: aeibi-postgres:18-bookworm
+    image: postgres:18-alpine
     container_name: aeibi-dev-postgres
     restart: unless-stopped
     environment:
@@ -50,7 +47,19 @@ services:
       - rustfs-data:/data
       - rustfs-logs:/logs
 
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    container_name: aeibi-dev-meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "7700:7700"
+    volumes:
+      - meilisearch-data:/meili_data
+
 volumes:
   postgres-data:
   rustfs-data:
   rustfs-logs:
+  meilisearch-data:

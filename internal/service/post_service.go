@@ -2,14 +2,17 @@ package service
 
 import (
 	"aeibi/api"
+	"aeibi/internal/async"
 	"aeibi/internal/repository/db"
 	"aeibi/internal/repository/oss"
+	searchrepo "aeibi/internal/repository/search"
 	"aeibi/util"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,21 +20,26 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type PostService struct {
-	db   *db.Queries
-	pool *pgxpool.Pool
-	oss  *oss.OSS
+	db       *db.Queries
+	pool     *pgxpool.Pool
+	oss      *oss.OSS
+	search   *searchrepo.Search
+	producer *async.Producer
 }
 
-func NewPostService(pool *pgxpool.Pool, ossClient *oss.OSS) *PostService {
+func NewPostService(pool *pgxpool.Pool, ossClient *oss.OSS, search *searchrepo.Search, riverClient *river.Client[pgx.Tx]) *PostService {
 	return &PostService{
-		db:   db.New(pool),
-		pool: pool,
-		oss:  ossClient,
+		db:       db.New(pool),
+		pool:     pool,
+		oss:      ossClient,
+		search:   search,
+		producer: async.New(riverClient),
 	}
 }
 
@@ -66,6 +74,17 @@ func (s *PostService) CreatePost(ctx context.Context, uid string, req *api.Creat
 			}); err != nil {
 				return fmt.Errorf("insert post tags: %w", err)
 			}
+			if err := s.producer.EnqueueUpdateTagSearchTx(ctx, tx, async.UpdateTagSearchArgs{
+				TagNames: tags,
+			}); err != nil {
+				return fmt.Errorf("enqueue update tag search job: %w", err)
+			}
+		}
+		if err := s.producer.EnqueueUpdatePostSearchTx(ctx, tx, async.UpdatePostSearchArgs{
+			PostUID: row.Uid,
+			Action:  async.PostSearchActionUpsert,
+		}); err != nil {
+			return fmt.Errorf("enqueue update post search job: %w", err)
 		}
 
 		resp = &api.CreatePostResponse{
@@ -145,12 +164,10 @@ func (s *PostService) ListPosts(ctx context.Context, viewerUid string, req *api.
 
 	rows, err := s.db.ListPosts(ctx, db.ListPostsParams{
 		Viewer:          uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
-		Query:           pgtype.Text{String: filter.Query, Valid: filter.Query != ""},
 		AuthorUid:       authorUID,
 		TagName:         pgtype.Text{String: filter.TagName, Valid: filter.TagName != ""},
 		CursorCreatedAt: cursor.CreatedAt,
 		CursorID:        cursor.ID,
-		CursorScore:     cursor.Score,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list posts: %w", err)
@@ -197,20 +214,114 @@ func (s *PostService) ListPosts(ctx context.Context, viewerUid string, req *api.
 	if len(rows) > 0 {
 		last := rows[len(rows)-1]
 		token := postPageToken{
-			Query:           filter.Query,
 			AuthorUID:       filter.AuthorUID,
 			TagName:         filter.TagName,
 			CursorCreatedAt: last.CreatedAt.Time.Unix(),
 			CursorID:        last.Uid.String(),
 		}
-		if filter.Query != "" {
-			score := last.Score
-			token.CursorScore = &score
-		}
 		nextPageToken, err = encodePostPageToken(token)
 		if err != nil {
 			return nil, fmt.Errorf("encode page token: %w", err)
 		}
+	}
+
+	return &api.ListPostsResponse{
+		Posts:         posts,
+		NextPageToken: nextPageToken,
+	}, nil
+}
+
+func (s *PostService) SearchPosts(ctx context.Context, viewerUid string, req *api.SearchPostsRequest) (*api.ListPostsResponse, error) {
+	offset, err := strconv.ParseInt(req.PageToken, 10, 64)
+	if (err != nil && req.PageToken != "") || offset < 0 {
+		return nil, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	result, err := s.search.SearchPosts(searchrepo.SearchPostsParams{
+		Query:     req.Query,
+		ViewerUID: viewerUid,
+		AuthorUID: req.AuthorUid,
+		TagName:   req.TagName,
+		Limit:     20,
+		Offset:    offset,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("search posts: %w", err)
+	}
+
+	postUIDs := make([]uuid.UUID, 0, len(result.Hits))
+	for _, hit := range result.Hits {
+		uid, err := uuid.Parse(hit.UID)
+		if err != nil {
+			continue
+		}
+		postUIDs = append(postUIDs, uid)
+	}
+
+	extrasRows, err := s.db.GetPostSearchExtrasByUids(ctx, db.GetPostSearchExtrasByUidsParams{
+		Viewer: uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
+		Uids:   postUIDs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get searched post extras: %w", err)
+	}
+
+	extrasByUID := make(map[string]db.GetPostSearchExtrasByUidsRow, len(extrasRows))
+	for _, row := range extrasRows {
+		extrasByUID[row.Uid.String()] = row
+	}
+
+	attachmentLists := make([][]string, 0, len(result.Hits))
+	for _, hit := range result.Hits {
+		if _, ok := extrasByUID[hit.UID]; !ok {
+			continue
+		}
+		attachmentLists = append(attachmentLists, hit.Attachments)
+	}
+
+	fileMap, err := s.listAttachmentFileMap(ctx, attachmentLists...)
+	if err != nil {
+		return nil, err
+	}
+
+	posts := make([]*api.Post, 0, len(result.Hits))
+	for _, hit := range result.Hits {
+		extra, ok := extrasByUID[hit.UID]
+		if !ok {
+			continue
+		}
+
+		attachments := buildAttachmentsByURLOrder(hit.Attachments, fileMap)
+		posts = append(posts, &api.Post{
+			Uid: hit.UID,
+			Author: &api.PostAuthor{
+				Uid:         hit.AuthorUID,
+				Nickname:    extra.AuthorNickname,
+				AvatarUrl:   extra.AuthorAvatarUrl,
+				IsFollowing: extra.IsFollowing,
+			},
+			Text:            hit.Text,
+			Images:          hit.Images,
+			Attachments:     attachments,
+			Tags:            hit.TagNames,
+			CommentCount:    int32(hit.CommentCount),
+			CollectionCount: int32(hit.CollectionCount),
+			LikeCount:       int32(hit.LikeCount),
+			Visibility:      hit.Visibility,
+			LatestRepliedOn: hit.LatestRepliedOn,
+			Ip:              "",
+			Pinned:          hit.Pinned,
+			Liked:           extra.Liked,
+			Collected:       extra.Collected,
+			CreatedAt:       hit.CreatedAt,
+			UpdatedAt:       hit.UpdatedAt,
+		})
+	}
+
+	nextPageToken := ""
+	nextOffset := offset + int64(len(result.Hits))
+	if len(result.Hits) > 0 && nextOffset < result.EstimatedTotalHits {
+		nextPageToken = strconv.FormatInt(nextOffset, 10)
 	}
 
 	return &api.ListPostsResponse{
@@ -296,16 +407,19 @@ func (s *PostService) ListMyCollections(ctx context.Context, uid string, req *ap
 	}, nil
 }
 
-func (s *PostService) SearchTags(ctx context.Context, req *api.SearchTagsRequest) (*api.SearchTagsResponse, error) {
-	rows, err := s.db.SearchTags(ctx, req.Query)
+func (s *PostService) SearchTags(_ context.Context, req *api.SearchTagsRequest) (*api.SearchTagsResponse, error) {
+	result, err := s.search.SearchTags(searchrepo.SearchTagsParams{
+		Query: req.Query,
+		Limit: 20,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("search tags: %w", err)
 	}
 
-	tags := make([]*api.SearchTag, 0, len(rows))
-	for _, row := range rows {
+	tags := make([]*api.SearchTag, 0, len(result.Hits))
+	for _, hit := range result.Hits {
 		tags = append(tags, &api.SearchTag{
-			Name: row.Name,
+			Name: hit.Name,
 		})
 	}
 
@@ -314,16 +428,16 @@ func (s *PostService) SearchTags(ctx context.Context, req *api.SearchTagsRequest
 	}, nil
 }
 
-func (s *PostService) SuggestTagsByPrefix(ctx context.Context, req *api.SuggestTagsByPrefixRequest) (*api.SuggestTagsByPrefixResponse, error) {
-	rows, err := s.db.SuggestTagsByPrefix(ctx, req.Prefix)
+func (s *PostService) SuggestTagsByPrefix(_ context.Context, req *api.SuggestTagsByPrefixRequest) (*api.SuggestTagsByPrefixResponse, error) {
+	result, err := s.search.SuggestTagsByName(req.Prefix, 10)
 	if err != nil {
 		return nil, fmt.Errorf("suggest tags by prefix: %w", err)
 	}
 
-	tags := make([]*api.SearchTag, 0, len(rows))
-	for _, row := range rows {
+	tags := make([]*api.SearchTag, 0, len(result.Hits))
+	for _, hit := range result.Hits {
 		tags = append(tags, &api.SearchTag{
-			Name: row.Name,
+			Name: hit.Name,
 		})
 	}
 
@@ -393,7 +507,18 @@ func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.Updat
 				}); err != nil {
 					return fmt.Errorf("update post: insert post tags: %w", err)
 				}
+				if err := s.producer.EnqueueUpdateTagSearchTx(ctx, tx, async.UpdateTagSearchArgs{
+					TagNames: tags,
+				}); err != nil {
+					return fmt.Errorf("update post: enqueue update tag search job: %w", err)
+				}
 			}
+		}
+		if err := s.producer.EnqueueUpdatePostSearchTx(ctx, tx, async.UpdatePostSearchArgs{
+			PostUID: params.Uid,
+			Action:  async.PostSearchActionUpsert,
+		}); err != nil {
+			return fmt.Errorf("enqueue update post search job: %w", err)
 		}
 
 		return nil
@@ -417,6 +542,12 @@ func (s *PostService) DeletePost(ctx context.Context, uid string, req *api.Delet
 		if affected == 0 {
 			return fmt.Errorf("post not found or no permission")
 		}
+		if err := s.producer.EnqueueUpdatePostSearchTx(ctx, tx, async.UpdatePostSearchArgs{
+			PostUID: util.UUID(req.Uid),
+			Action:  async.PostSearchActionDelete,
+		}); err != nil {
+			return fmt.Errorf("enqueue update post search job: %w", err)
+		}
 		return nil
 	})
 }
@@ -426,6 +557,7 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 	userUid := util.UUID(uid)
 
 	var count int32
+	var shouldEnqueue bool
 
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
@@ -445,6 +577,7 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 				if err != nil {
 					return fmt.Errorf("increment post like count: %w", err)
 				}
+				shouldEnqueue = true
 			} else {
 				count, err = qtx.GetPostLikeCount(ctx, postUid)
 				if err != nil {
@@ -466,6 +599,7 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 				if err != nil {
 					return fmt.Errorf("decrement post like count: %w", err)
 				}
+				shouldEnqueue = true
 			} else {
 				count, err = qtx.GetPostLikeCount(ctx, postUid)
 				if err != nil {
@@ -475,6 +609,14 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 
 		default:
 			return fmt.Errorf("unsupported action: %v", req.Action)
+		}
+		if shouldEnqueue {
+			if err := s.producer.EnqueueUpdatePostSearchTx(ctx, tx, async.UpdatePostSearchArgs{
+				PostUID: postUid,
+				Action:  async.PostSearchActionUpsert,
+			}); err != nil {
+				return fmt.Errorf("enqueue update post search job: %w", err)
+			}
 		}
 
 		return nil
@@ -492,6 +634,7 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 	userUid := util.UUID(uid)
 
 	var count int32
+	var shouldEnqueue bool
 
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
@@ -511,6 +654,7 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 				if err != nil {
 					return fmt.Errorf("post collection: increment post collection count: %w", err)
 				}
+				shouldEnqueue = true
 			} else {
 				count, err = qtx.GetPostCollectionCount(ctx, postUid)
 				if err != nil {
@@ -532,6 +676,7 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 				if err != nil {
 					return fmt.Errorf("post collection: decrement post collection count: %w", err)
 				}
+				shouldEnqueue = true
 			} else {
 				count, err = qtx.GetPostCollectionCount(ctx, postUid)
 				if err != nil {
@@ -541,6 +686,14 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 
 		default:
 			return fmt.Errorf("post collection: unsupported action: %v", req.Action)
+		}
+		if shouldEnqueue {
+			if err := s.producer.EnqueueUpdatePostSearchTx(ctx, tx, async.UpdatePostSearchArgs{
+				PostUID: postUid,
+				Action:  async.PostSearchActionUpsert,
+			}); err != nil {
+				return fmt.Errorf("enqueue update post search job: %w", err)
+			}
 		}
 
 		return nil
@@ -598,29 +751,24 @@ func buildAttachmentsByURLOrder(urls []string, fileMap map[string]db.GetFilesByU
 }
 
 type listPostsFilter struct {
-	Query     string
 	AuthorUID string
 	TagName   string
 }
 
 type postPageToken struct {
-	Query           string   `json:"query,omitempty"`
-	AuthorUID       string   `json:"author_uid,omitempty"`
-	TagName         string   `json:"tag_name,omitempty"`
-	CursorScore     *float64 `json:"cursor_score,omitempty"`
-	CursorCreatedAt int64    `json:"cursor_created_at,omitempty"`
-	CursorID        string   `json:"cursor_id,omitempty"`
+	AuthorUID       string `json:"author_uid,omitempty"`
+	TagName         string `json:"tag_name,omitempty"`
+	CursorCreatedAt int64  `json:"cursor_created_at,omitempty"`
+	CursorID        string `json:"cursor_id,omitempty"`
 }
 
 type postPageCursor struct {
-	Score     pgtype.Float8
 	CreatedAt pgtype.Timestamptz
 	ID        uuid.NullUUID
 }
 
 func normalizeListPostsFilter(req *api.ListPostsRequest) (listPostsFilter, uuid.NullUUID, error) {
 	filter := listPostsFilter{
-		Query:     strings.TrimSpace(req.GetQuery()),
 		AuthorUID: strings.TrimSpace(req.GetAuthorUid()),
 		TagName:   strings.TrimSpace(req.GetTagName()),
 	}
@@ -653,7 +801,7 @@ func decodeAndValidatePostPageToken(pageToken string, filter listPostsFilter) (p
 		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
 	}
 
-	if token.Query != filter.Query || token.AuthorUID != filter.AuthorUID || token.TagName != filter.TagName {
+	if token.AuthorUID != filter.AuthorUID || token.TagName != filter.TagName {
 		return postPageCursor{}, status.Error(codes.InvalidArgument, "page_token does not match current filters")
 	}
 
@@ -672,20 +820,9 @@ func decodeAndValidatePostPageToken(pageToken string, filter listPostsFilter) (p
 		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
 	}
 
-	hasQuery := filter.Query != ""
-	if hasQuery && token.CursorScore == nil {
-		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
-	}
-	if !hasQuery && token.CursorScore != nil {
-		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
-	}
-
 	cursor := postPageCursor{
 		CreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true},
 		ID:        uuid.NullUUID{UUID: cursorID, Valid: true},
-	}
-	if token.CursorScore != nil {
-		cursor.Score = pgtype.Float8{Float64: *token.CursorScore, Valid: true}
 	}
 
 	return cursor, nil

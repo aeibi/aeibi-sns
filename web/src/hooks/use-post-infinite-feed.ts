@@ -4,10 +4,13 @@ import type { Post } from "@/types/post"
 import {
   getPostServiceListMyCollectionsQueryKey,
   getPostServiceListPostsQueryKey,
+  getPostServiceSearchPostsQueryKey,
   postServiceListMyCollections,
   postServiceListPosts,
+  postServiceSearchPosts,
   type PostListPostsResponse,
   type PostServiceListPostsParams,
+  type PostServiceSearchPostsParams,
 } from "@/api/generated"
 
 interface UsePostInfiniteFeedOptions {
@@ -100,6 +103,22 @@ export function usePostsFeed(params: PostServiceListPostsParams) {
     queryKey,
     initialPageParam: params,
     queryFn: (pageParam, signal) => postServiceListPosts(pageParam, undefined, signal),
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.nextPageToken) return
+      return {
+        ...(params ?? {}),
+        pageToken: lastPage.nextPageToken,
+      }
+    },
+  })
+}
+
+export function useSearchPostsFeed(params: PostServiceSearchPostsParams) {
+  const queryKey = getPostServiceSearchPostsQueryKey(params)
+  return usePostInfiniteFeed({
+    queryKey,
+    initialPageParam: params,
+    queryFn: (pageParam, signal) => postServiceSearchPosts(pageParam, undefined, signal),
     getNextPageParam: (lastPage) => {
       if (!lastPage.nextPageToken) return
       return {

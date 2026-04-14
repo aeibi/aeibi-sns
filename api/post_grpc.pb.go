@@ -22,6 +22,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	PostService_CreatePost_FullMethodName          = "/post.PostService/CreatePost"
 	PostService_ListPosts_FullMethodName           = "/post.PostService/ListPosts"
+	PostService_SearchPosts_FullMethodName         = "/post.PostService/SearchPosts"
 	PostService_ListMyCollections_FullMethodName   = "/post.PostService/ListMyCollections"
 	PostService_SearchTags_FullMethodName          = "/post.PostService/SearchTags"
 	PostService_SuggestTagsByPrefix_FullMethodName = "/post.PostService/SuggestTagsByPrefix"
@@ -40,8 +41,10 @@ const (
 type PostServiceClient interface {
 	// POST /api/v1/posts 创建帖子
 	CreatePost(ctx context.Context, in *CreatePostRequest, opts ...grpc.CallOption) (*CreatePostResponse, error)
-	// GET /api/v1/posts 统一列表/筛选/搜索
+	// GET /api/v1/posts 统一列表/筛选
 	ListPosts(ctx context.Context, in *ListPostsRequest, opts ...grpc.CallOption) (*ListPostsResponse, error)
+	// GET /api/v1/search/posts 帖子搜索
+	SearchPosts(ctx context.Context, in *SearchPostsRequest, opts ...grpc.CallOption) (*ListPostsResponse, error)
 	// GET /api/v1/me/collections 当前用户收藏的帖子列表
 	ListMyCollections(ctx context.Context, in *ListPostsRequest, opts ...grpc.CallOption) (*ListPostsResponse, error)
 	// GET /api/v1/search/tags 标签搜索
@@ -82,6 +85,16 @@ func (c *postServiceClient) ListPosts(ctx context.Context, in *ListPostsRequest,
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListPostsResponse)
 	err := c.cc.Invoke(ctx, PostService_ListPosts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *postServiceClient) SearchPosts(ctx context.Context, in *SearchPostsRequest, opts ...grpc.CallOption) (*ListPostsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListPostsResponse)
+	err := c.cc.Invoke(ctx, PostService_SearchPosts_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -176,8 +189,10 @@ func (c *postServiceClient) CollectPost(ctx context.Context, in *CollectPostRequ
 type PostServiceServer interface {
 	// POST /api/v1/posts 创建帖子
 	CreatePost(context.Context, *CreatePostRequest) (*CreatePostResponse, error)
-	// GET /api/v1/posts 统一列表/筛选/搜索
+	// GET /api/v1/posts 统一列表/筛选
 	ListPosts(context.Context, *ListPostsRequest) (*ListPostsResponse, error)
+	// GET /api/v1/search/posts 帖子搜索
+	SearchPosts(context.Context, *SearchPostsRequest) (*ListPostsResponse, error)
 	// GET /api/v1/me/collections 当前用户收藏的帖子列表
 	ListMyCollections(context.Context, *ListPostsRequest) (*ListPostsResponse, error)
 	// GET /api/v1/search/tags 标签搜索
@@ -209,6 +224,9 @@ func (UnimplementedPostServiceServer) CreatePost(context.Context, *CreatePostReq
 }
 func (UnimplementedPostServiceServer) ListPosts(context.Context, *ListPostsRequest) (*ListPostsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListPosts not implemented")
+}
+func (UnimplementedPostServiceServer) SearchPosts(context.Context, *SearchPostsRequest) (*ListPostsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchPosts not implemented")
 }
 func (UnimplementedPostServiceServer) ListMyCollections(context.Context, *ListPostsRequest) (*ListPostsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListMyCollections not implemented")
@@ -287,6 +305,24 @@ func _PostService_ListPosts_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PostServiceServer).ListPosts(ctx, req.(*ListPostsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PostService_SearchPosts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchPostsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PostServiceServer).SearchPosts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PostService_SearchPosts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PostServiceServer).SearchPosts(ctx, req.(*SearchPostsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -449,6 +485,10 @@ var PostService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListPosts",
 			Handler:    _PostService_ListPosts_Handler,
+		},
+		{
+			MethodName: "SearchPosts",
+			Handler:    _PostService_SearchPosts_Handler,
 		},
 		{
 			MethodName: "ListMyCollections",
