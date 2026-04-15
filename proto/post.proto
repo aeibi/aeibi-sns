@@ -20,10 +20,17 @@ service PostService {
     };
   }
 
-  // GET /api/v1/posts 统一列表/筛选/搜索
+  // GET /api/v1/posts 统一列表/筛选
   rpc ListPosts(ListPostsRequest) returns (ListPostsResponse) {
     option (google.api.http) = {
       get: "/api/v1/posts"
+    };
+  }
+
+  // GET /api/v1/search/posts 帖子搜索
+  rpc SearchPosts(SearchPostsRequest) returns (ListPostsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/search/posts"
     };
   }
 
@@ -143,6 +150,13 @@ message CreatePostResponse {
 // List
 
 message ListPostsRequest {
+  string query = 1;
+  string author_uid = 2;
+  string tag_name = 3;
+  string page_token = 4;
+}
+
+message SearchPostsRequest {
   string query = 1;
   string author_uid = 2;
   string tag_name = 3;

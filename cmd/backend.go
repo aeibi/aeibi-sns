@@ -49,7 +49,13 @@ func RunBackend(ctx context.Context, cfg *config.Config) error {
 		return err
 	}
 
-	riverClient, err := env.InitRiverClient(cfg, dbPool)
+	searchRepo, err := env.InitSearch(ctx, cfg.Search)
+	if err != nil {
+		return err
+	}
+	defer searchRepo.Close()
+
+	riverClient, err := env.InitRiverClient(dbPool, searchRepo)
 	if err != nil {
 		return err
 	}
@@ -60,7 +66,7 @@ func RunBackend(ctx context.Context, cfg *config.Config) error {
 	}
 
 	// Start gRPC server
-	grpcServer, grpcErrCh, err := server.StartGRPCServer(ctx, cfg, dbPool, ossClient, riverClient)
+	grpcServer, grpcErrCh, err := server.StartGRPCServer(ctx, cfg, dbPool, ossClient, searchRepo, riverClient)
 	if err != nil {
 		stopCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()

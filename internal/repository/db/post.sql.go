@@ -225,6 +225,79 @@ func (q *Queries) GetPostByUid(ctx context.Context, arg GetPostByUidParams) (Get
 	return i, err
 }
 
+const getPostSearchExtrasByUids = `-- name: GetPostSearchExtrasByUids :many
+WITH input AS (
+  SELECT DISTINCT ON (x.uid) x.uid,
+    x.ord
+  FROM unnest($2::uuid []) WITH ORDINALITY AS x(uid, ord)
+  ORDER BY x.uid,
+    x.ord
+)
+SELECT p.uid,
+  u.nickname AS author_nickname,
+  u.avatar_url AS author_avatar_url,
+  (uf.follower_uid IS NOT NULL)::boolean AS is_following,
+  (pl.user_uid IS NOT NULL)::boolean AS liked,
+  (pc.user_uid IS NOT NULL)::boolean AS collected
+FROM input i
+  JOIN posts p ON p.uid = i.uid
+  JOIN users u ON u.uid = p.author
+  AND u.status = 'NORMAL'::user_status
+  LEFT JOIN post_likes pl ON pl.post_uid = p.uid
+  AND pl.user_uid = $1::uuid
+  LEFT JOIN post_collections pc ON pc.post_uid = p.uid
+  AND pc.user_uid = $1::uuid
+  LEFT JOIN user_follows uf ON uf.follower_uid = $1::uuid
+  AND uf.followee_uid = p.author
+WHERE p.status = 'NORMAL'::post_status
+  AND (
+    p.visibility = 'PUBLIC'::post_visibility
+    OR p.author = $1::uuid
+  )
+ORDER BY i.ord
+`
+
+type GetPostSearchExtrasByUidsParams struct {
+	Viewer uuid.NullUUID
+	Uids   []uuid.UUID
+}
+
+type GetPostSearchExtrasByUidsRow struct {
+	Uid             uuid.UUID
+	AuthorNickname  string
+	AuthorAvatarUrl string
+	IsFollowing     bool
+	Liked           bool
+	Collected       bool
+}
+
+func (q *Queries) GetPostSearchExtrasByUids(ctx context.Context, arg GetPostSearchExtrasByUidsParams) ([]GetPostSearchExtrasByUidsRow, error) {
+	rows, err := q.db.Query(ctx, getPostSearchExtrasByUids, arg.Viewer, arg.Uids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPostSearchExtrasByUidsRow
+	for rows.Next() {
+		var i GetPostSearchExtrasByUidsRow
+		if err := rows.Scan(
+			&i.Uid,
+			&i.AuthorNickname,
+			&i.AuthorAvatarUrl,
+			&i.IsFollowing,
+			&i.Liked,
+			&i.Collected,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertPostTagsByNames = `-- name: InsertPostTagsByNames :exec
 WITH input AS (
   SELECT DISTINCT unnest($2::text[]) AS name
@@ -278,11 +351,7 @@ WITH filtered_posts AS (
     p.ip,
     p.status,
     p.created_at,
-    p.updated_at,
-    CASE
-      WHEN $2::text IS NULL THEN 0::float8
-      ELSE COALESCE(pgroonga_score(p.tableoid, p.ctid), 0::float8)::float8
-    END AS score
+    p.updated_at
   FROM posts p
   WHERE p.status = 'NORMAL'::post_status
     AND (
@@ -290,51 +359,32 @@ WITH filtered_posts AS (
       OR p.author = $1::uuid
     )
     AND (
-      $3::uuid IS NULL
-      OR p.author = $3::uuid
+      $2::uuid IS NULL
+      OR p.author = $2::uuid
     )
     AND (
-      $4::text IS NULL
+      $3::text IS NULL
       OR EXISTS (
         SELECT 1
         FROM post_tags pt
           JOIN tags t ON t.id = pt.tag_id
         WHERE pt.post_id = p.id
-          AND t.name = $4::text
+          AND t.name = $3::text
       )
-    )
-    AND (
-      $2::text IS NULL
-      OR p.text &@~ $2::text
     )
 ),
 matched_posts AS (
-  SELECT id, uid, author, text, images, attachments, comment_count, collection_count, like_count, pinned, visibility, latest_replied_on, ip, status, created_at, updated_at, score
+  SELECT id, uid, author, text, images, attachments, comment_count, collection_count, like_count, pinned, visibility, latest_replied_on, ip, status, created_at, updated_at
   FROM filtered_posts fp
   WHERE (
       (
-        $5::timestamptz IS NULL
-        AND $6::uuid IS NULL
-        AND (
-          $2::text IS NULL
-          OR $7::float8 IS NULL
-        )
+        $4::timestamptz IS NULL
+        AND $5::uuid IS NULL
       )
       OR (
-        $2::text IS NULL
-        AND $7::float8 IS NULL
-        AND (fp.created_at, fp.uid) < (
-          $5::timestamptz,
-          $6::uuid
-        )
-      )
-      OR (
-        $2::text IS NOT NULL
-        AND $7::float8 IS NOT NULL
-        AND (fp.score, fp.created_at, fp.uid) < (
-          $7::float8,
-          $5::timestamptz,
-          $6::uuid
+        (fp.created_at, fp.uid) < (
+          $4::timestamptz,
+          $5::uuid
         )
       )
     )
@@ -357,7 +407,6 @@ SELECT mp.uid,
   mp.status,
   mp.created_at,
   mp.updated_at,
-  mp.score,
   (pl.user_uid IS NOT NULL)::boolean AS liked,
   (pc.user_uid IS NOT NULL)::boolean AS collected,
   (uf.follower_uid IS NOT NULL)::boolean AS following,
@@ -382,23 +431,17 @@ FROM matched_posts mp
   AND pc.user_uid = $1::uuid
   LEFT JOIN user_follows uf ON uf.follower_uid = $1::uuid
   AND uf.followee_uid = mp.author
-ORDER BY CASE
-    WHEN $2::text IS NULL THEN 0::float8
-    ELSE mp.score
-  END DESC,
-  mp.created_at DESC,
+ORDER BY mp.created_at DESC,
   mp.uid DESC
 LIMIT 20
 `
 
 type ListPostsParams struct {
 	Viewer          uuid.NullUUID
-	Query           pgtype.Text
 	AuthorUid       uuid.NullUUID
 	TagName         pgtype.Text
 	CursorCreatedAt pgtype.Timestamptz
 	CursorID        uuid.NullUUID
-	CursorScore     pgtype.Float8
 }
 
 type ListPostsRow struct {
@@ -420,7 +463,6 @@ type ListPostsRow struct {
 	Status          PostStatus
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
-	Score           float64
 	Liked           bool
 	Collected       bool
 	Following       bool
@@ -430,12 +472,10 @@ type ListPostsRow struct {
 func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPostsRow, error) {
 	rows, err := q.db.Query(ctx, listPosts,
 		arg.Viewer,
-		arg.Query,
 		arg.AuthorUid,
 		arg.TagName,
 		arg.CursorCreatedAt,
 		arg.CursorID,
-		arg.CursorScore,
 	)
 	if err != nil {
 		return nil, err
@@ -463,7 +503,6 @@ func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPos
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.Score,
 			&i.Liked,
 			&i.Collected,
 			&i.Following,

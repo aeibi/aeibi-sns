@@ -12,6 +12,7 @@ type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Database DatabaseConfig `mapstructure:"database"`
 	OSS      OSSConfig      `mapstructure:"oss"`
+	Search   SearchConfig   `mapstructure:"search"`
 	Auth     AuthConfig     `mapstructure:"auth"`
 }
 
@@ -32,6 +33,11 @@ type OSSConfig struct {
 	Bucket          string `mapstructure:"bucket"`
 	UseSSL          bool   `mapstructure:"use_ssl"`
 	MaxUploadSizeKB int    `mapstructure:"max_upload_size_kb"`
+}
+
+type SearchConfig struct {
+	Host   string `mapstructure:"host"`
+	APIKey string `mapstructure:"api_key"`
 }
 
 type AuthConfig struct {

@@ -410,7 +410,7 @@ paths:
         get:
             tags:
                 - PostService
-            description: GET /api/v1/posts 统一列表/筛选/搜索
+            description: GET /api/v1/posts 统一列表/筛选
             operationId: PostService_ListPosts
             parameters:
                 - name: query
@@ -627,6 +627,36 @@ paths:
                 "200":
                     description: OK
                     content: {}
+    /api/v1/search/posts:
+        get:
+            tags:
+                - PostService
+            description: GET /api/v1/search/posts 帖子搜索
+            operationId: PostService_SearchPosts
+            parameters:
+                - name: query
+                  in: query
+                  schema:
+                    type: string
+                - name: authorUid
+                  in: query
+                  schema:
+                    type: string
+                - name: tagName
+                  in: query
+                  schema:
+                    type: string
+                - name: pageToken
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/post.ListPostsResponse'
     /api/v1/search/tags:
         get:
             tags:

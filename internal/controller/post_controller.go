@@ -51,13 +51,35 @@ func (h *PostHandler) ListPosts(ctx context.Context, req *api.ListPostsRequest) 
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
-	if strings.TrimSpace(req.AuthorUid) != "" {
-		if _, err := uuid.Parse(strings.TrimSpace(req.AuthorUid)); err != nil {
+	if strings.TrimSpace(req.Query) != "" {
+		return nil, status.Error(codes.InvalidArgument, "query is not supported")
+	}
+	req.Query = ""
+	req.TagName = strings.TrimSpace(req.TagName)
+	req.AuthorUid = strings.TrimSpace(req.AuthorUid)
+	if req.AuthorUid != "" {
+		if _, err := uuid.Parse(req.AuthorUid); err != nil {
 			return nil, status.Error(codes.InvalidArgument, "author_uid is invalid")
 		}
 	}
 	viewerUid, _ := auth.SubjectFromContext(ctx)
 	return h.svc.ListPosts(ctx, viewerUid, req)
+}
+
+func (h *PostHandler) SearchPosts(ctx context.Context, req *api.SearchPostsRequest) (*api.ListPostsResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request is nil")
+	}
+	req.Query = strings.TrimSpace(req.Query)
+	req.TagName = strings.TrimSpace(req.TagName)
+	req.AuthorUid = strings.TrimSpace(req.AuthorUid)
+	if req.AuthorUid != "" {
+		if _, err := uuid.Parse(req.AuthorUid); err != nil {
+			return nil, status.Error(codes.InvalidArgument, "author_uid is invalid")
+		}
+	}
+	viewerUid, _ := auth.SubjectFromContext(ctx)
+	return h.svc.SearchPosts(ctx, viewerUid, req)
 }
 
 func (h *PostHandler) ListMyCollections(ctx context.Context, req *api.ListPostsRequest) (*api.ListPostsResponse, error) {

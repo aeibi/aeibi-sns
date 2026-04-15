@@ -31,7 +31,7 @@ func NewCommentService(pool *pgxpool.Pool, riverClient *river.Client[pgx.Tx]) *C
 	return &CommentService{
 		db:       db.New(pool),
 		pool:     pool,
-		producer: async.NewProducer(riverClient),
+		producer: async.New(riverClient),
 	}
 }
 
@@ -79,6 +79,12 @@ func (s *CommentService) CreateTopComment(ctx context.Context, uid string, req *
 			}); err != nil {
 				return fmt.Errorf("enqueue comment inbox job: %w", err)
 			}
+		}
+		if err := s.producer.EnqueueUpdatePostSearchTx(ctx, tx, async.UpdatePostSearchArgs{
+			PostUID: postUid,
+			Action:  async.PostSearchActionUpsert,
+		}); err != nil {
+			return fmt.Errorf("enqueue update post search job: %w", err)
 		}
 		resp = &api.CreateTopCommentResponse{
 			Uid:          commentUid.String(),
@@ -337,6 +343,12 @@ func (s *CommentService) DeleteComment(ctx context.Context, uid string, req *api
 		if commentRow.RootUid == commentUid {
 			if _, err := qtx.DecrementPostCommentCount(ctx, commentRow.PostUid); err != nil {
 				return fmt.Errorf("decrement post comment count: %w", err)
+			}
+			if err := s.producer.EnqueueUpdatePostSearchTx(ctx, tx, async.UpdatePostSearchArgs{
+				PostUID: commentRow.PostUid,
+				Action:  async.PostSearchActionUpsert,
+			}); err != nil {
+				return fmt.Errorf("enqueue update post search job: %w", err)
 			}
 			return nil
 		}

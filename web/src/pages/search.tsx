@@ -3,13 +3,13 @@ import { useSearchParams } from "react-router-dom"
 import { useUserServiceGetMe } from "@/api/generated"
 import { PostCard } from "@/components/post-card"
 import { VirtualList } from "@/components/virtual-list"
-import { usePostsFeed } from "@/hooks/use-post-infinite-feed"
+import { useSearchPostsFeed } from "@/hooks/use-post-infinite-feed"
 
 export function Search() {
   const { data: userData } = useUserServiceGetMe()
   const [searchParams] = useSearchParams()
   const query = searchParams.get("query") ?? ""
-  const { posts, fetchNextPage, isFetchingNextPage, hasNextPage, updatePostLocal, removePostLocal } = usePostsFeed({
+  const { posts, fetchNextPage, isFetchingNextPage, hasNextPage, updatePostLocal, removePostLocal } = useSearchPostsFeed({
     query,
   })
   return (

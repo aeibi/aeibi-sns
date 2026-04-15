@@ -22,6 +22,8 @@ type CommentInboxArgs struct {
 	ParentUID   uuid.UUID `json:"parent_uid"`
 }
 
+const QueueCommentInbox = "inbox_comment"
+
 func (CommentInboxArgs) Kind() string {
 	return "inbox.comment"
 }
@@ -58,7 +60,9 @@ func (w *CommentInboxWorker) Work(ctx context.Context, job *river.Job[CommentInb
 }
 
 func (p *Producer) EnqueueCommentInboxTx(ctx context.Context, tx pgx.Tx, args CommentInboxArgs) error {
-	_, err := p.Client.InsertTx(ctx, tx, args, nil)
+	_, err := p.Client.InsertTx(ctx, tx, args, &river.InsertOpts{
+		Queue: QueueCommentInbox,
+	})
 	if err != nil {
 		return fmt.Errorf("insert comment inbox job: %w", err)
 	}

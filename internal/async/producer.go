@@ -9,7 +9,7 @@ type Producer struct {
 	Client *river.Client[pgx.Tx]
 }
 
-func NewProducer(client *river.Client[pgx.Tx]) *Producer {
+func New(client *river.Client[pgx.Tx]) *Producer {
 	return &Producer{
 		Client: client,
 	}

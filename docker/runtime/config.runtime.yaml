@@ -14,6 +14,10 @@ oss:
   use_ssl: false
   max_upload_size_kb: 500
 
+search:
+  host: "http://meilisearch:7700"
+  api_key: ""
+
 auth:
   jwt_secret: "cbaucbbcjbdshjcbyyeagfyagbchbdjcancfehfiakdncakncjenrha"
   jwt_issuer: "aeibi"

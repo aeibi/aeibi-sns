@@ -424,6 +424,13 @@ export type PostServiceUpdatePostParams = {
   updateMask?: string
 }
 
+export type PostServiceSearchPostsParams = {
+  query?: string
+  authorUid?: string
+  tagName?: string
+  pageToken?: string
+}
+
 export type PostServiceSearchTagsParams = {
   query?: string
 }
@@ -1018,82 +1025,6 @@ export const useFileServiceUploadFile = <TError = ErrorType<unknown>, TContext =
   queryClient?: QueryClient
 ): UseMutationResult<Awaited<ReturnType<typeof fileServiceUploadFile>>, TError, { data: FileUploadFileRequest }, TContext> => {
   return useMutation(getFileServiceUploadFileMutationOptions(options), queryClient)
-}
-
-/**
- * GET /api/v1/files/content/{url} 获取文件内容
- */
-export const fileServiceGetFile = (options?: SecondParameter<typeof customInstance>, signal?: AbortSignal) => {
-  return customInstance<Blob>({ url: `/api/v1/files/content/**`, method: "GET", responseType: "blob", signal }, options)
-}
-
-export const getFileServiceGetFileQueryKey = () => {
-  return [`/api/v1/files/content/**`] as const
-}
-
-export const getFileServiceGetFileQueryOptions = <
-  TData = Awaited<ReturnType<typeof fileServiceGetFile>>,
-  TError = ErrorType<unknown>,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, TData>>
-  request?: SecondParameter<typeof customInstance>
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey = queryOptions?.queryKey ?? getFileServiceGetFileQueryKey()
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof fileServiceGetFile>>> = ({ signal }) => fileServiceGetFile(requestOptions, signal)
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, TData> & {
-    queryKey: DataTag<QueryKey, TData, TError>
-  }
-}
-
-export type FileServiceGetFileQueryResult = NonNullable<Awaited<ReturnType<typeof fileServiceGetFile>>>
-export type FileServiceGetFileQueryError = ErrorType<unknown>
-
-export function useFileServiceGetFile<TData = Awaited<ReturnType<typeof fileServiceGetFile>>, TError = ErrorType<unknown>>(
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, TData>> &
-      Pick<
-        DefinedInitialDataOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, Awaited<ReturnType<typeof fileServiceGetFile>>>,
-        "initialData"
-      >
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useFileServiceGetFile<TData = Awaited<ReturnType<typeof fileServiceGetFile>>, TError = ErrorType<unknown>>(
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, TData>> &
-      Pick<
-        UndefinedInitialDataOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, Awaited<ReturnType<typeof fileServiceGetFile>>>,
-        "initialData"
-      >
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useFileServiceGetFile<TData = Awaited<ReturnType<typeof fileServiceGetFile>>, TError = ErrorType<unknown>>(
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useFileServiceGetFile<TData = Awaited<ReturnType<typeof fileServiceGetFile>>, TError = ErrorType<unknown>>(
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, TData>>
-    request?: SecondParameter<typeof customInstance>
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getFileServiceGetFileQueryOptions(options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-  return { ...query, queryKey: queryOptions.queryKey }
 }
 
 /**
@@ -2145,7 +2076,7 @@ export const useUserServiceChangePassword = <TError = ErrorType<unknown>, TConte
 }
 
 /**
- * GET /api/v1/posts 统一列表/筛选/搜索
+ * GET /api/v1/posts 统一列表/筛选
  */
 export const postServiceListPosts = (
   params?: PostServiceListPostsParams,
@@ -2891,6 +2822,102 @@ export const useReportServiceCreateReport = <TError = ErrorType<unknown>, TConte
 }
 
 /**
+ * GET /api/v1/search/posts 帖子搜索
+ */
+export const postServiceSearchPosts = (
+  params?: PostServiceSearchPostsParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal
+) => {
+  return customInstance<PostListPostsResponse>({ url: `/api/v1/search/posts`, method: "GET", params, signal }, options)
+}
+
+export const getPostServiceSearchPostsQueryKey = (params?: PostServiceSearchPostsParams) => {
+  return [`/api/v1/search/posts`, ...(params ? [params] : [])] as const
+}
+
+export const getPostServiceSearchPostsQueryOptions = <
+  TData = Awaited<ReturnType<typeof postServiceSearchPosts>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: PostServiceSearchPostsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceSearchPosts>>, TError, TData>>
+    request?: SecondParameter<typeof customInstance>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey = queryOptions?.queryKey ?? getPostServiceSearchPostsQueryKey(params)
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof postServiceSearchPosts>>> = ({ signal }) =>
+    postServiceSearchPosts(params, requestOptions, signal)
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof postServiceSearchPosts>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>
+  }
+}
+
+export type PostServiceSearchPostsQueryResult = NonNullable<Awaited<ReturnType<typeof postServiceSearchPosts>>>
+export type PostServiceSearchPostsQueryError = ErrorType<unknown>
+
+export function usePostServiceSearchPosts<TData = Awaited<ReturnType<typeof postServiceSearchPosts>>, TError = ErrorType<unknown>>(
+  params: undefined | PostServiceSearchPostsParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceSearchPosts>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof postServiceSearchPosts>>,
+          TError,
+          Awaited<ReturnType<typeof postServiceSearchPosts>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof customInstance>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePostServiceSearchPosts<TData = Awaited<ReturnType<typeof postServiceSearchPosts>>, TError = ErrorType<unknown>>(
+  params?: PostServiceSearchPostsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceSearchPosts>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof postServiceSearchPosts>>,
+          TError,
+          Awaited<ReturnType<typeof postServiceSearchPosts>>
+        >,
+        "initialData"
+      >
+    request?: SecondParameter<typeof customInstance>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePostServiceSearchPosts<TData = Awaited<ReturnType<typeof postServiceSearchPosts>>, TError = ErrorType<unknown>>(
+  params?: PostServiceSearchPostsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceSearchPosts>>, TError, TData>>
+    request?: SecondParameter<typeof customInstance>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function usePostServiceSearchPosts<TData = Awaited<ReturnType<typeof postServiceSearchPosts>>, TError = ErrorType<unknown>>(
+  params?: PostServiceSearchPostsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof postServiceSearchPosts>>, TError, TData>>
+    request?: SecondParameter<typeof customInstance>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getPostServiceSearchPostsQueryOptions(params, options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return { ...query, queryKey: queryOptions.queryKey }
+}
+
+/**
  * GET /api/v1/search/tags 标签搜索
  */
 export const postServiceSearchTags = (
@@ -3498,4 +3525,87 @@ export const useFollowServiceFollow = <TError = ErrorType<unknown>, TContext = u
   queryClient?: QueryClient
 ): UseMutationResult<Awaited<ReturnType<typeof followServiceFollow>>, TError, { uid: string; data: FollowFollowRequest }, TContext> => {
   return useMutation(getFollowServiceFollowMutationOptions(options), queryClient)
+}
+
+/**
+ * GET /{url=file/**} 获取文件内容
+ */
+export const fileServiceGetFile = (file: string, options?: SecondParameter<typeof customInstance>, signal?: AbortSignal) => {
+  return customInstance<Blob>({ url: `/file/${file}`, method: "GET", responseType: "blob", signal }, options)
+}
+
+export const getFileServiceGetFileQueryKey = (file: string) => {
+  return [`/file/${file}`] as const
+}
+
+export const getFileServiceGetFileQueryOptions = <TData = Awaited<ReturnType<typeof fileServiceGetFile>>, TError = ErrorType<unknown>>(
+  file: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, TData>>
+    request?: SecondParameter<typeof customInstance>
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey = queryOptions?.queryKey ?? getFileServiceGetFileQueryKey(file)
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof fileServiceGetFile>>> = ({ signal }) =>
+    fileServiceGetFile(file, requestOptions, signal)
+
+  return { queryKey, queryFn, enabled: !!file, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof fileServiceGetFile>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type FileServiceGetFileQueryResult = NonNullable<Awaited<ReturnType<typeof fileServiceGetFile>>>
+export type FileServiceGetFileQueryError = ErrorType<unknown>
+
+export function useFileServiceGetFile<TData = Awaited<ReturnType<typeof fileServiceGetFile>>, TError = ErrorType<unknown>>(
+  file: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, Awaited<ReturnType<typeof fileServiceGetFile>>>,
+        "initialData"
+      >
+    request?: SecondParameter<typeof customInstance>
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useFileServiceGetFile<TData = Awaited<ReturnType<typeof fileServiceGetFile>>, TError = ErrorType<unknown>>(
+  file: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, Awaited<ReturnType<typeof fileServiceGetFile>>>,
+        "initialData"
+      >
+    request?: SecondParameter<typeof customInstance>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useFileServiceGetFile<TData = Awaited<ReturnType<typeof fileServiceGetFile>>, TError = ErrorType<unknown>>(
+  file: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, TData>>
+    request?: SecondParameter<typeof customInstance>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useFileServiceGetFile<TData = Awaited<ReturnType<typeof fileServiceGetFile>>, TError = ErrorType<unknown>>(
+  file: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof fileServiceGetFile>>, TError, TData>>
+    request?: SecondParameter<typeof customInstance>
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getFileServiceGetFileQueryOptions(file, options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+  return { ...query, queryKey: queryOptions.queryKey }
 }

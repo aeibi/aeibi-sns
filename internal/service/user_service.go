@@ -2,9 +2,11 @@ package service
 
 import (
 	"aeibi/api"
+	"aeibi/internal/async"
 	"aeibi/internal/config"
 	"aeibi/internal/repository/db"
 	"aeibi/internal/repository/oss"
+	searchrepo "aeibi/internal/repository/search"
 	"aeibi/util"
 	"context"
 	"errors"
@@ -16,22 +18,27 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService struct {
-	db   *db.Queries
-	pool *pgxpool.Pool
-	oss  *oss.OSS
-	cfg  *config.Config
+	db       *db.Queries
+	pool     *pgxpool.Pool
+	oss      *oss.OSS
+	search   *searchrepo.Search
+	cfg      *config.Config
+	producer *async.Producer
 }
 
-func NewUserService(pool *pgxpool.Pool, ossClient *oss.OSS, cfg *config.Config) *UserService {
+func NewUserService(pool *pgxpool.Pool, ossClient *oss.OSS, search *searchrepo.Search, cfg *config.Config, riverClient *river.Client[pgx.Tx]) *UserService {
 	return &UserService{
-		db:   db.New(pool),
-		pool: pool,
-		oss:  ossClient,
-		cfg:  cfg,
+		db:       db.New(pool),
+		pool:     pool,
+		oss:      ossClient,
+		search:   search,
+		producer: async.New(riverClient),
+		cfg:      cfg,
 	}
 }
 
@@ -63,6 +70,12 @@ func (s *UserService) CreateUser(ctx context.Context, req *api.CreateUserRequest
 		}
 		if _, err = s.oss.PutObject(ctx, avatarObjectKey, avatar, "image/png"); err != nil {
 			return fmt.Errorf("upload avatar: %w", err)
+		}
+		if err := s.producer.EnqueueUpdateUserSearchTx(ctx, tx, async.UpdateUserSearchArgs{
+			UserUID: uid,
+			Action:  async.UserSearchActionUpsert,
+		}); err != nil {
+			return fmt.Errorf("enqueue update user search job: %w", err)
 		}
 		return nil
 	}); err != nil {
@@ -105,22 +118,22 @@ func (s *UserService) GetUser(ctx context.Context, viewerUid string, req *api.Ge
 	}, nil
 }
 
-func (s *UserService) SearchUsers(ctx context.Context, req *api.SearchUsersRequest) (*api.SearchUsersResponse, error) {
-	rows, err := s.db.SearchUsers(ctx, req.Query)
+func (s *UserService) SearchUsers(_ context.Context, req *api.SearchUsersRequest) (*api.SearchUsersResponse, error) {
+	result, err := s.search.SearchUsers(searchrepo.SearchUsersParams{
+		Query: req.Query,
+		Limit: 20,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("search users: %w", err)
 	}
 
-	users := make([]*api.User, 0, len(rows))
-	for _, row := range rows {
+	users := make([]*api.User, 0, len(result.Hits))
+	for _, hit := range result.Hits {
 		users = append(users, &api.User{
-			Uid:            row.Uid.String(),
-			Role:           string(row.Role),
-			Nickname:       row.Nickname,
-			AvatarUrl:      row.AvatarUrl,
-			FollowersCount: row.FollowersCount,
-			FollowingCount: row.FollowingCount,
-			Description:    row.Description,
+			Uid:         hit.UID,
+			Nickname:    hit.Nickname,
+			AvatarUrl:   hit.AvatarUrl,
+			Description: hit.Description,
 		})
 	}
 
@@ -129,22 +142,19 @@ func (s *UserService) SearchUsers(ctx context.Context, req *api.SearchUsersReque
 	}, nil
 }
 
-func (s *UserService) SuggestUsersByPrefix(ctx context.Context, req *api.SuggestUsersByPrefixRequest) (*api.SuggestUsersByPrefixResponse, error) {
-	rows, err := s.db.SuggestUsersByNicknamePrefix(ctx, req.Prefix)
+func (s *UserService) SuggestUsersByPrefix(_ context.Context, req *api.SuggestUsersByPrefixRequest) (*api.SuggestUsersByPrefixResponse, error) {
+	result, err := s.search.SuggestUsersByNickname(req.Prefix, 10)
 	if err != nil {
 		return nil, fmt.Errorf("suggest users by prefix: %w", err)
 	}
 
-	users := make([]*api.User, 0, len(rows))
-	for _, row := range rows {
+	users := make([]*api.User, 0, len(result.Hits))
+	for _, hit := range result.Hits {
 		users = append(users, &api.User{
-			Uid:            row.Uid.String(),
-			Role:           string(row.Role),
-			Nickname:       row.Nickname,
-			AvatarUrl:      row.AvatarUrl,
-			FollowersCount: row.FollowersCount,
-			FollowingCount: row.FollowingCount,
-			Description:    row.Description,
+			Uid:         hit.UID,
+			Nickname:    hit.Nickname,
+			AvatarUrl:   hit.AvatarUrl,
+			Description: hit.Description,
 		})
 	}
 
@@ -179,7 +189,8 @@ func (s *UserService) GetMe(ctx context.Context, uid string) (*api.GetMeResponse
 }
 
 func (s *UserService) UpdateMe(ctx context.Context, uid string, req *api.UpdateMeRequest) error {
-	params := db.UpdateUserParams{Uid: util.UUID(uid)}
+	userUID := util.UUID(uid)
+	params := db.UpdateUserParams{Uid: userUID}
 	paths := make(map[string]struct{}, len(req.UpdateMask.GetPaths()))
 	for _, path := range req.UpdateMask.GetPaths() {
 		paths[path] = struct{}{}
@@ -196,14 +207,24 @@ func (s *UserService) UpdateMe(ctx context.Context, uid string, req *api.UpdateM
 	if _, ok := paths["avatar_url"]; ok {
 		params.AvatarUrl = pgtype.Text{String: req.User.AvatarUrl, Valid: true}
 	}
-	err := s.db.UpdateUser(ctx, params)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("user not found")
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.db.WithTx(tx)
+
+		err := qtx.UpdateUser(ctx, params)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("user not found")
+			}
+			return fmt.Errorf("update user: %w", err)
 		}
-		return fmt.Errorf("update user: %w", err)
-	}
-	return nil
+		if err := s.producer.EnqueueUpdateUserSearchTx(ctx, tx, async.UpdateUserSearchArgs{
+			UserUID: userUID,
+			Action:  async.UserSearchActionUpsert,
+		}); err != nil {
+			return fmt.Errorf("enqueue update user search job: %w", err)
+		}
+		return nil
+	})
 }
 
 func (s *UserService) ChangePassword(ctx context.Context, uid string, req *api.ChangePasswordRequest) error {

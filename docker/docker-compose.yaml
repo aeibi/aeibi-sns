@@ -2,7 +2,7 @@ name: aeibi
 
 services:
   postgres:
-    image: groonga/pgroonga:latest
+    image: postgres:18-alpine
     container_name: aeibi-postgres
     restart: unless-stopped
     environment:
@@ -46,7 +46,21 @@ services:
     volumes:
       - rustfs-data:/data
       - rustfs-logs:/logs
-  
+
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    container_name: aeibi-meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meilisearch-data:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:7700/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   aeibi:
     image: aeibi/aeibi:latest
     container_name: aeibi-app
@@ -56,6 +70,8 @@ services:
         condition: service_healthy
       rustfs:
         condition: service_started
+      meilisearch:
+        condition: service_healthy
     ports:
       - "38081:38081"
     volumes:
@@ -68,3 +84,4 @@ volumes:
   postgres-data:
   rustfs-data:
   rustfs-logs:
+  meilisearch-data:
