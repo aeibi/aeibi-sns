@@ -27,14 +27,10 @@ func (q *Queries) DecrementPostCollectionCount(ctx context.Context, postUid uuid
 	return collection_count, err
 }
 
-const deletePostCollectionEdge = `-- name: DeletePostCollectionEdge :one
-WITH deleted AS (
-  DELETE FROM post_collections
-  WHERE post_uid = $1
-    AND user_uid = $2
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM deleted)
+const deletePostCollectionEdge = `-- name: DeletePostCollectionEdge :execrows
+DELETE FROM post_collections
+WHERE post_uid = $1
+  AND user_uid = $2
 `
 
 type DeletePostCollectionEdgeParams struct {
@@ -42,11 +38,12 @@ type DeletePostCollectionEdgeParams struct {
 	UserUid uuid.UUID
 }
 
-func (q *Queries) DeletePostCollectionEdge(ctx context.Context, arg DeletePostCollectionEdgeParams) (bool, error) {
-	row := q.db.QueryRow(ctx, deletePostCollectionEdge, arg.PostUid, arg.UserUid)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
+func (q *Queries) DeletePostCollectionEdge(ctx context.Context, arg DeletePostCollectionEdgeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePostCollectionEdge, arg.PostUid, arg.UserUid)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getPostCollectionCount = `-- name: GetPostCollectionCount :one
@@ -77,14 +74,10 @@ func (q *Queries) IncrementPostCollectionCount(ctx context.Context, postUid uuid
 	return collection_count, err
 }
 
-const insertPostCollectionEdge = `-- name: InsertPostCollectionEdge :one
-WITH inserted AS (
-  INSERT INTO post_collections (post_uid, user_uid)
-  VALUES ($1, $2)
-  ON CONFLICT DO NOTHING
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM inserted)
+const insertPostCollectionEdge = `-- name: InsertPostCollectionEdge :execrows
+INSERT INTO post_collections (post_uid, user_uid)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
 `
 
 type InsertPostCollectionEdgeParams struct {
@@ -92,11 +85,12 @@ type InsertPostCollectionEdgeParams struct {
 	UserUid uuid.UUID
 }
 
-func (q *Queries) InsertPostCollectionEdge(ctx context.Context, arg InsertPostCollectionEdgeParams) (bool, error) {
-	row := q.db.QueryRow(ctx, insertPostCollectionEdge, arg.PostUid, arg.UserUid)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
+func (q *Queries) InsertPostCollectionEdge(ctx context.Context, arg InsertPostCollectionEdgeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertPostCollectionEdge, arg.PostUid, arg.UserUid)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const listPostsByCollector = `-- name: ListPostsByCollector :many

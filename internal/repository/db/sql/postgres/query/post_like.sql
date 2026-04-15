@@ -1,19 +1,11 @@
--- name: InsertPostLikeEdge :one
-WITH inserted AS (
-  INSERT INTO post_likes (post_uid, user_uid)
-  VALUES (@post_uid, @user_uid)
-  ON CONFLICT DO NOTHING
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM inserted);
--- name: DeletePostLikeEdge :one
-WITH deleted AS (
-  DELETE FROM post_likes
-  WHERE post_uid = @post_uid
-    AND user_uid = @user_uid
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM deleted);
+-- name: InsertPostLikeEdge :execrows
+INSERT INTO post_likes (post_uid, user_uid)
+VALUES (@post_uid, @user_uid)
+ON CONFLICT DO NOTHING;
+-- name: DeletePostLikeEdge :execrows
+DELETE FROM post_likes
+WHERE post_uid = @post_uid
+  AND user_uid = @user_uid;
 -- name: IncrementPostLikeCount :one
 UPDATE posts
 SET like_count = like_count + 1,

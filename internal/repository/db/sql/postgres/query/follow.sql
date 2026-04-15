@@ -1,19 +1,11 @@
--- name: InsertFollowEdge :one
-WITH inserted AS (
-  INSERT INTO user_follows (follower_uid, followee_uid)
-  VALUES (@follower_uid, @followee_uid)
-  ON CONFLICT DO NOTHING
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM inserted) AS applied;
--- name: DeleteFollowEdge :one
-WITH deleted AS (
-  DELETE FROM user_follows
-  WHERE follower_uid = @follower_uid
-    AND followee_uid = @followee_uid
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM deleted) AS applied;
+-- name: InsertFollowEdge :execrows
+INSERT INTO user_follows (follower_uid, followee_uid)
+VALUES (@follower_uid, @followee_uid)
+ON CONFLICT DO NOTHING;
+-- name: DeleteFollowEdge :execrows
+DELETE FROM user_follows
+WHERE follower_uid = @follower_uid
+  AND followee_uid = @followee_uid;
 -- name: IncrementFollowingCount :one
 UPDATE users
 SET following_count = following_count + 1

@@ -40,14 +40,10 @@ func (q *Queries) DecrementFollowingCount(ctx context.Context, uid uuid.UUID) (i
 	return following_count, err
 }
 
-const deleteFollowEdge = `-- name: DeleteFollowEdge :one
-WITH deleted AS (
-  DELETE FROM user_follows
-  WHERE follower_uid = $1
-    AND followee_uid = $2
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM deleted) AS applied
+const deleteFollowEdge = `-- name: DeleteFollowEdge :execrows
+DELETE FROM user_follows
+WHERE follower_uid = $1
+  AND followee_uid = $2
 `
 
 type DeleteFollowEdgeParams struct {
@@ -55,11 +51,12 @@ type DeleteFollowEdgeParams struct {
 	FolloweeUid uuid.UUID
 }
 
-func (q *Queries) DeleteFollowEdge(ctx context.Context, arg DeleteFollowEdgeParams) (bool, error) {
-	row := q.db.QueryRow(ctx, deleteFollowEdge, arg.FollowerUid, arg.FolloweeUid)
-	var applied bool
-	err := row.Scan(&applied)
-	return applied, err
+func (q *Queries) DeleteFollowEdge(ctx context.Context, arg DeleteFollowEdgeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteFollowEdge, arg.FollowerUid, arg.FolloweeUid)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getFollowCounts = `-- name: GetFollowCounts :one
@@ -113,14 +110,10 @@ func (q *Queries) IncrementFollowingCount(ctx context.Context, uid uuid.UUID) (i
 	return following_count, err
 }
 
-const insertFollowEdge = `-- name: InsertFollowEdge :one
-WITH inserted AS (
-  INSERT INTO user_follows (follower_uid, followee_uid)
-  VALUES ($1, $2)
-  ON CONFLICT DO NOTHING
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM inserted) AS applied
+const insertFollowEdge = `-- name: InsertFollowEdge :execrows
+INSERT INTO user_follows (follower_uid, followee_uid)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
 `
 
 type InsertFollowEdgeParams struct {
@@ -128,11 +121,12 @@ type InsertFollowEdgeParams struct {
 	FolloweeUid uuid.UUID
 }
 
-func (q *Queries) InsertFollowEdge(ctx context.Context, arg InsertFollowEdgeParams) (bool, error) {
-	row := q.db.QueryRow(ctx, insertFollowEdge, arg.FollowerUid, arg.FolloweeUid)
-	var applied bool
-	err := row.Scan(&applied)
-	return applied, err
+func (q *Queries) InsertFollowEdge(ctx context.Context, arg InsertFollowEdgeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertFollowEdge, arg.FollowerUid, arg.FolloweeUid)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const isFollowing = `-- name: IsFollowing :one

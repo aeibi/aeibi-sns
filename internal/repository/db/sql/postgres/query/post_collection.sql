@@ -1,19 +1,11 @@
--- name: InsertPostCollectionEdge :one
-WITH inserted AS (
-  INSERT INTO post_collections (post_uid, user_uid)
-  VALUES (@post_uid, @user_uid)
-  ON CONFLICT DO NOTHING
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM inserted);
--- name: DeletePostCollectionEdge :one
-WITH deleted AS (
-  DELETE FROM post_collections
-  WHERE post_uid = @post_uid
-    AND user_uid = @user_uid
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM deleted);
+-- name: InsertPostCollectionEdge :execrows
+INSERT INTO post_collections (post_uid, user_uid)
+VALUES (@post_uid, @user_uid)
+ON CONFLICT DO NOTHING;
+-- name: DeletePostCollectionEdge :execrows
+DELETE FROM post_collections
+WHERE post_uid = @post_uid
+  AND user_uid = @user_uid;
 -- name: IncrementPostCollectionCount :one
 UPDATE posts
 SET collection_count = collection_count + 1,

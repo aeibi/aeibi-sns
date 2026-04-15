@@ -142,14 +142,10 @@ func (q *Queries) DecrementPostCommentCount(ctx context.Context, postUid uuid.UU
 	return comment_count, err
 }
 
-const deleteCommentLikeEdge = `-- name: DeleteCommentLikeEdge :one
-WITH deleted AS (
-  DELETE FROM comment_likes
-  WHERE comment_uid = $1
-    AND user_uid = $2
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM deleted)
+const deleteCommentLikeEdge = `-- name: DeleteCommentLikeEdge :execrows
+DELETE FROM comment_likes
+WHERE comment_uid = $1
+  AND user_uid = $2
 `
 
 type DeleteCommentLikeEdgeParams struct {
@@ -157,11 +153,12 @@ type DeleteCommentLikeEdgeParams struct {
 	UserUid    uuid.UUID
 }
 
-func (q *Queries) DeleteCommentLikeEdge(ctx context.Context, arg DeleteCommentLikeEdgeParams) (bool, error) {
-	row := q.db.QueryRow(ctx, deleteCommentLikeEdge, arg.CommentUid, arg.UserUid)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
+func (q *Queries) DeleteCommentLikeEdge(ctx context.Context, arg DeleteCommentLikeEdgeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteCommentLikeEdge, arg.CommentUid, arg.UserUid)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getCommentByUid = `-- name: GetCommentByUid :one
@@ -335,14 +332,10 @@ func (q *Queries) IncrementPostCommentCount(ctx context.Context, postUid uuid.UU
 	return comment_count, err
 }
 
-const insertCommentLikeEdge = `-- name: InsertCommentLikeEdge :one
-WITH inserted AS (
-  INSERT INTO comment_likes (comment_uid, user_uid)
-  VALUES ($1, $2)
-  ON CONFLICT DO NOTHING
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM inserted)
+const insertCommentLikeEdge = `-- name: InsertCommentLikeEdge :execrows
+INSERT INTO comment_likes (comment_uid, user_uid)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
 `
 
 type InsertCommentLikeEdgeParams struct {
@@ -350,11 +343,12 @@ type InsertCommentLikeEdgeParams struct {
 	UserUid    uuid.UUID
 }
 
-func (q *Queries) InsertCommentLikeEdge(ctx context.Context, arg InsertCommentLikeEdgeParams) (bool, error) {
-	row := q.db.QueryRow(ctx, insertCommentLikeEdge, arg.CommentUid, arg.UserUid)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
+func (q *Queries) InsertCommentLikeEdge(ctx context.Context, arg InsertCommentLikeEdgeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertCommentLikeEdge, arg.CommentUid, arg.UserUid)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const listReplies = `-- name: ListReplies :many

@@ -67,22 +67,14 @@ FROM post_comments c
 WHERE c.status = 'NORMAL'::comment_status
   AND c.uid = @uid
 LIMIT 1;
--- name: InsertCommentLikeEdge :one
-WITH inserted AS (
-  INSERT INTO comment_likes (comment_uid, user_uid)
-  VALUES (@comment_uid, @user_uid)
-  ON CONFLICT DO NOTHING
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM inserted);
--- name: DeleteCommentLikeEdge :one
-WITH deleted AS (
-  DELETE FROM comment_likes
-  WHERE comment_uid = @comment_uid
-    AND user_uid = @user_uid
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM deleted);
+-- name: InsertCommentLikeEdge :execrows
+INSERT INTO comment_likes (comment_uid, user_uid)
+VALUES (@comment_uid, @user_uid)
+ON CONFLICT DO NOTHING;
+-- name: DeleteCommentLikeEdge :execrows
+DELETE FROM comment_likes
+WHERE comment_uid = @comment_uid
+  AND user_uid = @user_uid;
 -- name: IncrementCommentLikeCount :one
 UPDATE post_comments
 SET like_count = like_count + 1,

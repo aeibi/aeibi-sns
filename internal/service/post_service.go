@@ -564,7 +564,7 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 
 		switch req.Action {
 		case api.ToggleAction_TOGGLE_ACTION_ADD:
-			applied, err := qtx.InsertPostLikeEdge(ctx, db.InsertPostLikeEdgeParams{
+			affected, err := qtx.InsertPostLikeEdge(ctx, db.InsertPostLikeEdgeParams{
 				PostUid: postUid,
 				UserUid: userUid,
 			})
@@ -572,7 +572,7 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 				return fmt.Errorf("insert post like edge: %w", err)
 			}
 
-			if applied {
+			if affected > 0 {
 				count, err = qtx.IncrementPostLikeCount(ctx, postUid)
 				if err != nil {
 					return fmt.Errorf("increment post like count: %w", err)
@@ -586,7 +586,7 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 			}
 
 		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
-			applied, err := qtx.DeletePostLikeEdge(ctx, db.DeletePostLikeEdgeParams{
+			affected, err := qtx.DeletePostLikeEdge(ctx, db.DeletePostLikeEdgeParams{
 				PostUid: postUid,
 				UserUid: userUid,
 			})
@@ -594,7 +594,7 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 				return fmt.Errorf("delete post like edge: %w", err)
 			}
 
-			if applied {
+			if affected > 0 {
 				count, err = qtx.DecrementPostLikeCount(ctx, postUid)
 				if err != nil {
 					return fmt.Errorf("decrement post like count: %w", err)
@@ -641,7 +641,7 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 
 		switch req.Action {
 		case api.ToggleAction_TOGGLE_ACTION_ADD:
-			applied, err := qtx.InsertPostCollectionEdge(ctx, db.InsertPostCollectionEdgeParams{
+			affected, err := qtx.InsertPostCollectionEdge(ctx, db.InsertPostCollectionEdgeParams{
 				PostUid: postUid,
 				UserUid: userUid,
 			})
@@ -649,7 +649,7 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 				return fmt.Errorf("post collection: insert post collection edge: %w", err)
 			}
 
-			if applied {
+			if affected > 0 {
 				count, err = qtx.IncrementPostCollectionCount(ctx, postUid)
 				if err != nil {
 					return fmt.Errorf("post collection: increment post collection count: %w", err)
@@ -663,7 +663,7 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 			}
 
 		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
-			applied, err := qtx.DeletePostCollectionEdge(ctx, db.DeletePostCollectionEdgeParams{
+			affected, err := qtx.DeletePostCollectionEdge(ctx, db.DeletePostCollectionEdgeParams{
 				PostUid: postUid,
 				UserUid: userUid,
 			})
@@ -671,7 +671,7 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 				return fmt.Errorf("post collection: delete post collection edge: %w", err)
 			}
 
-			if applied {
+			if affected > 0 {
 				count, err = qtx.DecrementPostCollectionCount(ctx, postUid)
 				if err != nil {
 					return fmt.Errorf("post collection: decrement post collection count: %w", err)

@@ -370,7 +370,7 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 
 		switch req.Action {
 		case api.ToggleAction_TOGGLE_ACTION_ADD:
-			applied, err := qtx.InsertCommentLikeEdge(ctx, db.InsertCommentLikeEdgeParams{
+			affected, err := qtx.InsertCommentLikeEdge(ctx, db.InsertCommentLikeEdgeParams{
 				CommentUid: commentUid,
 				UserUid:    userUid,
 			})
@@ -378,7 +378,7 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 				return fmt.Errorf("comment like: insert comment like edge: %w", err)
 			}
 
-			if applied {
+			if affected > 0 {
 				count, err = qtx.IncrementCommentLikeCount(ctx, commentUid)
 				if err != nil {
 					return fmt.Errorf("comment like: increment comment like count: %w", err)
@@ -391,7 +391,7 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 			}
 
 		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
-			applied, err := qtx.DeleteCommentLikeEdge(ctx, db.DeleteCommentLikeEdgeParams{
+			affected, err := qtx.DeleteCommentLikeEdge(ctx, db.DeleteCommentLikeEdgeParams{
 				CommentUid: commentUid,
 				UserUid:    userUid,
 			})
@@ -399,7 +399,7 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 				return fmt.Errorf("comment like: delete comment like edge: %w", err)
 			}
 
-			if applied {
+			if affected > 0 {
 				count, err = qtx.DecrementCommentLikeCount(ctx, commentUid)
 				if err != nil {
 					return fmt.Errorf("comment like: decrement comment like count: %w", err)

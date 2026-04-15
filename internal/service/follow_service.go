@@ -52,7 +52,7 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 
 		switch req.Action {
 		case api.ToggleAction_TOGGLE_ACTION_ADD:
-			applied, err := qtx.InsertFollowEdge(ctx, db.InsertFollowEdgeParams{
+			affected, err := qtx.InsertFollowEdge(ctx, db.InsertFollowEdgeParams{
 				FollowerUid: followerUID,
 				FolloweeUid: followeeUID,
 			})
@@ -60,7 +60,7 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 				return fmt.Errorf("follow: insert follow edge: %w", err)
 			}
 
-			if applied {
+			if affected > 0 {
 				followingCount, err = qtx.IncrementFollowingCount(ctx, followerUID)
 				if err != nil {
 					return fmt.Errorf("follow: increment following_count: %w", err)
@@ -85,7 +85,7 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 			}
 
 		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
-			applied, err := qtx.DeleteFollowEdge(ctx, db.DeleteFollowEdgeParams{
+			affected, err := qtx.DeleteFollowEdge(ctx, db.DeleteFollowEdgeParams{
 				FollowerUid: followerUID,
 				FolloweeUid: followeeUID,
 			})
@@ -93,7 +93,7 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 				return fmt.Errorf("follow: delete follow edge: %w", err)
 			}
 
-			if applied {
+			if affected > 0 {
 				followingCount, err = qtx.DecrementFollowingCount(ctx, followerUID)
 				if err != nil {
 					return fmt.Errorf("follow: decrement following_count: %w", err)

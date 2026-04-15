@@ -26,14 +26,10 @@ func (q *Queries) DecrementPostLikeCount(ctx context.Context, postUid uuid.UUID)
 	return like_count, err
 }
 
-const deletePostLikeEdge = `-- name: DeletePostLikeEdge :one
-WITH deleted AS (
-  DELETE FROM post_likes
-  WHERE post_uid = $1
-    AND user_uid = $2
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM deleted)
+const deletePostLikeEdge = `-- name: DeletePostLikeEdge :execrows
+DELETE FROM post_likes
+WHERE post_uid = $1
+  AND user_uid = $2
 `
 
 type DeletePostLikeEdgeParams struct {
@@ -41,11 +37,12 @@ type DeletePostLikeEdgeParams struct {
 	UserUid uuid.UUID
 }
 
-func (q *Queries) DeletePostLikeEdge(ctx context.Context, arg DeletePostLikeEdgeParams) (bool, error) {
-	row := q.db.QueryRow(ctx, deletePostLikeEdge, arg.PostUid, arg.UserUid)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
+func (q *Queries) DeletePostLikeEdge(ctx context.Context, arg DeletePostLikeEdgeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePostLikeEdge, arg.PostUid, arg.UserUid)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getPostLikeCount = `-- name: GetPostLikeCount :one
@@ -76,14 +73,10 @@ func (q *Queries) IncrementPostLikeCount(ctx context.Context, postUid uuid.UUID)
 	return like_count, err
 }
 
-const insertPostLikeEdge = `-- name: InsertPostLikeEdge :one
-WITH inserted AS (
-  INSERT INTO post_likes (post_uid, user_uid)
-  VALUES ($1, $2)
-  ON CONFLICT DO NOTHING
-  RETURNING 1
-)
-SELECT EXISTS (SELECT 1 FROM inserted)
+const insertPostLikeEdge = `-- name: InsertPostLikeEdge :execrows
+INSERT INTO post_likes (post_uid, user_uid)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
 `
 
 type InsertPostLikeEdgeParams struct {
@@ -91,9 +84,10 @@ type InsertPostLikeEdgeParams struct {
 	UserUid uuid.UUID
 }
 
-func (q *Queries) InsertPostLikeEdge(ctx context.Context, arg InsertPostLikeEdgeParams) (bool, error) {
-	row := q.db.QueryRow(ctx, insertPostLikeEdge, arg.PostUid, arg.UserUid)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
+func (q *Queries) InsertPostLikeEdge(ctx context.Context, arg InsertPostLikeEdgeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertPostLikeEdge, arg.PostUid, arg.UserUid)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
