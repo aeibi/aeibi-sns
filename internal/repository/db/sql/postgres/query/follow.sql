@@ -29,7 +29,7 @@ RETURNING followers_count;
 -- name: GetFollowCounts :one
 SELECT
   (SELECT u.following_count FROM users u WHERE u.uid = @follower_uid)::int4 AS following_count,
-  (SELECT u.followers_count FROM user u WHERE u.uid = @followee_uid)::int4 AS followers_count;
+  (SELECT u.followers_count FROM users u WHERE u.uid = @followee_uid)::int4 AS followers_count;
 -- name: ListFollowers :many
 SELECT uf.created_at AS followed_at,
   u.uid,

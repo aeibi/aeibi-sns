@@ -62,7 +62,7 @@ func (q *Queries) DeleteFollowEdge(ctx context.Context, arg DeleteFollowEdgePara
 const getFollowCounts = `-- name: GetFollowCounts :one
 SELECT
   (SELECT u.following_count FROM users u WHERE u.uid = $1)::int4 AS following_count,
-  (SELECT u.followers_count FROM user u WHERE u.uid = $2)::int4 AS followers_count
+  (SELECT u.followers_count FROM users u WHERE u.uid = $2)::int4 AS followers_count
 `
 
 type GetFollowCountsParams struct {
