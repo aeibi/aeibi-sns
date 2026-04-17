@@ -12,8 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -153,21 +151,17 @@ func (s *PostService) GetPost(ctx context.Context, viewerUid string, req *api.Ge
 }
 
 func (s *PostService) ListPosts(ctx context.Context, viewerUid string, req *api.ListPostsRequest) (*api.ListPostsResponse, error) {
-	filter, authorUID, err := normalizeListPostsFilter(req)
-	if err != nil {
-		return nil, err
-	}
-	cursor, err := decodeAndValidatePostPageToken(req.GetPageToken(), filter)
+	token, err := decodePostPageToken(req.PageToken)
 	if err != nil {
 		return nil, err
 	}
 
 	rows, err := s.db.ListPosts(ctx, db.ListPostsParams{
 		Viewer:          uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
-		AuthorUid:       authorUID,
-		TagName:         pgtype.Text{String: filter.TagName, Valid: filter.TagName != ""},
-		CursorCreatedAt: cursor.CreatedAt,
-		CursorID:        cursor.ID,
+		AuthorUid:       uuid.NullUUID{UUID: util.UUID(req.AuthorUid), Valid: req.AuthorUid != ""},
+		TagName:         pgtype.Text{String: req.TagName, Valid: req.TagName != ""},
+		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: token.CursorCreatedAt > 0},
+		CursorID:        uuid.NullUUID{UUID: util.UUID(token.CursorID), Valid: token.CursorID != ""},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list posts: %w", err)
@@ -214,8 +208,6 @@ func (s *PostService) ListPosts(ctx context.Context, viewerUid string, req *api.
 	if len(rows) > 0 {
 		last := rows[len(rows)-1]
 		token := postPageToken{
-			AuthorUID:       filter.AuthorUID,
-			TagName:         filter.TagName,
 			CursorCreatedAt: last.CreatedAt.Time.Unix(),
 			CursorID:        last.Uid.String(),
 		}
@@ -232,9 +224,9 @@ func (s *PostService) ListPosts(ctx context.Context, viewerUid string, req *api.
 }
 
 func (s *PostService) SearchPosts(ctx context.Context, viewerUid string, req *api.SearchPostsRequest) (*api.ListPostsResponse, error) {
-	offset, err := strconv.ParseInt(req.PageToken, 10, 64)
-	if (err != nil && req.PageToken != "") || offset < 0 {
-		return nil, status.Error(codes.InvalidArgument, "invalid page_token")
+	token, err := decodePostSearchPageToken(req.PageToken)
+	if err != nil {
+		return nil, err
 	}
 
 	result, err := s.search.SearchPosts(searchrepo.SearchPostsParams{
@@ -243,7 +235,7 @@ func (s *PostService) SearchPosts(ctx context.Context, viewerUid string, req *ap
 		AuthorUID: req.AuthorUid,
 		TagName:   req.TagName,
 		Limit:     20,
-		Offset:    offset,
+		Offset:    token.Offset,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("search posts: %w", err)
@@ -319,9 +311,12 @@ func (s *PostService) SearchPosts(ctx context.Context, viewerUid string, req *ap
 	}
 
 	nextPageToken := ""
-	nextOffset := offset + int64(len(result.Hits))
+	nextOffset := token.Offset + int64(len(result.Hits))
 	if len(result.Hits) > 0 && nextOffset < result.EstimatedTotalHits {
-		nextPageToken = strconv.FormatInt(nextOffset, 10)
+		nextPageToken, err = encodePostSearchPageToken(postSearchPageToken{Offset: nextOffset})
+		if err != nil {
+			return nil, fmt.Errorf("encode page token: %w", err)
+		}
 	}
 
 	return &api.ListPostsResponse{
@@ -331,15 +326,15 @@ func (s *PostService) SearchPosts(ctx context.Context, viewerUid string, req *ap
 }
 
 func (s *PostService) ListMyCollections(ctx context.Context, uid string, req *api.ListPostsRequest) (*api.ListPostsResponse, error) {
-	cursor, err := decodeAndValidatePostPageToken(req.GetPageToken(), listPostsFilter{})
+	token, err := decodePostPageToken(req.GetPageToken())
 	if err != nil {
 		return nil, err
 	}
 
 	rows, err := s.db.ListPostsByCollector(ctx, db.ListPostsByCollectorParams{
 		Collector:       util.UUID(uid),
-		CursorCreatedAt: cursor.CreatedAt,
-		CursorID:        cursor.ID,
+		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: token.CursorCreatedAt > 0},
+		CursorID:        uuid.NullUUID{UUID: util.UUID(token.CursorID), Valid: token.CursorID != ""},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list posts: %w", err)
@@ -750,85 +745,58 @@ func buildAttachmentsByURLOrder(urls []string, fileMap map[string]db.GetFilesByU
 	return attachments
 }
 
-type listPostsFilter struct {
-	AuthorUID string
-	TagName   string
-}
-
 type postPageToken struct {
-	AuthorUID       string `json:"author_uid,omitempty"`
-	TagName         string `json:"tag_name,omitempty"`
 	CursorCreatedAt int64  `json:"cursor_created_at,omitempty"`
 	CursorID        string `json:"cursor_id,omitempty"`
 }
 
-type postPageCursor struct {
-	CreatedAt pgtype.Timestamptz
-	ID        uuid.NullUUID
+type postSearchPageToken struct {
+	Offset int64 `json:"offset,omitempty"`
 }
 
-func normalizeListPostsFilter(req *api.ListPostsRequest) (listPostsFilter, uuid.NullUUID, error) {
-	filter := listPostsFilter{
-		AuthorUID: strings.TrimSpace(req.GetAuthorUid()),
-		TagName:   strings.TrimSpace(req.GetTagName()),
-	}
-
-	var authorUID uuid.NullUUID
-	if filter.AuthorUID != "" {
-		parsed, err := uuid.Parse(filter.AuthorUID)
-		if err != nil {
-			return listPostsFilter{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "author_uid is invalid")
-		}
-		filter.AuthorUID = parsed.String()
-		authorUID = uuid.NullUUID{UUID: parsed, Valid: true}
-	}
-
-	return filter, authorUID, nil
-}
-
-func decodeAndValidatePostPageToken(pageToken string, filter listPostsFilter) (postPageCursor, error) {
+func decodePostPageToken(pageToken string) (postPageToken, error) {
 	if pageToken == "" {
-		return postPageCursor{}, nil
+		return postPageToken{}, nil
 	}
 
 	raw, err := base64.RawURLEncoding.DecodeString(pageToken)
 	if err != nil {
-		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		return postPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
 	}
 
 	var token postPageToken
 	if err := json.Unmarshal(raw, &token); err != nil {
-		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		return postPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+	return token, nil
+}
+
+func decodePostSearchPageToken(pageToken string) (postSearchPageToken, error) {
+	if pageToken == "" {
+		return postSearchPageToken{}, nil
 	}
 
-	if token.AuthorUID != filter.AuthorUID || token.TagName != filter.TagName {
-		return postPageCursor{}, status.Error(codes.InvalidArgument, "page_token does not match current filters")
-	}
-
-	if token.AuthorUID != "" {
-		if _, err := uuid.Parse(token.AuthorUID); err != nil {
-			return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
-		}
-	}
-
-	if token.CursorCreatedAt <= 0 || token.CursorID == "" {
-		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
-	}
-
-	cursorID, err := uuid.Parse(token.CursorID)
+	raw, err := base64.RawURLEncoding.DecodeString(pageToken)
 	if err != nil {
-		return postPageCursor{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		return postSearchPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
 	}
 
-	cursor := postPageCursor{
-		CreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true},
-		ID:        uuid.NullUUID{UUID: cursorID, Valid: true},
+	var token postSearchPageToken
+	if err := json.Unmarshal(raw, &token); err != nil {
+		return postSearchPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
 	}
-
-	return cursor, nil
+	return token, nil
 }
 
 func encodePostPageToken(token postPageToken) (string, error) {
+	raw, err := json.Marshal(token)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+func encodePostSearchPageToken(token postSearchPageToken) (string, error) {
 	raw, err := json.Marshal(token)
 	if err != nil {
 		return "", err

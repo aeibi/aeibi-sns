@@ -142,15 +142,15 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 
 func (s *FollowService) ListMyFollowers(ctx context.Context, uid string, req *api.ListMyFollowersRequest) (*api.ListMyFollowersResponse, error) {
 	query := strings.TrimSpace(req.GetQuery())
-	cursorCreatedAt, cursorID, err := decodeAndValidateFollowPageToken(req.GetPageToken(), query)
+	token, err := decodeFollowPageToken(req.GetPageToken())
 	if err != nil {
 		return nil, err
 	}
 
 	rows, err := s.db.ListFollowers(ctx, db.ListFollowersParams{
 		Uid:             util.UUID(uid),
-		CursorCreatedAt: cursorCreatedAt,
-		CursorID:        cursorID,
+		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: token.CursorCreatedAt > 0},
+		CursorID:        uuid.NullUUID{UUID: util.UUID(token.CursorID), Valid: token.CursorID != ""},
 		Query:           pgtype.Text{String: query, Valid: query != ""},
 	})
 	if err != nil {
@@ -174,7 +174,6 @@ func (s *FollowService) ListMyFollowers(ctx context.Context, uid string, req *ap
 	if len(rows) > 0 {
 		last := rows[len(rows)-1]
 		nextPageToken, err = encodeFollowPageToken(followPageToken{
-			Query:           query,
 			CursorCreatedAt: last.FollowedAt.Time.Unix(),
 			CursorID:        last.Uid.String(),
 		})
@@ -191,15 +190,15 @@ func (s *FollowService) ListMyFollowers(ctx context.Context, uid string, req *ap
 
 func (s *FollowService) ListMyFollowing(ctx context.Context, uid string, req *api.ListMyFollowingRequest) (*api.ListMyFollowingResponse, error) {
 	query := strings.TrimSpace(req.GetQuery())
-	cursorCreatedAt, cursorID, err := decodeAndValidateFollowPageToken(req.GetPageToken(), query)
+	token, err := decodeFollowPageToken(req.GetPageToken())
 	if err != nil {
 		return nil, err
 	}
 
 	rows, err := s.db.ListFollowing(ctx, db.ListFollowingParams{
 		Uid:             util.UUID(uid),
-		CursorCreatedAt: cursorCreatedAt,
-		CursorID:        cursorID,
+		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: token.CursorCreatedAt > 0},
+		CursorID:        uuid.NullUUID{UUID: util.UUID(token.CursorID), Valid: token.CursorID != ""},
 		Query:           pgtype.Text{String: query, Valid: query != ""},
 	})
 	if err != nil {
@@ -223,7 +222,6 @@ func (s *FollowService) ListMyFollowing(ctx context.Context, uid string, req *ap
 	if len(rows) > 0 {
 		last := rows[len(rows)-1]
 		nextPageToken, err = encodeFollowPageToken(followPageToken{
-			Query:           query,
 			CursorCreatedAt: last.FollowedAt.Time.Unix(),
 			CursorID:        last.Uid.String(),
 		})
@@ -239,39 +237,25 @@ func (s *FollowService) ListMyFollowing(ctx context.Context, uid string, req *ap
 }
 
 type followPageToken struct {
-	Query           string `json:"query,omitempty"`
 	CursorCreatedAt int64  `json:"cursor_created_at,omitempty"`
 	CursorID        string `json:"cursor_id,omitempty"`
 }
 
-func decodeAndValidateFollowPageToken(pageToken string, query string) (pgtype.Timestamptz, uuid.NullUUID, error) {
+func decodeFollowPageToken(pageToken string) (followPageToken, error) {
 	if pageToken == "" {
-		return pgtype.Timestamptz{}, uuid.NullUUID{}, nil
+		return followPageToken{}, nil
 	}
 
 	raw, err := base64.RawURLEncoding.DecodeString(pageToken)
 	if err != nil {
-		return pgtype.Timestamptz{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		return followPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
 	}
 
 	var token followPageToken
 	if err := json.Unmarshal(raw, &token); err != nil {
-		return pgtype.Timestamptz{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		return followPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
 	}
-
-	if token.Query != query {
-		return pgtype.Timestamptz{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "page_token does not match current filters")
-	}
-	if token.CursorCreatedAt <= 0 || token.CursorID == "" {
-		return pgtype.Timestamptz{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
-	}
-
-	cursorID, err := uuid.Parse(token.CursorID)
-	if err != nil {
-		return pgtype.Timestamptz{}, uuid.NullUUID{}, status.Error(codes.InvalidArgument, "invalid page_token")
-	}
-
-	return pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true}, uuid.NullUUID{UUID: cursorID, Valid: true}, nil
+	return token, nil
 }
 
 func encodeFollowPageToken(token followPageToken) (string, error) {
