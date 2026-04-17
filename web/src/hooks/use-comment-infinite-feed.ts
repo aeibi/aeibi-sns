@@ -36,6 +36,7 @@ export function useCommentInfiniteFeed({
     initialPageParam,
     queryFn: ({ pageParam, signal }) => queryFn(pageParam, signal),
     getNextPageParam,
+    gcTime: 0,
   })
 
   function addCommentLocal(comment: Comment) {

@@ -30,6 +30,7 @@ export function usePostInfiniteFeed({ queryKey, initialPageParam, enabled = true
       initialPageParam,
       queryFn: ({ pageParam, signal }) => queryFn(pageParam, signal),
       getNextPageParam,
+      gcTime: 0,
     }
   )
 
