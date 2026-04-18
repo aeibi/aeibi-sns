@@ -17,17 +17,17 @@ UPDATE posts
 SET status = 'ARCHIVED'::post_status,
   updated_at = now()
 WHERE uid = $1
-  AND author = $2
+  AND author_uid = $2
   AND status = 'NORMAL'::post_status
 `
 
 type ArchivePostByUidAndAuthorParams struct {
-	Uid    uuid.UUID
-	Author uuid.UUID
+	Uid       uuid.UUID
+	AuthorUid uuid.UUID
 }
 
 func (q *Queries) ArchivePostByUidAndAuthor(ctx context.Context, arg ArchivePostByUidAndAuthorParams) (int64, error) {
-	result, err := q.db.Exec(ctx, archivePostByUidAndAuthor, arg.Uid, arg.Author)
+	result, err := q.db.Exec(ctx, archivePostByUidAndAuthor, arg.Uid, arg.AuthorUid)
 	if err != nil {
 		return 0, err
 	}
@@ -36,177 +36,80 @@ func (q *Queries) ArchivePostByUidAndAuthor(ctx context.Context, arg ArchivePost
 
 const createPost = `-- name: CreatePost :one
 INSERT INTO posts (
-    uid,
-    author,
-    text,
-    images,
-    attachments,
-    visibility,
-    pinned,
-    ip
-  )
+  uid,
+  author_uid,
+  text,
+  images,
+  attachments,
+  tags,
+  visibility,
+  pinned,
+  ip
+)
 VALUES (
-    $1,
-    $2,
-    $3,
-    COALESCE($4::text [], '{}'::text []),
-    COALESCE($5::text [], '{}'::text []),
-    COALESCE(
-      $6::post_visibility,
-      'PUBLIC'::post_visibility
-    ),
-    $7,
-    $8
-  )
-RETURNING id,
-  uid
+  $1,
+  $2,
+  $3,
+  $4,
+  $5,
+  $6,
+  $7,
+  $8,
+  $9
+)
+RETURNING
+  id,
+  uid,
+  author_uid,
+  text,
+  images,
+  attachments,
+  tags,
+  comment_count,
+  collection_count,
+  like_count,
+  pinned,
+  visibility,
+  latest_replied_on,
+  ip,
+  status,
+  created_at,
+  updated_at
 `
 
 type CreatePostParams struct {
 	Uid         uuid.UUID
-	Author      uuid.UUID
+	AuthorUid   uuid.UUID
 	Text        string
 	Images      []string
 	Attachments []string
-	Visibility  NullPostVisibility
+	Tags        []string
+	Visibility  PostVisibility
 	Pinned      bool
 	Ip          string
 }
 
-type CreatePostRow struct {
-	ID  int32
-	Uid uuid.UUID
-}
-
-func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (CreatePostRow, error) {
+func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, error) {
 	row := q.db.QueryRow(ctx, createPost,
 		arg.Uid,
-		arg.Author,
+		arg.AuthorUid,
 		arg.Text,
 		arg.Images,
 		arg.Attachments,
+		arg.Tags,
 		arg.Visibility,
 		arg.Pinned,
 		arg.Ip,
 	)
-	var i CreatePostRow
-	err := row.Scan(&i.ID, &i.Uid)
-	return i, err
-}
-
-const deletePostTagsNotInNames = `-- name: DeletePostTagsNotInNames :exec
-DELETE FROM post_tags pt
-WHERE pt.post_id = $1
-  AND NOT EXISTS (
-    SELECT 1
-    FROM tags t
-    JOIN (
-      SELECT DISTINCT unnest($2::text[]) AS name
-    ) i ON i.name = t.name
-    WHERE t.id = pt.tag_id
-  )
-`
-
-type DeletePostTagsNotInNamesParams struct {
-	PostID int32
-	Tags   []string
-}
-
-func (q *Queries) DeletePostTagsNotInNames(ctx context.Context, arg DeletePostTagsNotInNamesParams) error {
-	_, err := q.db.Exec(ctx, deletePostTagsNotInNames, arg.PostID, arg.Tags)
-	return err
-}
-
-const getPostByUid = `-- name: GetPostByUid :one
-SELECT p.uid,
-  p.author,
-  u.uid AS author_uid,
-  u.nickname AS author_nickname,
-  u.avatar_url AS author_avatar_url,
-  p.text,
-  p.images,
-  p.attachments,
-  p.comment_count,
-  p.collection_count,
-  p.like_count,
-  p.pinned,
-  p.visibility,
-  p.latest_replied_on,
-  p.ip,
-  p.status,
-  p.created_at,
-  p.updated_at,
-  (pl.user_uid IS NOT NULL)::boolean AS liked,
-  (pc.user_uid IS NOT NULL)::boolean AS collected,
-  (uf.follower_uid IS NOT NULL)::boolean AS following,
-  COALESCE(
-    (
-      SELECT array_agg(
-          t.name
-          ORDER BY t.name
-        )
-      FROM post_tags pt
-        JOIN tags t ON t.id = pt.tag_id
-      WHERE pt.post_id = p.id
-    ),
-    '{}'::text []
-  )::text [] AS tag_names
-FROM posts p
-  JOIN users u ON u.uid = p.author
-  AND u.status = 'NORMAL'::user_status
-  LEFT JOIN post_likes pl ON pl.post_uid = p.uid
-  AND pl.user_uid = $1::uuid
-  LEFT JOIN post_collections pc ON pc.post_uid = p.uid
-  AND pc.user_uid = $1::uuid
-  LEFT JOIN user_follows uf ON uf.follower_uid = $1::uuid
-  AND uf.followee_uid = p.author
-WHERE p.uid = $2
-  AND p.status = 'NORMAL'::post_status
-LIMIT 1
-`
-
-type GetPostByUidParams struct {
-	Viewer uuid.NullUUID
-	Uid    uuid.UUID
-}
-
-type GetPostByUidRow struct {
-	Uid             uuid.UUID
-	Author          uuid.UUID
-	AuthorUid       uuid.UUID
-	AuthorNickname  string
-	AuthorAvatarUrl string
-	Text            string
-	Images          []string
-	Attachments     []string
-	CommentCount    int32
-	CollectionCount int32
-	LikeCount       int32
-	Pinned          bool
-	Visibility      PostVisibility
-	LatestRepliedOn pgtype.Timestamptz
-	Ip              string
-	Status          PostStatus
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
-	Liked           bool
-	Collected       bool
-	Following       bool
-	TagNames        []string
-}
-
-func (q *Queries) GetPostByUid(ctx context.Context, arg GetPostByUidParams) (GetPostByUidRow, error) {
-	row := q.db.QueryRow(ctx, getPostByUid, arg.Viewer, arg.Uid)
-	var i GetPostByUidRow
+	var i Post
 	err := row.Scan(
+		&i.ID,
 		&i.Uid,
-		&i.Author,
 		&i.AuthorUid,
-		&i.AuthorNickname,
-		&i.AuthorAvatarUrl,
 		&i.Text,
 		&i.Images,
 		&i.Attachments,
+		&i.Tags,
 		&i.CommentCount,
 		&i.CollectionCount,
 		&i.LikeCount,
@@ -217,76 +120,235 @@ func (q *Queries) GetPostByUid(ctx context.Context, arg GetPostByUidParams) (Get
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Liked,
-		&i.Collected,
-		&i.Following,
-		&i.TagNames,
 	)
 	return i, err
 }
 
-const getPostSearchExtrasByUids = `-- name: GetPostSearchExtrasByUids :many
-WITH input AS (
-  SELECT DISTINCT ON (x.uid) x.uid,
-    x.ord
-  FROM unnest($2::uuid []) WITH ORDINALITY AS x(uid, ord)
-  ORDER BY x.uid,
-    x.ord
-)
-SELECT p.uid,
-  u.nickname AS author_nickname,
-  u.avatar_url AS author_avatar_url,
-  (uf.follower_uid IS NOT NULL)::boolean AS is_following,
-  (pl.user_uid IS NOT NULL)::boolean AS liked,
-  (pc.user_uid IS NOT NULL)::boolean AS collected
-FROM input i
-  JOIN posts p ON p.uid = i.uid
-  JOIN users u ON u.uid = p.author
-  AND u.status = 'NORMAL'::user_status
-  LEFT JOIN post_likes pl ON pl.post_uid = p.uid
-  AND pl.user_uid = $1::uuid
-  LEFT JOIN post_collections pc ON pc.post_uid = p.uid
-  AND pc.user_uid = $1::uuid
-  LEFT JOIN user_follows uf ON uf.follower_uid = $1::uuid
-  AND uf.followee_uid = p.author
-WHERE p.status = 'NORMAL'::post_status
-  AND (
-    p.visibility = 'PUBLIC'::post_visibility
-    OR p.author = $1::uuid
-  )
-ORDER BY i.ord
+const decrementPostCollectionCount = `-- name: DecrementPostCollectionCount :one
+UPDATE posts
+SET collection_count = GREATEST(collection_count - 1, 0),
+    updated_at = now()
+WHERE uid = $1
+RETURNING collection_count
 `
 
-type GetPostSearchExtrasByUidsParams struct {
-	Viewer uuid.NullUUID
-	Uids   []uuid.UUID
+func (q *Queries) DecrementPostCollectionCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, decrementPostCollectionCount, postUid)
+	var collection_count int32
+	err := row.Scan(&collection_count)
+	return collection_count, err
 }
 
-type GetPostSearchExtrasByUidsRow struct {
-	Uid             uuid.UUID
-	AuthorNickname  string
-	AuthorAvatarUrl string
-	IsFollowing     bool
-	Liked           bool
-	Collected       bool
+const decrementPostCommentCount = `-- name: DecrementPostCommentCount :one
+UPDATE posts
+SET comment_count = GREATEST(comment_count - 1, 0),
+    updated_at = now()
+WHERE uid = $1
+  AND status = 'NORMAL'::post_status
+RETURNING comment_count
+`
+
+func (q *Queries) DecrementPostCommentCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, decrementPostCommentCount, postUid)
+	var comment_count int32
+	err := row.Scan(&comment_count)
+	return comment_count, err
 }
 
-func (q *Queries) GetPostSearchExtrasByUids(ctx context.Context, arg GetPostSearchExtrasByUidsParams) ([]GetPostSearchExtrasByUidsRow, error) {
-	rows, err := q.db.Query(ctx, getPostSearchExtrasByUids, arg.Viewer, arg.Uids)
+const decrementPostLikeCount = `-- name: DecrementPostLikeCount :one
+UPDATE posts
+SET like_count = GREATEST(like_count - 1, 0),
+    updated_at = now()
+WHERE uid = $1
+RETURNING like_count
+`
+
+func (q *Queries) DecrementPostLikeCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, decrementPostLikeCount, postUid)
+	var like_count int32
+	err := row.Scan(&like_count)
+	return like_count, err
+}
+
+const deletePostCollectionEdge = `-- name: DeletePostCollectionEdge :execrows
+DELETE FROM post_collections
+WHERE post_uid = $1
+  AND user_uid = $2
+`
+
+type DeletePostCollectionEdgeParams struct {
+	PostUid uuid.UUID
+	UserUid uuid.UUID
+}
+
+func (q *Queries) DeletePostCollectionEdge(ctx context.Context, arg DeletePostCollectionEdgeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePostCollectionEdge, arg.PostUid, arg.UserUid)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deletePostLikeEdge = `-- name: DeletePostLikeEdge :execrows
+DELETE FROM post_likes
+WHERE post_uid = $1
+  AND user_uid = $2
+`
+
+type DeletePostLikeEdgeParams struct {
+	PostUid uuid.UUID
+	UserUid uuid.UUID
+}
+
+func (q *Queries) DeletePostLikeEdge(ctx context.Context, arg DeletePostLikeEdgeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePostLikeEdge, arg.PostUid, arg.UserUid)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const getPostByUid = `-- name: GetPostByUid :one
+SELECT
+  id,
+  uid,
+  author_uid,
+  text,
+  images,
+  attachments,
+  tags,
+  comment_count,
+  collection_count,
+  like_count,
+  pinned,
+  visibility,
+  latest_replied_on,
+  ip,
+  status,
+  created_at,
+  updated_at
+FROM posts
+WHERE uid = $1
+  AND status = 'NORMAL'::post_status
+LIMIT 1
+`
+
+func (q *Queries) GetPostByUid(ctx context.Context, uid uuid.UUID) (Post, error) {
+	row := q.db.QueryRow(ctx, getPostByUid, uid)
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.Uid,
+		&i.AuthorUid,
+		&i.Text,
+		&i.Images,
+		&i.Attachments,
+		&i.Tags,
+		&i.CommentCount,
+		&i.CollectionCount,
+		&i.LikeCount,
+		&i.Pinned,
+		&i.Visibility,
+		&i.LatestRepliedOn,
+		&i.Ip,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPostCollectionCount = `-- name: GetPostCollectionCount :one
+SELECT collection_count
+FROM posts
+WHERE uid = $1
+`
+
+func (q *Queries) GetPostCollectionCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, getPostCollectionCount, postUid)
+	var collection_count int32
+	err := row.Scan(&collection_count)
+	return collection_count, err
+}
+
+const getPostCommentCount = `-- name: GetPostCommentCount :one
+SELECT comment_count
+FROM posts
+WHERE uid = $1
+  AND status = 'NORMAL'::post_status
+`
+
+func (q *Queries) GetPostCommentCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, getPostCommentCount, postUid)
+	var comment_count int32
+	err := row.Scan(&comment_count)
+	return comment_count, err
+}
+
+const getPostLikeCount = `-- name: GetPostLikeCount :one
+SELECT like_count
+FROM posts
+WHERE uid = $1
+`
+
+func (q *Queries) GetPostLikeCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, getPostLikeCount, postUid)
+	var like_count int32
+	err := row.Scan(&like_count)
+	return like_count, err
+}
+
+const getPostsByUIDs = `-- name: GetPostsByUIDs :many
+SELECT
+  id,
+  uid,
+  author_uid,
+  text,
+  images,
+  attachments,
+  tags,
+  comment_count,
+  collection_count,
+  like_count,
+  pinned,
+  visibility,
+  latest_replied_on,
+  ip,
+  status,
+  created_at,
+  updated_at
+FROM posts
+WHERE uid = ANY($1::uuid[])
+  AND status = 'NORMAL'::post_status
+`
+
+func (q *Queries) GetPostsByUIDs(ctx context.Context, uids []uuid.UUID) ([]Post, error) {
+	rows, err := q.db.Query(ctx, getPostsByUIDs, uids)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetPostSearchExtrasByUidsRow
+	var items []Post
 	for rows.Next() {
-		var i GetPostSearchExtrasByUidsRow
+		var i Post
 		if err := rows.Scan(
+			&i.ID,
 			&i.Uid,
-			&i.AuthorNickname,
-			&i.AuthorAvatarUrl,
-			&i.IsFollowing,
-			&i.Liked,
-			&i.Collected,
+			&i.AuthorUid,
+			&i.Text,
+			&i.Images,
+			&i.Attachments,
+			&i.Tags,
+			&i.CommentCount,
+			&i.CollectionCount,
+			&i.LikeCount,
+			&i.Pinned,
+			&i.Visibility,
+			&i.LatestRepliedOn,
+			&i.Ip,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -298,40 +360,430 @@ func (q *Queries) GetPostSearchExtrasByUids(ctx context.Context, arg GetPostSear
 	return items, nil
 }
 
-const insertPostTagsByNames = `-- name: InsertPostTagsByNames :exec
-WITH input AS (
-  SELECT DISTINCT unnest($2::text[]) AS name
-)
-INSERT INTO post_tags (post_id, tag_id)
-SELECT $1, t.id
-FROM tags t
-JOIN input i ON i.name = t.name
-ON CONFLICT (post_id, tag_id) DO NOTHING
+const incrementPostCollectionCount = `-- name: IncrementPostCollectionCount :one
+UPDATE posts
+SET collection_count = collection_count + 1,
+    updated_at = now()
+WHERE uid = $1
+RETURNING collection_count
 `
 
-type InsertPostTagsByNamesParams struct {
-	PostID int32
-	Tags   []string
+func (q *Queries) IncrementPostCollectionCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, incrementPostCollectionCount, postUid)
+	var collection_count int32
+	err := row.Scan(&collection_count)
+	return collection_count, err
 }
 
-func (q *Queries) InsertPostTagsByNames(ctx context.Context, arg InsertPostTagsByNamesParams) error {
-	_, err := q.db.Exec(ctx, insertPostTagsByNames, arg.PostID, arg.Tags)
-	return err
-}
-
-const insertTagsIfNotExists = `-- name: InsertTagsIfNotExists :exec
-WITH input AS (
-  SELECT DISTINCT unnest($1::text[]) AS name
-)
-INSERT INTO tags (name)
-SELECT name
-FROM input
-ON CONFLICT (name) DO NOTHING
+const incrementPostCommentCount = `-- name: IncrementPostCommentCount :one
+UPDATE posts
+SET comment_count = comment_count + 1,
+    latest_replied_on = now(),
+    updated_at = now()
+WHERE uid = $1
+  AND status = 'NORMAL'::post_status
+RETURNING comment_count
 `
 
-func (q *Queries) InsertTagsIfNotExists(ctx context.Context, tags []string) error {
-	_, err := q.db.Exec(ctx, insertTagsIfNotExists, tags)
-	return err
+func (q *Queries) IncrementPostCommentCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, incrementPostCommentCount, postUid)
+	var comment_count int32
+	err := row.Scan(&comment_count)
+	return comment_count, err
+}
+
+const incrementPostLikeCount = `-- name: IncrementPostLikeCount :one
+UPDATE posts
+SET like_count = like_count + 1,
+    updated_at = now()
+WHERE uid = $1
+RETURNING like_count
+`
+
+func (q *Queries) IncrementPostLikeCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, incrementPostLikeCount, postUid)
+	var like_count int32
+	err := row.Scan(&like_count)
+	return like_count, err
+}
+
+const insertPostCollectionEdge = `-- name: InsertPostCollectionEdge :execrows
+INSERT INTO post_collections (post_uid, user_uid)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type InsertPostCollectionEdgeParams struct {
+	PostUid uuid.UUID
+	UserUid uuid.UUID
+}
+
+func (q *Queries) InsertPostCollectionEdge(ctx context.Context, arg InsertPostCollectionEdgeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertPostCollectionEdge, arg.PostUid, arg.UserUid)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const insertPostLikeEdge = `-- name: InsertPostLikeEdge :execrows
+INSERT INTO post_likes (post_uid, user_uid)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type InsertPostLikeEdgeParams struct {
+	PostUid uuid.UUID
+	UserUid uuid.UUID
+}
+
+func (q *Queries) InsertPostLikeEdge(ctx context.Context, arg InsertPostLikeEdgeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertPostLikeEdge, arg.PostUid, arg.UserUid)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const listCollectedPostRefsByUser = `-- name: ListCollectedPostRefsByUser :many
+SELECT
+  post_uid,
+  created_at AS collected_at
+FROM post_collections
+WHERE user_uid = $1
+  AND (created_at, post_uid) < (
+    $2::timestamptz,
+    $3::uuid
+  )
+ORDER BY created_at DESC, post_uid DESC
+LIMIT 20
+`
+
+type ListCollectedPostRefsByUserParams struct {
+	UserUid         uuid.UUID
+	CursorCreatedAt pgtype.Timestamptz
+	CursorID        uuid.UUID
+}
+
+type ListCollectedPostRefsByUserRow struct {
+	PostUid     uuid.UUID
+	CollectedAt pgtype.Timestamptz
+}
+
+func (q *Queries) ListCollectedPostRefsByUser(ctx context.Context, arg ListCollectedPostRefsByUserParams) ([]ListCollectedPostRefsByUserRow, error) {
+	rows, err := q.db.Query(ctx, listCollectedPostRefsByUser, arg.UserUid, arg.CursorCreatedAt, arg.CursorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListCollectedPostRefsByUserRow
+	for rows.Next() {
+		var i ListCollectedPostRefsByUserRow
+		if err := rows.Scan(&i.PostUid, &i.CollectedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCollectedPostUIDsByUserAndPostUIDs = `-- name: ListCollectedPostUIDsByUserAndPostUIDs :many
+SELECT post_uid
+FROM post_collections
+WHERE user_uid = $1
+  AND post_uid = ANY($2::uuid[])
+`
+
+type ListCollectedPostUIDsByUserAndPostUIDsParams struct {
+	UserUid  uuid.UUID
+	PostUids []uuid.UUID
+}
+
+func (q *Queries) ListCollectedPostUIDsByUserAndPostUIDs(ctx context.Context, arg ListCollectedPostUIDsByUserAndPostUIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listCollectedPostUIDsByUserAndPostUIDs, arg.UserUid, arg.PostUids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var post_uid uuid.UUID
+		if err := rows.Scan(&post_uid); err != nil {
+			return nil, err
+		}
+		items = append(items, post_uid)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLikedPostUIDsByUserAndPostUIDs = `-- name: ListLikedPostUIDsByUserAndPostUIDs :many
+SELECT post_uid
+FROM post_likes
+WHERE user_uid = $1
+  AND post_uid = ANY($2::uuid[])
+`
+
+type ListLikedPostUIDsByUserAndPostUIDsParams struct {
+	UserUid  uuid.UUID
+	PostUids []uuid.UUID
+}
+
+func (q *Queries) ListLikedPostUIDsByUserAndPostUIDs(ctx context.Context, arg ListLikedPostUIDsByUserAndPostUIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listLikedPostUIDsByUserAndPostUIDs, arg.UserUid, arg.PostUids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var post_uid uuid.UUID
+		if err := rows.Scan(&post_uid); err != nil {
+			return nil, err
+		}
+		items = append(items, post_uid)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPostsByAuthor = `-- name: ListPostsByAuthor :many
+SELECT
+  id,
+  uid,
+  author_uid,
+  text,
+  images,
+  attachments,
+  tags,
+  comment_count,
+  collection_count,
+  like_count,
+  pinned,
+  visibility,
+  latest_replied_on,
+  ip,
+  status,
+  created_at,
+  updated_at
+FROM posts
+WHERE status = 'NORMAL'::post_status
+  AND author_uid = $1
+  AND (
+    NOT $2::boolean
+    OR visibility = 'PUBLIC'::post_visibility
+  )
+  AND (created_at, uid) < (
+    $3::timestamptz,
+    $4::uuid
+  )
+ORDER BY created_at DESC, uid DESC
+LIMIT 20
+`
+
+type ListPostsByAuthorParams struct {
+	AuthorUid       uuid.UUID
+	OnlyPublic      bool
+	CursorCreatedAt pgtype.Timestamptz
+	CursorID        uuid.UUID
+}
+
+func (q *Queries) ListPostsByAuthor(ctx context.Context, arg ListPostsByAuthorParams) ([]Post, error) {
+	rows, err := q.db.Query(ctx, listPostsByAuthor,
+		arg.AuthorUid,
+		arg.OnlyPublic,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Post
+	for rows.Next() {
+		var i Post
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uid,
+			&i.AuthorUid,
+			&i.Text,
+			&i.Images,
+			&i.Attachments,
+			&i.Tags,
+			&i.CommentCount,
+			&i.CollectionCount,
+			&i.LikeCount,
+			&i.Pinned,
+			&i.Visibility,
+			&i.LatestRepliedOn,
+			&i.Ip,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPostsByTag = `-- name: ListPostsByTag :many
+SELECT
+  id,
+  uid,
+  author_uid,
+  text,
+  images,
+  attachments,
+  tags,
+  comment_count,
+  collection_count,
+  like_count,
+  pinned,
+  visibility,
+  latest_replied_on,
+  ip,
+  status,
+  created_at,
+  updated_at
+FROM posts
+WHERE status = 'NORMAL'::post_status
+  AND visibility = 'PUBLIC'::post_visibility
+  AND tags @> ARRAY[$1::text]
+  AND (created_at, uid) < (
+    $2::timestamptz,
+    $3::uuid
+  )
+ORDER BY created_at DESC, uid DESC
+LIMIT 20
+`
+
+type ListPostsByTagParams struct {
+	TagName         string
+	CursorCreatedAt pgtype.Timestamptz
+	CursorID        uuid.UUID
+}
+
+func (q *Queries) ListPostsByTag(ctx context.Context, arg ListPostsByTagParams) ([]Post, error) {
+	rows, err := q.db.Query(ctx, listPostsByTag, arg.TagName, arg.CursorCreatedAt, arg.CursorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Post
+	for rows.Next() {
+		var i Post
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uid,
+			&i.AuthorUid,
+			&i.Text,
+			&i.Images,
+			&i.Attachments,
+			&i.Tags,
+			&i.CommentCount,
+			&i.CollectionCount,
+			&i.LikeCount,
+			&i.Pinned,
+			&i.Visibility,
+			&i.LatestRepliedOn,
+			&i.Ip,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPostsPublic = `-- name: ListPostsPublic :many
+SELECT
+  id,
+  uid,
+  author_uid,
+  text,
+  images,
+  attachments,
+  tags,
+  comment_count,
+  collection_count,
+  like_count,
+  pinned,
+  visibility,
+  latest_replied_on,
+  ip,
+  status,
+  created_at,
+  updated_at
+FROM posts
+WHERE status = 'NORMAL'::post_status
+  AND visibility = 'PUBLIC'::post_visibility
+  AND (created_at, uid) < (
+    $1::timestamptz,
+    $2::uuid
+  )
+ORDER BY created_at DESC, uid DESC
+LIMIT 20
+`
+
+type ListPostsPublicParams struct {
+	CursorCreatedAt pgtype.Timestamptz
+	CursorID        uuid.UUID
+}
+
+func (q *Queries) ListPostsPublic(ctx context.Context, arg ListPostsPublicParams) ([]Post, error) {
+	rows, err := q.db.Query(ctx, listPostsPublic, arg.CursorCreatedAt, arg.CursorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Post
+	for rows.Next() {
+		var i Post
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uid,
+			&i.AuthorUid,
+			&i.Text,
+			&i.Images,
+			&i.Attachments,
+			&i.Tags,
+			&i.CommentCount,
+			&i.CollectionCount,
+			&i.LikeCount,
+			&i.Pinned,
+			&i.Visibility,
+			&i.LatestRepliedOn,
+			&i.Ip,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updatePostByUidAndAuthor = `-- name: UpdatePostByUidAndAuthor :one
@@ -339,39 +791,77 @@ UPDATE posts
 SET text = COALESCE($1, text),
   images = COALESCE($2::text [], images),
   attachments = COALESCE($3::text [], attachments),
+  tags = COALESCE($4::text [], tags),
   visibility = COALESCE(
-    $4::post_visibility,
+    $5::post_visibility,
     visibility
   ),
-  pinned = COALESCE($5::boolean, pinned),
+  pinned = COALESCE($6::boolean, pinned),
   updated_at = now()
-WHERE uid = $6
-  AND author = $7
+WHERE uid = $7
+  AND author_uid = $8
   AND status = 'NORMAL'::post_status
-RETURNING id
+RETURNING
+  id,
+  uid,
+  author_uid,
+  text,
+  images,
+  attachments,
+  tags,
+  comment_count,
+  collection_count,
+  like_count,
+  pinned,
+  visibility,
+  latest_replied_on,
+  ip,
+  status,
+  created_at,
+  updated_at
 `
 
 type UpdatePostByUidAndAuthorParams struct {
 	Text        pgtype.Text
 	Images      []string
 	Attachments []string
+	Tags        []string
 	Visibility  NullPostVisibility
 	Pinned      pgtype.Bool
 	Uid         uuid.UUID
-	Author      uuid.UUID
+	AuthorUid   uuid.UUID
 }
 
-func (q *Queries) UpdatePostByUidAndAuthor(ctx context.Context, arg UpdatePostByUidAndAuthorParams) (int32, error) {
+func (q *Queries) UpdatePostByUidAndAuthor(ctx context.Context, arg UpdatePostByUidAndAuthorParams) (Post, error) {
 	row := q.db.QueryRow(ctx, updatePostByUidAndAuthor,
 		arg.Text,
 		arg.Images,
 		arg.Attachments,
+		arg.Tags,
 		arg.Visibility,
 		arg.Pinned,
 		arg.Uid,
-		arg.Author,
+		arg.AuthorUid,
 	)
-	var id int32
-	err := row.Scan(&id)
-	return id, err
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.Uid,
+		&i.AuthorUid,
+		&i.Text,
+		&i.Images,
+		&i.Attachments,
+		&i.Tags,
+		&i.CommentCount,
+		&i.CollectionCount,
+		&i.LikeCount,
+		&i.Pinned,
+		&i.Visibility,
+		&i.LatestRepliedOn,
+		&i.Ip,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

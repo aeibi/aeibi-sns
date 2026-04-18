@@ -4,7 +4,7 @@ server:
 
 database:
   dsn: "postgres://aeibi:password@127.0.0.1:5432/aeibi?sslmode=disable"
-  migrations_source: "file://internal/repository/db/sql/postgres/migration"
+  migrations_source: "file://internal/repository/db/sql/migration"
 
 oss:
   endpoint: "127.0.0.1:9000"

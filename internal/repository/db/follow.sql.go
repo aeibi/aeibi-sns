@@ -12,34 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const decrementFollowersCount = `-- name: DecrementFollowersCount :one
-UPDATE users
-SET followers_count = GREATEST(followers_count - 1, 0)
-WHERE uid = $1
-RETURNING followers_count
-`
-
-func (q *Queries) DecrementFollowersCount(ctx context.Context, uid uuid.UUID) (int32, error) {
-	row := q.db.QueryRow(ctx, decrementFollowersCount, uid)
-	var followers_count int32
-	err := row.Scan(&followers_count)
-	return followers_count, err
-}
-
-const decrementFollowingCount = `-- name: DecrementFollowingCount :one
-UPDATE users
-SET following_count = GREATEST(following_count - 1, 0)
-WHERE uid = $1
-RETURNING following_count
-`
-
-func (q *Queries) DecrementFollowingCount(ctx context.Context, uid uuid.UUID) (int32, error) {
-	row := q.db.QueryRow(ctx, decrementFollowingCount, uid)
-	var following_count int32
-	err := row.Scan(&following_count)
-	return following_count, err
-}
-
 const deleteFollowEdge = `-- name: DeleteFollowEdge :execrows
 DELETE FROM user_follows
 WHERE follower_uid = $1
@@ -57,57 +29,6 @@ func (q *Queries) DeleteFollowEdge(ctx context.Context, arg DeleteFollowEdgePara
 		return 0, err
 	}
 	return result.RowsAffected(), nil
-}
-
-const getFollowCounts = `-- name: GetFollowCounts :one
-SELECT
-  (SELECT u.following_count FROM users u WHERE u.uid = $1)::int4 AS following_count,
-  (SELECT u.followers_count FROM users u WHERE u.uid = $2)::int4 AS followers_count
-`
-
-type GetFollowCountsParams struct {
-	FollowerUid uuid.UUID
-	FolloweeUid uuid.UUID
-}
-
-type GetFollowCountsRow struct {
-	FollowingCount int32
-	FollowersCount int32
-}
-
-func (q *Queries) GetFollowCounts(ctx context.Context, arg GetFollowCountsParams) (GetFollowCountsRow, error) {
-	row := q.db.QueryRow(ctx, getFollowCounts, arg.FollowerUid, arg.FolloweeUid)
-	var i GetFollowCountsRow
-	err := row.Scan(&i.FollowingCount, &i.FollowersCount)
-	return i, err
-}
-
-const incrementFollowersCount = `-- name: IncrementFollowersCount :one
-UPDATE users
-SET followers_count = followers_count + 1
-WHERE uid = $1
-RETURNING followers_count
-`
-
-func (q *Queries) IncrementFollowersCount(ctx context.Context, uid uuid.UUID) (int32, error) {
-	row := q.db.QueryRow(ctx, incrementFollowersCount, uid)
-	var followers_count int32
-	err := row.Scan(&followers_count)
-	return followers_count, err
-}
-
-const incrementFollowingCount = `-- name: IncrementFollowingCount :one
-UPDATE users
-SET following_count = following_count + 1
-WHERE uid = $1
-RETURNING following_count
-`
-
-func (q *Queries) IncrementFollowingCount(ctx context.Context, uid uuid.UUID) (int32, error) {
-	row := q.db.QueryRow(ctx, incrementFollowingCount, uid)
-	var following_count int32
-	err := row.Scan(&following_count)
-	return following_count, err
 }
 
 const insertFollowEdge = `-- name: InsertFollowEdge :execrows
@@ -130,12 +51,12 @@ func (q *Queries) InsertFollowEdge(ctx context.Context, arg InsertFollowEdgePara
 }
 
 const isFollowing = `-- name: IsFollowing :one
-SELECT EXISTS(
-    SELECT 1
-    FROM user_follows
-    WHERE follower_uid = $1
-      AND followee_uid = $2
-  ) AS is_following
+SELECT EXISTS (
+  SELECT 1
+  FROM user_follows
+  WHERE follower_uid = $1
+    AND followee_uid = $2
+) AS is_following
 `
 
 type IsFollowingParams struct {
@@ -151,68 +72,32 @@ func (q *Queries) IsFollowing(ctx context.Context, arg IsFollowingParams) (bool,
 }
 
 const listFollowers = `-- name: ListFollowers :many
-SELECT uf.created_at AS followed_at,
-  u.uid,
-  u.role,
-  u.nickname,
-  u.avatar_url,
-  u.followers_count,
-  u.following_count,
-  (myf.follower_uid IS NOT NULL)::boolean AS following,
-  u.status,
-  u.created_at
-FROM user_follows uf
-  JOIN users u ON u.uid = uf.follower_uid
-  AND u.status = 'NORMAL'::user_status
-  LEFT JOIN user_follows myf ON myf.follower_uid = $1
-  AND myf.followee_uid = uf.follower_uid
-WHERE uf.followee_uid = $1
-  AND (
-    $2::text IS NULL
-    OR u.nickname ILIKE '%' || $2::text || '%'
+SELECT
+  created_at AS followed_at,
+  follower_uid AS uid
+FROM user_follows
+WHERE followee_uid = $1
+  AND (created_at, follower_uid) < (
+    $2::timestamptz,
+    $3::uuid
   )
-  AND (
-    (
-      $3::timestamptz IS NULL
-      AND $4::uuid IS NULL
-    )
-    OR (uf.created_at, uf.follower_uid) < (
-      $3::timestamptz,
-      $4::uuid
-    )
-  )
-ORDER BY uf.created_at DESC,
-  uf.follower_uid DESC
+ORDER BY created_at DESC, follower_uid DESC
 LIMIT 20
 `
 
 type ListFollowersParams struct {
 	Uid             uuid.UUID
-	Query           pgtype.Text
 	CursorCreatedAt pgtype.Timestamptz
-	CursorID        uuid.NullUUID
+	CursorID        uuid.UUID
 }
 
 type ListFollowersRow struct {
-	FollowedAt     pgtype.Timestamptz
-	Uid            uuid.UUID
-	Role           UserRole
-	Nickname       string
-	AvatarUrl      string
-	FollowersCount int32
-	FollowingCount int32
-	Following      bool
-	Status         UserStatus
-	CreatedAt      pgtype.Timestamptz
+	FollowedAt pgtype.Timestamptz
+	Uid        uuid.UUID
 }
 
 func (q *Queries) ListFollowers(ctx context.Context, arg ListFollowersParams) ([]ListFollowersRow, error) {
-	rows, err := q.db.Query(ctx, listFollowers,
-		arg.Uid,
-		arg.Query,
-		arg.CursorCreatedAt,
-		arg.CursorID,
-	)
+	rows, err := q.db.Query(ctx, listFollowers, arg.Uid, arg.CursorCreatedAt, arg.CursorID)
 	if err != nil {
 		return nil, err
 	}
@@ -220,18 +105,7 @@ func (q *Queries) ListFollowers(ctx context.Context, arg ListFollowersParams) ([
 	var items []ListFollowersRow
 	for rows.Next() {
 		var i ListFollowersRow
-		if err := rows.Scan(
-			&i.FollowedAt,
-			&i.Uid,
-			&i.Role,
-			&i.Nickname,
-			&i.AvatarUrl,
-			&i.FollowersCount,
-			&i.FollowingCount,
-			&i.Following,
-			&i.Status,
-			&i.CreatedAt,
-		); err != nil {
+		if err := rows.Scan(&i.FollowedAt, &i.Uid); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -243,64 +117,32 @@ func (q *Queries) ListFollowers(ctx context.Context, arg ListFollowersParams) ([
 }
 
 const listFollowing = `-- name: ListFollowing :many
-SELECT uf.created_at AS followed_at,
-  u.uid,
-  u.role,
-  u.nickname,
-  u.avatar_url,
-  u.followers_count,
-  u.following_count,
-  u.status,
-  u.created_at
-FROM user_follows uf
-  JOIN users u ON u.uid = uf.followee_uid
-  AND u.status = 'NORMAL'::user_status
-WHERE uf.follower_uid = $1
-  AND (
-    $2::text IS NULL
-    OR u.nickname ILIKE '%' || $2::text || '%'
+SELECT
+  created_at AS followed_at,
+  followee_uid AS uid
+FROM user_follows
+WHERE follower_uid = $1
+  AND (created_at, followee_uid) < (
+    $2::timestamptz,
+    $3::uuid
   )
-  AND (
-    (
-      $3::timestamptz IS NULL
-      AND $4::uuid IS NULL
-    )
-    OR (uf.created_at, uf.followee_uid) < (
-      $3::timestamptz,
-      $4::uuid
-    )
-  )
-ORDER BY uf.created_at DESC,
-  uf.followee_uid DESC
+ORDER BY created_at DESC, followee_uid DESC
 LIMIT 20
 `
 
 type ListFollowingParams struct {
 	Uid             uuid.UUID
-	Query           pgtype.Text
 	CursorCreatedAt pgtype.Timestamptz
-	CursorID        uuid.NullUUID
+	CursorID        uuid.UUID
 }
 
 type ListFollowingRow struct {
-	FollowedAt     pgtype.Timestamptz
-	Uid            uuid.UUID
-	Role           UserRole
-	Nickname       string
-	AvatarUrl      string
-	FollowersCount int32
-	FollowingCount int32
-	Status         UserStatus
-	CreatedAt      pgtype.Timestamptz
+	FollowedAt pgtype.Timestamptz
+	Uid        uuid.UUID
 }
 
 func (q *Queries) ListFollowing(ctx context.Context, arg ListFollowingParams) ([]ListFollowingRow, error) {
-	rows, err := q.db.Query(ctx, listFollowing,
-		arg.Uid,
-		arg.Query,
-		arg.CursorCreatedAt,
-		arg.CursorID,
-	)
+	rows, err := q.db.Query(ctx, listFollowing, arg.Uid, arg.CursorCreatedAt, arg.CursorID)
 	if err != nil {
 		return nil, err
 	}
@@ -308,20 +150,42 @@ func (q *Queries) ListFollowing(ctx context.Context, arg ListFollowingParams) ([
 	var items []ListFollowingRow
 	for rows.Next() {
 		var i ListFollowingRow
-		if err := rows.Scan(
-			&i.FollowedAt,
-			&i.Uid,
-			&i.Role,
-			&i.Nickname,
-			&i.AvatarUrl,
-			&i.FollowersCount,
-			&i.FollowingCount,
-			&i.Status,
-			&i.CreatedAt,
-		); err != nil {
+		if err := rows.Scan(&i.FollowedAt, &i.Uid); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFollowingUIDsByFollowerAndFolloweeUIDs = `-- name: ListFollowingUIDsByFollowerAndFolloweeUIDs :many
+SELECT followee_uid
+FROM user_follows
+WHERE follower_uid = $1
+  AND followee_uid = ANY($2::uuid[])
+`
+
+type ListFollowingUIDsByFollowerAndFolloweeUIDsParams struct {
+	FollowerUid  uuid.UUID
+	FolloweeUids []uuid.UUID
+}
+
+func (q *Queries) ListFollowingUIDsByFollowerAndFolloweeUIDs(ctx context.Context, arg ListFollowingUIDsByFollowerAndFolloweeUIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listFollowingUIDsByFollowerAndFolloweeUIDs, arg.FollowerUid, arg.FolloweeUids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var followee_uid uuid.UUID
+		if err := rows.Scan(&followee_uid); err != nil {
+			return nil, err
+		}
+		items = append(items, followee_uid)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

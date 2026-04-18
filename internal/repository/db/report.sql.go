@@ -11,16 +11,31 @@ import (
 	"github.com/google/uuid"
 )
 
-const createReport = `-- name: CreateReport :exec
+const createReport = `-- name: CreateReport :one
 INSERT INTO reports (
-    uid,
-    reporter_uid,
-    report_target_type,
-    target_uid,
-    content
-  )
-VALUES ($1, $2, $3, $4, $5) ON CONFLICT (reporter_uid, report_target_type, target_uid)
-WHERE status = 'NORMAL'::report_status DO NOTHING
+  uid,
+  reporter_uid,
+  report_target_type,
+  target_uid,
+  content
+)
+VALUES (
+  $1,
+  $2,
+  $3,
+  $4,
+  $5
+)
+RETURNING
+  id,
+  uid,
+  reporter_uid,
+  report_target_type,
+  target_uid,
+  content,
+  status,
+  created_at,
+  updated_at
 `
 
 type CreateReportParams struct {
@@ -31,13 +46,25 @@ type CreateReportParams struct {
 	Content          string
 }
 
-func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) error {
-	_, err := q.db.Exec(ctx, createReport,
+func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) (Report, error) {
+	row := q.db.QueryRow(ctx, createReport,
 		arg.Uid,
 		arg.ReporterUid,
 		arg.ReportTargetType,
 		arg.TargetUid,
 		arg.Content,
 	)
-	return err
+	var i Report
+	err := row.Scan(
+		&i.ID,
+		&i.Uid,
+		&i.ReporterUid,
+		&i.ReportTargetType,
+		&i.TargetUid,
+		&i.Content,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

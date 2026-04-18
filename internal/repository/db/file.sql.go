@@ -14,15 +14,23 @@ import (
 
 const createFile = `-- name: CreateFile :one
 INSERT INTO files (
-    url,
-    name,
-    content_type,
-    size,
-    checksum,
-    uploader
-  )
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING url,
+  url,
+  name,
+  content_type,
+  size,
+  checksum,
+  uploader
+)
+VALUES (
+  $1,
+  $2,
+  $3,
+  $4,
+  $5,
+  $6
+)
+RETURNING
+  url,
   name,
   content_type,
   size,
@@ -70,7 +78,8 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (CreateF
 }
 
 const getFileByURL = `-- name: GetFileByURL :one
-SELECT url,
+SELECT
+  url,
   name,
   content_type,
   size,
@@ -110,14 +119,15 @@ func (q *Queries) GetFileByURL(ctx context.Context, url string) (GetFileByURLRow
 }
 
 const getFilesByUrls = `-- name: GetFilesByUrls :many
-SELECT url,
+SELECT
+  url,
   name,
   content_type,
   size,
   checksum
 FROM files
 WHERE status = 'NORMAL'::file_status
-  AND url = ANY($1::text [])
+  AND url = ANY($1::text[])
 `
 
 type GetFilesByUrlsRow struct {

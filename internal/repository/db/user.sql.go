@@ -12,16 +12,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createUser = `-- name: CreateUser :exec
+const createUser = `-- name: CreateUser :one
 INSERT INTO users (
-    uid,
-    username,
-    nickname,
-    password_hash,
-    email,
-    avatar_url
-  )
-VALUES ($1, $2, $3, $4, $5, $6)
+  uid,
+  username,
+  nickname,
+  password_hash,
+  email,
+  avatar_url
+)
+VALUES (
+  $1,
+  $2,
+  $3,
+  $4,
+  $5,
+  $6
+)
+RETURNING
+  uid,
+  username,
+  role,
+  email,
+  nickname,
+  avatar_url,
+  followers_count,
+  following_count,
+  description,
+  status,
+  created_at
 `
 
 type CreateUserParams struct {
@@ -33,8 +52,22 @@ type CreateUserParams struct {
 	AvatarUrl    string
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
-	_, err := q.db.Exec(ctx, createUser,
+type CreateUserRow struct {
+	Uid            uuid.UUID
+	Username       string
+	Role           UserRole
+	Email          string
+	Nickname       string
+	AvatarUrl      string
+	FollowersCount int32
+	FollowingCount int32
+	Description    string
+	Status         UserStatus
+	CreatedAt      pgtype.Timestamptz
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
+	row := q.db.QueryRow(ctx, createUser,
 		arg.Uid,
 		arg.Username,
 		arg.Nickname,
@@ -42,7 +75,53 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 		arg.Email,
 		arg.AvatarUrl,
 	)
-	return err
+	var i CreateUserRow
+	err := row.Scan(
+		&i.Uid,
+		&i.Username,
+		&i.Role,
+		&i.Email,
+		&i.Nickname,
+		&i.AvatarUrl,
+		&i.FollowersCount,
+		&i.FollowingCount,
+		&i.Description,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const decrementFollowersCount = `-- name: DecrementFollowersCount :one
+UPDATE users
+SET followers_count = GREATEST(followers_count - 1, 0),
+  updated_at = now()
+WHERE uid = $1
+  AND status = 'NORMAL'::user_status
+RETURNING followers_count
+`
+
+func (q *Queries) DecrementFollowersCount(ctx context.Context, uid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, decrementFollowersCount, uid)
+	var followers_count int32
+	err := row.Scan(&followers_count)
+	return followers_count, err
+}
+
+const decrementFollowingCount = `-- name: DecrementFollowingCount :one
+UPDATE users
+SET following_count = GREATEST(following_count - 1, 0),
+  updated_at = now()
+WHERE uid = $1
+  AND status = 'NORMAL'::user_status
+RETURNING following_count
+`
+
+func (q *Queries) DecrementFollowingCount(ctx context.Context, uid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, decrementFollowingCount, uid)
+	var following_count int32
+	err := row.Scan(&following_count)
+	return following_count, err
 }
 
 const getUserByUid = `-- name: GetUserByUid :one
@@ -162,51 +241,186 @@ func (q *Queries) GetUserPasswordHashByUid(ctx context.Context, uid uuid.UUID) (
 	return password_hash, err
 }
 
-const updateUser = `-- name: UpdateUser :exec
-UPDATE users
-SET username = COALESCE($2, username),
-  email = COALESCE($3, email),
-  nickname = COALESCE($4, nickname),
-  avatar_url = COALESCE($5, avatar_url),
-  updated_at = now()
-WHERE uid = $1
+const getUsersByUIDs = `-- name: GetUsersByUIDs :many
+SELECT uid,
+  username,
+  role,
+  email,
+  nickname,
+  avatar_url,
+  followers_count,
+  following_count,
+  description,
+  status,
+  created_at
+FROM users
+WHERE uid = ANY($1::uuid[])
   AND status = 'NORMAL'::user_status
 `
 
+type GetUsersByUIDsRow struct {
+	Uid            uuid.UUID
+	Username       string
+	Role           UserRole
+	Email          string
+	Nickname       string
+	AvatarUrl      string
+	FollowersCount int32
+	FollowingCount int32
+	Description    string
+	Status         UserStatus
+	CreatedAt      pgtype.Timestamptz
+}
+
+func (q *Queries) GetUsersByUIDs(ctx context.Context, uids []uuid.UUID) ([]GetUsersByUIDsRow, error) {
+	rows, err := q.db.Query(ctx, getUsersByUIDs, uids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUsersByUIDsRow
+	for rows.Next() {
+		var i GetUsersByUIDsRow
+		if err := rows.Scan(
+			&i.Uid,
+			&i.Username,
+			&i.Role,
+			&i.Email,
+			&i.Nickname,
+			&i.AvatarUrl,
+			&i.FollowersCount,
+			&i.FollowingCount,
+			&i.Description,
+			&i.Status,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const incrementFollowersCount = `-- name: IncrementFollowersCount :one
+UPDATE users
+SET followers_count = followers_count + 1,
+  updated_at = now()
+WHERE uid = $1
+  AND status = 'NORMAL'::user_status
+RETURNING followers_count
+`
+
+func (q *Queries) IncrementFollowersCount(ctx context.Context, uid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, incrementFollowersCount, uid)
+	var followers_count int32
+	err := row.Scan(&followers_count)
+	return followers_count, err
+}
+
+const incrementFollowingCount = `-- name: IncrementFollowingCount :one
+UPDATE users
+SET following_count = following_count + 1,
+  updated_at = now()
+WHERE uid = $1
+  AND status = 'NORMAL'::user_status
+RETURNING following_count
+`
+
+func (q *Queries) IncrementFollowingCount(ctx context.Context, uid uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, incrementFollowingCount, uid)
+	var following_count int32
+	err := row.Scan(&following_count)
+	return following_count, err
+}
+
+const updateUser = `-- name: UpdateUser :one
+UPDATE users
+SET username = COALESCE($1, username),
+  email = COALESCE($2, email),
+  nickname = COALESCE($3, nickname),
+  avatar_url = COALESCE($4, avatar_url),
+  updated_at = now()
+WHERE uid = $5
+  AND status = 'NORMAL'::user_status
+RETURNING
+  uid,
+  username,
+  role,
+  email,
+  nickname,
+  avatar_url,
+  followers_count,
+  following_count,
+  description,
+  status,
+  created_at
+`
+
 type UpdateUserParams struct {
-	Uid       uuid.UUID
 	Username  pgtype.Text
 	Email     pgtype.Text
 	Nickname  pgtype.Text
 	AvatarUrl pgtype.Text
+	Uid       uuid.UUID
 }
 
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
-	_, err := q.db.Exec(ctx, updateUser,
-		arg.Uid,
+type UpdateUserRow struct {
+	Uid            uuid.UUID
+	Username       string
+	Role           UserRole
+	Email          string
+	Nickname       string
+	AvatarUrl      string
+	FollowersCount int32
+	FollowingCount int32
+	Description    string
+	Status         UserStatus
+	CreatedAt      pgtype.Timestamptz
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error) {
+	row := q.db.QueryRow(ctx, updateUser,
 		arg.Username,
 		arg.Email,
 		arg.Nickname,
 		arg.AvatarUrl,
+		arg.Uid,
 	)
-	return err
+	var i UpdateUserRow
+	err := row.Scan(
+		&i.Uid,
+		&i.Username,
+		&i.Role,
+		&i.Email,
+		&i.Nickname,
+		&i.AvatarUrl,
+		&i.FollowersCount,
+		&i.FollowingCount,
+		&i.Description,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const updateUserPasswordByUid = `-- name: UpdateUserPasswordByUid :execrows
 UPDATE users
-SET password_hash = $2,
+SET password_hash = $1,
   updated_at = now()
-WHERE uid = $1
+WHERE uid = $2
   AND status = 'NORMAL'::user_status
 `
 
 type UpdateUserPasswordByUidParams struct {
-	Uid          uuid.UUID
 	PasswordHash string
+	Uid          uuid.UUID
 }
 
 func (q *Queries) UpdateUserPasswordByUid(ctx context.Context, arg UpdateUserPasswordByUidParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateUserPasswordByUid, arg.Uid, arg.PasswordHash)
+	result, err := q.db.Exec(ctx, updateUserPasswordByUid, arg.PasswordHash, arg.Uid)
 	if err != nil {
 		return 0, err
 	}

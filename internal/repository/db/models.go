@@ -96,88 +96,46 @@ func (ns NullFileStatus) Value() (driver.Value, error) {
 	return string(ns.FileStatus), nil
 }
 
-type MessageStatus string
+type InboxMessageStatus string
 
 const (
-	MessageStatusNORMAL   MessageStatus = "NORMAL"
-	MessageStatusARCHIVED MessageStatus = "ARCHIVED"
+	InboxMessageStatusNORMAL   InboxMessageStatus = "NORMAL"
+	InboxMessageStatusARCHIVED InboxMessageStatus = "ARCHIVED"
 )
 
-func (e *MessageStatus) Scan(src interface{}) error {
+func (e *InboxMessageStatus) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = MessageStatus(s)
+		*e = InboxMessageStatus(s)
 	case string:
-		*e = MessageStatus(s)
+		*e = InboxMessageStatus(s)
 	default:
-		return fmt.Errorf("unsupported scan type for MessageStatus: %T", src)
+		return fmt.Errorf("unsupported scan type for InboxMessageStatus: %T", src)
 	}
 	return nil
 }
 
-type NullMessageStatus struct {
-	MessageStatus MessageStatus
-	Valid         bool // Valid is true if MessageStatus is not NULL
+type NullInboxMessageStatus struct {
+	InboxMessageStatus InboxMessageStatus
+	Valid              bool // Valid is true if InboxMessageStatus is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullMessageStatus) Scan(value interface{}) error {
+func (ns *NullInboxMessageStatus) Scan(value interface{}) error {
 	if value == nil {
-		ns.MessageStatus, ns.Valid = "", false
+		ns.InboxMessageStatus, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.MessageStatus.Scan(value)
+	return ns.InboxMessageStatus.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullMessageStatus) Value() (driver.Value, error) {
+func (ns NullInboxMessageStatus) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.MessageStatus), nil
-}
-
-type MessageType string
-
-const (
-	MessageTypeCOMMENT MessageType = "COMMENT"
-	MessageTypeFOLLOW  MessageType = "FOLLOW"
-)
-
-func (e *MessageType) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = MessageType(s)
-	case string:
-		*e = MessageType(s)
-	default:
-		return fmt.Errorf("unsupported scan type for MessageType: %T", src)
-	}
-	return nil
-}
-
-type NullMessageType struct {
-	MessageType MessageType
-	Valid       bool // Valid is true if MessageType is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullMessageType) Scan(value interface{}) error {
-	if value == nil {
-		ns.MessageType, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.MessageType.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullMessageType) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.MessageType), nil
+	return string(ns.InboxMessageStatus), nil
 }
 
 type PostStatus string
@@ -452,27 +410,37 @@ type File struct {
 	CreatedAt   pgtype.Timestamptz
 }
 
-type InboxMessage struct {
+type InboxCommentMessage struct {
+	ID               int32
+	Uid              uuid.UUID
+	ReceiverUid      uuid.UUID
+	ActorUid         uuid.UUID
+	CommentUid       uuid.UUID
+	PostUid          uuid.UUID
+	ParentCommentUid uuid.NullUUID
+	ReadAt           pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	Status           InboxMessageStatus
+}
+
+type InboxFollowMessage struct {
 	ID          int32
 	Uid         uuid.UUID
 	ReceiverUid uuid.UUID
-	Type        MessageType
-	IsRead      bool
 	ActorUid    uuid.UUID
+	ReadAt      pgtype.Timestamptz
 	CreatedAt   pgtype.Timestamptz
-	Status      MessageStatus
-	CommentUid  uuid.NullUUID
-	PostUid     uuid.NullUUID
-	ParentUid   uuid.NullUUID
+	Status      InboxMessageStatus
 }
 
 type Post struct {
 	ID              int32
 	Uid             uuid.UUID
-	Author          uuid.UUID
+	AuthorUid       uuid.UUID
 	Text            string
 	Images          []string
 	Attachments     []string
+	Tags            []string
 	CommentCount    int32
 	CollectionCount int32
 	LikeCount       int32
@@ -515,11 +483,6 @@ type PostLike struct {
 	CreatedAt pgtype.Timestamptz
 }
 
-type PostTag struct {
-	PostID int32
-	TagID  int32
-}
-
 type RefreshToken struct {
 	ID        int32
 	Uid       uuid.UUID
@@ -538,11 +501,6 @@ type Report struct {
 	Status           ReportStatus
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
-}
-
-type Tag struct {
-	ID   int32
-	Name string
 }
 
 type User struct {
