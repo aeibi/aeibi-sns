@@ -43,15 +43,19 @@ func (s *CommentService) CreateTopComment(ctx context.Context, uid string, req *
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 
-		postRow, err := qtx.GetPostByUid(ctx, db.GetPostByUidParams{
-			Uid:    postUid,
-			Viewer: uuid.NullUUID{UUID: authorUid, Valid: true},
-		})
+		postRow, err := qtx.GetPostByUid(ctx, postUid)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("post not found")
+		}
 		if err != nil {
 			return fmt.Errorf("get post: %w", err)
 		}
-		if postRow.Visibility == db.PostVisibilityPRIVATE && postRow.Author != authorUid {
+		if postRow.Visibility == db.PostVisibilityPRIVATE && postRow.AuthorUid != authorUid {
 			return fmt.Errorf("post not found")
+		}
+		images := []string{}
+		if req.Images != nil {
+			images = req.Images
 		}
 		_, err = qtx.CreateComment(ctx, db.CreateCommentParams{
 			Uid:       commentUid,
@@ -59,7 +63,8 @@ func (s *CommentService) CreateTopComment(ctx context.Context, uid string, req *
 			AuthorUid: authorUid,
 			RootUid:   commentUid,
 			Content:   req.Content,
-			Images:    req.Images,
+			Images:    images,
+			Ip:        "",
 		})
 		if err != nil {
 			return fmt.Errorf("create comment: %w", err)
@@ -68,14 +73,14 @@ func (s *CommentService) CreateTopComment(ctx context.Context, uid string, req *
 		if err != nil {
 			return fmt.Errorf("increment post comment count: %w", err)
 		}
-		if postRow.Author != authorUid {
+		if postRow.AuthorUid != authorUid {
 			if err := s.producer.EnqueueCommentInboxTx(ctx, tx, async.CommentInboxArgs{
 				MessageUID:  uuid.New(),
-				ReceiverUID: postRow.Author,
+				ReceiverUID: postRow.AuthorUid,
 				ActorUID:    authorUid,
 				CommentUID:  commentUid,
 				PostUID:     postUid,
-				ParentUID:   postUid,
+				ParentUID:   uuid.Nil,
 			}); err != nil {
 				return fmt.Errorf("enqueue comment inbox job: %w", err)
 			}
@@ -101,9 +106,12 @@ func (s *CommentService) CreateReply(ctx context.Context, uid string, req *api.C
 	replyUid := uuid.New()
 	parentUid := util.UUID(req.ParentUid)
 	authorUid := util.UUID(uid)
-	commentRow, err := s.db.GetCommentMetaByUid(ctx, parentUid)
+	parentRow, err := s.db.GetCommentByUid(ctx, parentUid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("parent comment not found")
+	}
 	if err != nil {
-		return nil, fmt.Errorf("get parent comment meta: %w", err)
+		return nil, fmt.Errorf("get parent comment: %w", err)
 	}
 	var resp *api.CreateReplyResponse
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -111,27 +119,28 @@ func (s *CommentService) CreateReply(ctx context.Context, uid string, req *api.C
 
 		_, err = qtx.CreateComment(ctx, db.CreateCommentParams{
 			Uid:              replyUid,
-			PostUid:          commentRow.PostUid,
-			RootUid:          commentRow.RootUid,
+			PostUid:          parentRow.PostUid,
+			RootUid:          parentRow.RootUid,
 			ParentUid:        uuid.NullUUID{UUID: parentUid, Valid: true},
-			ReplyToAuthorUid: uuid.NullUUID{UUID: commentRow.AuthorUid, Valid: commentRow.RootUid != parentUid},
+			ReplyToAuthorUid: uuid.NullUUID{UUID: parentRow.AuthorUid, Valid: parentRow.RootUid != parentUid},
 			AuthorUid:        authorUid,
 			Content:          req.Content,
+			Ip:               "",
 		})
 		if err != nil {
 			return fmt.Errorf("create reply: %w", err)
 		}
-		replyCount, err := qtx.IncrementCommentReplyCount(ctx, commentRow.RootUid)
+		replyCount, err := qtx.IncrementCommentReplyCount(ctx, parentRow.RootUid)
 		if err != nil {
 			return fmt.Errorf("increment comment reply count: %w", err)
 		}
-		if commentRow.AuthorUid != authorUid {
+		if parentRow.AuthorUid != authorUid {
 			if err := s.producer.EnqueueCommentInboxTx(ctx, tx, async.CommentInboxArgs{
 				MessageUID:  uuid.New(),
-				ReceiverUID: commentRow.AuthorUid,
+				ReceiverUID: parentRow.AuthorUid,
 				ActorUID:    authorUid,
 				CommentUID:  replyUid,
-				PostUID:     commentRow.PostUid,
+				PostUID:     parentRow.PostUid,
 				ParentUID:   parentUid,
 			}); err != nil {
 				return fmt.Errorf("enqueue comment inbox job: %w", err)
@@ -149,50 +158,82 @@ func (s *CommentService) CreateReply(ctx context.Context, uid string, req *api.C
 }
 
 func (s *CommentService) ListTopComments(ctx context.Context, viewerUid string, req *api.ListTopCommentsRequest) (*api.ListTopCommentsResponse, error) {
+	vuid := util.UUID(viewerUid)
+
 	token, err := decodeTopCommentsPageToken(req.GetPageToken())
 	if err != nil {
 		return nil, err
 	}
 
 	rows, err := s.db.ListTopComments(ctx, db.ListTopCommentsParams{
-		Viewer:          uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
 		PostUid:         util.UUID(req.PostUid),
-		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: token.CursorCreatedAt > 0},
-		CursorID:        uuid.NullUUID{UUID: util.UUID(token.CursorID), Valid: token.CursorID != ""},
+		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true},
+		CursorID:        util.UUID(token.CursorID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list top comments: %w", err)
 	}
 
+	commentUIDs := make([]uuid.UUID, 0, len(rows))
+	authorUIDs := make([]uuid.UUID, 0, len(rows))
+	seenAuthorUIDs := make(map[uuid.UUID]struct{}, len(rows))
+	for _, row := range rows {
+		commentUIDs = append(commentUIDs, row.Uid)
+		if _, ok := seenAuthorUIDs[row.AuthorUid]; ok {
+			continue
+		}
+		seenAuthorUIDs[row.AuthorUid] = struct{}{}
+		authorUIDs = append(authorUIDs, row.AuthorUid)
+	}
+
+	userRows, err := s.db.GetUsersByUIDs(ctx, authorUIDs)
+	if err != nil {
+		return nil, fmt.Errorf("get comment users: %w", err)
+	}
+	userMap := make(map[uuid.UUID]db.GetUsersByUIDsRow, len(userRows))
+	for _, row := range userRows {
+		userMap[row.Uid] = row
+	}
+
+	likedSet := make(map[uuid.UUID]struct{})
+	if viewerUid != "" && len(commentUIDs) > 0 {
+		likedUIDs, err := s.db.ListLikedCommentUIDsByUserAndCommentUIDs(ctx, db.ListLikedCommentUIDsByUserAndCommentUIDsParams{
+			UserUid:     vuid,
+			CommentUids: commentUIDs,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list liked comment uids: %w", err)
+		}
+		for _, commentUID := range likedUIDs {
+			likedSet[commentUID] = struct{}{}
+		}
+	}
+
 	comments := make([]*api.Comment, 0, len(rows))
 	for _, row := range rows {
-		parentUid := util.NullUUIDString(row.ParentUid)
-		var replyToAuthor *api.CommentAuthor
-		if row.ReplyToAuthorUid.Valid && row.ReplyToAuthorNickname.Valid && row.ReplyToAuthorAvatarUrl.Valid {
-			replyToAuthor = &api.CommentAuthor{
-				Uid:       util.NullUUIDString(row.ReplyToAuthorUid),
-				Nickname:  row.ReplyToAuthorNickname.String,
-				AvatarUrl: row.ReplyToAuthorAvatarUrl.String,
-			}
+		authorRow, ok := userMap[row.AuthorUid]
+		if !ok {
+			continue
 		}
+		parentUid := util.NullUUIDString(row.ParentUid)
+		_, liked := likedSet[row.Uid]
 		comments = append(comments, &api.Comment{
 			Uid: row.Uid.String(),
 			Author: &api.CommentAuthor{
 				Uid:       row.AuthorUid.String(),
-				Nickname:  row.AuthorNickname,
-				AvatarUrl: row.AuthorAvatarUrl,
+				Nickname:  authorRow.Nickname,
+				AvatarUrl: authorRow.AvatarUrl,
 			},
-			PostUid:       row.PostUid.String(),
-			RootUid:       row.RootUid.String(),
-			ParentUid:     parentUid,
-			ReplyToAuthor: replyToAuthor,
-			Content:       row.Content,
-			Images:        row.Images,
-			ReplyCount:    row.ReplyCount,
-			LikeCount:     row.LikeCount,
-			Liked:         row.Liked,
-			CreatedAt:     row.CreatedAt.Time.Unix(),
-			UpdatedAt:     row.UpdatedAt.Time.Unix(),
+			PostUid:    row.PostUid.String(),
+			RootUid:    row.RootUid.String(),
+			ParentUid:  parentUid,
+			Content:    row.Content,
+			Images:     row.Images,
+			ReplyCount: row.ReplyCount,
+			LikeCount:  row.LikeCount,
+			Liked:      liked,
+			CreatedAt:  row.CreatedAt.Time.Unix(),
+			UpdatedAt:  row.UpdatedAt.Time.Unix(),
 		})
 	}
 
@@ -215,32 +256,86 @@ func (s *CommentService) ListTopComments(ctx context.Context, viewerUid string, 
 }
 
 func (s *CommentService) ListReplies(ctx context.Context, viewerUid string, req *api.ListRepliesRequest) (*api.ListRepliesResponse, error) {
+	vuid := util.UUID(viewerUid)
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+
 	rows, err := s.db.ListReplies(ctx, db.ListRepliesParams{
-		Viewer:  uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
 		RootUid: util.UUID(req.Uid),
-		Page:    req.Page,
+		Page:    page,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list replies: %w", err)
 	}
 
-	comments := make([]*api.Comment, 0, len(rows))
+	commentUIDs := make([]uuid.UUID, 0, len(rows))
+	userUIDs := make([]uuid.UUID, 0, len(rows)*2)
+	seenUserUIDs := make(map[uuid.UUID]struct{}, len(rows)*2)
 	for _, row := range rows {
-		parentUid := util.NullUUIDString(row.ParentUid)
-		var replyToAuthor *api.CommentAuthor
-		if row.ReplyToAuthorUid.Valid && row.ReplyToAuthorNickname.Valid && row.ReplyToAuthorAvatarUrl.Valid {
-			replyToAuthor = &api.CommentAuthor{
-				Uid:       util.NullUUIDString(row.ReplyToAuthorUid),
-				Nickname:  row.ReplyToAuthorNickname.String,
-				AvatarUrl: row.ReplyToAuthorAvatarUrl.String,
+		commentUIDs = append(commentUIDs, row.Uid)
+		if _, ok := seenUserUIDs[row.AuthorUid]; !ok {
+			seenUserUIDs[row.AuthorUid] = struct{}{}
+			userUIDs = append(userUIDs, row.AuthorUid)
+		}
+		if row.ReplyToAuthorUid.Valid {
+			replyUID := row.ReplyToAuthorUid.UUID
+			if _, ok := seenUserUIDs[replyUID]; !ok {
+				seenUserUIDs[replyUID] = struct{}{}
+				userUIDs = append(userUIDs, replyUID)
 			}
 		}
+	}
+
+	userRows, err := s.db.GetUsersByUIDs(ctx, userUIDs)
+	if err != nil {
+		return nil, fmt.Errorf("get comment users: %w", err)
+	}
+	userMap := make(map[uuid.UUID]db.GetUsersByUIDsRow, len(userRows))
+	for _, row := range userRows {
+		userMap[row.Uid] = row
+	}
+
+	likedSet := make(map[uuid.UUID]struct{})
+	if viewerUid != "" && len(commentUIDs) > 0 {
+		likedUIDs, err := s.db.ListLikedCommentUIDsByUserAndCommentUIDs(ctx, db.ListLikedCommentUIDsByUserAndCommentUIDsParams{
+			UserUid:     vuid,
+			CommentUids: commentUIDs,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list liked comment uids: %w", err)
+		}
+		for _, commentUID := range likedUIDs {
+			likedSet[commentUID] = struct{}{}
+		}
+	}
+
+	comments := make([]*api.Comment, 0, len(rows))
+	for _, row := range rows {
+		authorRow, ok := userMap[row.AuthorUid]
+		if !ok {
+			continue
+		}
+		parentUid := util.NullUUIDString(row.ParentUid)
+		var replyToAuthor *api.CommentAuthor
+		if row.ReplyToAuthorUid.Valid {
+			replyUser, ok := userMap[row.ReplyToAuthorUid.UUID]
+			if ok {
+				replyToAuthor = &api.CommentAuthor{
+					Uid:       row.ReplyToAuthorUid.UUID.String(),
+					Nickname:  replyUser.Nickname,
+					AvatarUrl: replyUser.AvatarUrl,
+				}
+			}
+		}
+		_, liked := likedSet[row.Uid]
 		comments = append(comments, &api.Comment{
 			Uid: row.Uid.String(),
 			Author: &api.CommentAuthor{
 				Uid:       row.AuthorUid.String(),
-				Nickname:  row.AuthorNickname,
-				AvatarUrl: row.AuthorAvatarUrl,
+				Nickname:  authorRow.Nickname,
+				AvatarUrl: authorRow.AvatarUrl,
 			},
 			PostUid:       row.PostUid.String(),
 			RootUid:       row.RootUid.String(),
@@ -250,7 +345,7 @@ func (s *CommentService) ListReplies(ctx context.Context, viewerUid string, req 
 			Images:        row.Images,
 			ReplyCount:    row.ReplyCount,
 			LikeCount:     row.LikeCount,
-			Liked:         row.Liked,
+			Liked:         liked,
 			CreatedAt:     row.CreatedAt.Time.Unix(),
 			UpdatedAt:     row.UpdatedAt.Time.Unix(),
 		})
@@ -263,16 +358,15 @@ func (s *CommentService) ListReplies(ctx context.Context, viewerUid string, req 
 
 	return &api.ListRepliesResponse{
 		Comments: comments,
-		Page:     req.Page,
+		Page:     page,
 		Total:    total,
 	}, nil
 }
 
 func (s *CommentService) GetComment(ctx context.Context, viewerUid string, req *api.GetCommentRequest) (*api.GetCommentResponse, error) {
-	row, err := s.db.GetCommentByUid(ctx, db.GetCommentByUidParams{
-		Viewer: uuid.NullUUID{UUID: util.UUID(viewerUid), Valid: viewerUid != ""},
-		Uid:    util.UUID(req.Uid),
-	})
+	vuid := util.UUID(viewerUid)
+
+	row, err := s.db.GetCommentByUid(ctx, util.UUID(req.Uid))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("comment not found")
@@ -280,13 +374,46 @@ func (s *CommentService) GetComment(ctx context.Context, viewerUid string, req *
 		return nil, fmt.Errorf("get comment: %w", err)
 	}
 
+	userUIDs := make([]uuid.UUID, 0, 2)
+	userUIDs = append(userUIDs, row.AuthorUid)
+	if row.ReplyToAuthorUid.Valid {
+		userUIDs = append(userUIDs, row.ReplyToAuthorUid.UUID)
+	}
+	userRows, err := s.db.GetUsersByUIDs(ctx, userUIDs)
+	if err != nil {
+		return nil, fmt.Errorf("get comment users: %w", err)
+	}
+	userMap := make(map[uuid.UUID]db.GetUsersByUIDsRow, len(userRows))
+	for _, userRow := range userRows {
+		userMap[userRow.Uid] = userRow
+	}
+	authorRow, ok := userMap[row.AuthorUid]
+	if !ok {
+		return nil, fmt.Errorf("comment not found")
+	}
+
+	liked := false
+	if viewerUid != "" {
+		likedUIDs, err := s.db.ListLikedCommentUIDsByUserAndCommentUIDs(ctx, db.ListLikedCommentUIDsByUserAndCommentUIDsParams{
+			UserUid:     vuid,
+			CommentUids: []uuid.UUID{row.Uid},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list liked comment uids: %w", err)
+		}
+		liked = len(likedUIDs) > 0
+	}
+
 	parentUid := util.NullUUIDString(row.ParentUid)
 	var replyToAuthor *api.CommentAuthor
-	if row.ReplyToAuthorUid.Valid && row.ReplyToAuthorNickname.Valid && row.ReplyToAuthorAvatarUrl.Valid {
-		replyToAuthor = &api.CommentAuthor{
-			Uid:       util.NullUUIDString(row.ReplyToAuthorUid),
-			Nickname:  row.ReplyToAuthorNickname.String,
-			AvatarUrl: row.ReplyToAuthorAvatarUrl.String,
+	if row.ReplyToAuthorUid.Valid {
+		replyUser, ok := userMap[row.ReplyToAuthorUid.UUID]
+		if ok {
+			replyToAuthor = &api.CommentAuthor{
+				Uid:       row.ReplyToAuthorUid.UUID.String(),
+				Nickname:  replyUser.Nickname,
+				AvatarUrl: replyUser.AvatarUrl,
+			}
 		}
 	}
 
@@ -295,8 +422,8 @@ func (s *CommentService) GetComment(ctx context.Context, viewerUid string, req *
 			Uid: row.Uid.String(),
 			Author: &api.CommentAuthor{
 				Uid:       row.AuthorUid.String(),
-				Nickname:  row.AuthorNickname,
-				AvatarUrl: row.AuthorAvatarUrl,
+				Nickname:  authorRow.Nickname,
+				AvatarUrl: authorRow.AvatarUrl,
 			},
 			PostUid:       row.PostUid.String(),
 			RootUid:       row.RootUid.String(),
@@ -306,7 +433,7 @@ func (s *CommentService) GetComment(ctx context.Context, viewerUid string, req *
 			Images:        row.Images,
 			ReplyCount:    row.ReplyCount,
 			LikeCount:     row.LikeCount,
-			Liked:         row.Liked,
+			Liked:         liked,
 			CreatedAt:     row.CreatedAt.Time.Unix(),
 			UpdatedAt:     row.UpdatedAt.Time.Unix(),
 		},
@@ -317,7 +444,7 @@ func (s *CommentService) DeleteComment(ctx context.Context, uid string, req *api
 	commentUid := util.UUID(req.Uid)
 	authorUid := util.UUID(uid)
 
-	commentRow, err := s.db.GetCommentMetaByUid(ctx, commentUid)
+	commentRow, err := s.db.GetCommentByUid(ctx, commentUid)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("comment not found")
@@ -383,10 +510,11 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 					return fmt.Errorf("comment like: increment comment like count: %w", err)
 				}
 			} else {
-				count, err = qtx.GetCommentLikeCount(ctx, commentUid)
+				commentRow, err := qtx.GetCommentByUid(ctx, commentUid)
 				if err != nil {
-					return fmt.Errorf("comment like: get comment like count: %w", err)
+					return fmt.Errorf("comment like: get comment: %w", err)
 				}
+				count = commentRow.LikeCount
 			}
 
 		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
@@ -404,10 +532,11 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 					return fmt.Errorf("comment like: decrement comment like count: %w", err)
 				}
 			} else {
-				count, err = qtx.GetCommentLikeCount(ctx, commentUid)
+				commentRow, err := qtx.GetCommentByUid(ctx, commentUid)
 				if err != nil {
-					return fmt.Errorf("comment like: get comment like count: %w", err)
+					return fmt.Errorf("comment like: get comment: %w", err)
 				}
+				count = commentRow.LikeCount
 			}
 
 		default:
@@ -430,18 +559,19 @@ type topCommentsPageToken struct {
 }
 
 func decodeTopCommentsPageToken(pageToken string) (topCommentsPageToken, error) {
-	if pageToken == "" {
-		return topCommentsPageToken{}, nil
-	}
-
-	raw, err := base64.RawURLEncoding.DecodeString(pageToken)
-	if err != nil {
-		return topCommentsPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
-	}
-
 	var token topCommentsPageToken
-	if err := json.Unmarshal(raw, &token); err != nil {
-		return topCommentsPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	if pageToken != "" {
+		raw, err := base64.RawURLEncoding.DecodeString(pageToken)
+		if err != nil {
+			return topCommentsPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		}
+		if err := json.Unmarshal(raw, &token); err != nil {
+			return topCommentsPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		}
+	}
+	if token.CursorCreatedAt == 0 || token.CursorID == "" {
+		token.CursorCreatedAt = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC).Unix()
+		token.CursorID = "ffffffff-ffff-ffff-ffff-ffffffffffff"
 	}
 	return token, nil
 }

@@ -254,6 +254,14 @@ DELETE FROM post_likes
 WHERE post_uid = sqlc.arg(post_uid)
   AND user_uid = sqlc.arg(user_uid);
 
+-- name: IsPostLiked :one
+SELECT EXISTS (
+  SELECT 1
+  FROM post_likes
+  WHERE post_uid = sqlc.arg(post_uid)
+    AND user_uid = sqlc.arg(user_uid)
+) AS is_liked;
+
 -- name: IncrementPostLikeCount :one
 UPDATE posts
 SET like_count = like_count + 1,
@@ -282,6 +290,14 @@ ON CONFLICT DO NOTHING;
 DELETE FROM post_collections
 WHERE post_uid = sqlc.arg(post_uid)
   AND user_uid = sqlc.arg(user_uid);
+
+-- name: IsPostCollected :one
+SELECT EXISTS (
+  SELECT 1
+  FROM post_collections
+  WHERE post_uid = sqlc.arg(post_uid)
+    AND user_uid = sqlc.arg(user_uid)
+) AS is_collected;
 
 -- name: IncrementPostCollectionCount :one
 UPDATE posts

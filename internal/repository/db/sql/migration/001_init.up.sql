@@ -155,3 +155,64 @@ CREATE TABLE reports (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- indexes for query patterns
+
+-- user_follows
+CREATE INDEX idx_user_follows_followee_cursor
+    ON user_follows (followee_uid, created_at DESC, follower_uid DESC);
+CREATE INDEX idx_user_follows_follower_cursor
+    ON user_follows (follower_uid, created_at DESC, followee_uid DESC);
+
+-- posts
+CREATE INDEX idx_posts_public_cursor
+    ON posts (created_at DESC, uid DESC)
+    WHERE status = 'NORMAL'::post_status
+      AND visibility = 'PUBLIC'::post_visibility;
+CREATE INDEX idx_posts_author_cursor
+    ON posts (author_uid, created_at DESC, uid DESC)
+    WHERE status = 'NORMAL'::post_status;
+CREATE INDEX idx_posts_public_tags_gin
+    ON posts USING GIN (tags)
+    WHERE status = 'NORMAL'::post_status
+      AND visibility = 'PUBLIC'::post_visibility;
+
+-- post_likes / post_collections
+CREATE INDEX idx_post_likes_user_post
+    ON post_likes (user_uid, post_uid);
+CREATE INDEX idx_post_collections_user_post
+    ON post_collections (user_uid, post_uid);
+CREATE INDEX idx_post_collections_user_cursor
+    ON post_collections (user_uid, created_at DESC, post_uid DESC);
+
+-- post_comments / comment_likes
+CREATE INDEX idx_post_comments_top_cursor
+    ON post_comments (post_uid, created_at DESC, uid DESC)
+    WHERE status = 'NORMAL'::comment_status
+      AND parent_uid IS NULL;
+CREATE INDEX idx_post_comments_replies_cursor
+    ON post_comments (root_uid, created_at ASC, uid ASC)
+    WHERE status = 'NORMAL'::comment_status;
+CREATE INDEX idx_comment_likes_user_comment
+    ON comment_likes (user_uid, comment_uid);
+
+-- inbox_comment_messages
+CREATE INDEX idx_inbox_comment_messages_receiver_cursor
+    ON inbox_comment_messages (receiver_uid, created_at DESC, uid DESC)
+    WHERE status = 'NORMAL'::inbox_message_status;
+CREATE INDEX idx_inbox_comment_messages_receiver_unread
+    ON inbox_comment_messages (receiver_uid, created_at DESC, uid DESC)
+    WHERE status = 'NORMAL'::inbox_message_status
+      AND read_at IS NULL;
+
+-- inbox_follow_messages
+CREATE INDEX idx_inbox_follow_messages_receiver_cursor
+    ON inbox_follow_messages (receiver_uid, created_at DESC, uid DESC)
+    WHERE status = 'NORMAL'::inbox_message_status;
+CREATE INDEX idx_inbox_follow_messages_receiver_unread
+    ON inbox_follow_messages (receiver_uid, created_at DESC, uid DESC)
+    WHERE status = 'NORMAL'::inbox_message_status
+      AND read_at IS NULL;
+CREATE INDEX idx_inbox_follow_messages_receiver_actor
+    ON inbox_follow_messages (receiver_uid, actor_uid)
+    WHERE status = 'NORMAL'::inbox_message_status;

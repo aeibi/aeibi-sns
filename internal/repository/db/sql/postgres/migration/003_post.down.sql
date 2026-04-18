@@ -1,7 +1,0 @@
-DROP TABLE IF EXISTS post_collections;
-DROP TABLE IF EXISTS post_likes;
-DROP TABLE IF EXISTS post_tags;
-DROP TABLE IF EXISTS tags;
-DROP TABLE IF EXISTS posts;
-DROP TYPE IF EXISTS post_status;
-DROP TYPE IF EXISTS post_visibility;

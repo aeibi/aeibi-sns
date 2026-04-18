@@ -44,20 +44,23 @@ func NewUserService(pool *pgxpool.Pool, ossClient *oss.OSS, search *searchrepo.S
 
 func (s *UserService) CreateUser(ctx context.Context, req *api.CreateUserRequest) error {
 	uid := uuid.New()
+
 	avatar, err := util.GenerateDefaultAvatar(uid.String())
 	if err != nil {
 		return fmt.Errorf("generate default avatar: %w", err)
 	}
 	avatarURL := fmt.Sprintf("/file/avatars/%s.png", uid)
 	avatarObjectKey := strings.TrimPrefix(avatarURL, "/")
+
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
 	}
+
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 
-		err = qtx.CreateUser(ctx, db.CreateUserParams{
+		_, err = qtx.CreateUser(ctx, db.CreateUserParams{
 			Uid:          uid,
 			Username:     req.Username,
 			Email:        req.Email,
@@ -85,29 +88,33 @@ func (s *UserService) CreateUser(ctx context.Context, req *api.CreateUserRequest
 }
 
 func (s *UserService) GetUser(ctx context.Context, viewerUid string, req *api.GetUserRequest) (*api.GetUserResponse, error) {
-	row, err := s.db.GetUserByUid(ctx, util.UUID(req.Uid))
+	vuid := util.UUID(viewerUid)
+
+	uid := util.UUID(req.Uid)
+
+	row, err := s.db.GetUserByUid(ctx, uid)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("user not found")
 		}
 		return nil, fmt.Errorf("get user: %w", err)
 	}
+
 	isFollowing := false
 	if viewerUid != "" && viewerUid != req.Uid {
 		isFollowing, err = s.db.IsFollowing(ctx, db.IsFollowingParams{
-			FollowerUid: util.UUID(viewerUid),
-			FolloweeUid: util.UUID(req.Uid),
+			FollowerUid: vuid,
+			FolloweeUid: uid,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("get follow: %w", err)
 		}
 	}
+
 	return &api.GetUserResponse{
 		User: &api.User{
-			Uid: row.Uid.String(),
-			// Username:       row.Username,
-			Role: string(row.Role),
-			// Email:          row.Email,
+			Uid:            row.Uid.String(),
+			Role:           string(row.Role),
 			Nickname:       row.Nickname,
 			AvatarUrl:      row.AvatarUrl,
 			FollowersCount: row.FollowersCount,
@@ -164,11 +171,13 @@ func (s *UserService) SuggestUsersByPrefix(_ context.Context, req *api.SuggestUs
 }
 
 func (s *UserService) GetMe(ctx context.Context, uid string) (*api.GetMeResponse, error) {
-	row, err := s.db.GetUserByUid(ctx, util.UUID(uid))
+	vuid := util.UUID(uid)
+
+	row, err := s.db.GetUserByUid(ctx, vuid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("user not found")
+	}
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("user not found")
-		}
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 
@@ -182,15 +191,15 @@ func (s *UserService) GetMe(ctx context.Context, uid string) (*api.GetMeResponse
 			AvatarUrl:      row.AvatarUrl,
 			FollowersCount: row.FollowersCount,
 			FollowingCount: row.FollowingCount,
-			IsFollowing:    false,
 			Description:    row.Description,
 		},
 	}, nil
 }
 
 func (s *UserService) UpdateMe(ctx context.Context, uid string, req *api.UpdateMeRequest) error {
-	userUID := util.UUID(uid)
-	params := db.UpdateUserParams{Uid: userUID}
+	vuid := util.UUID(uid)
+
+	params := db.UpdateUserParams{Uid: vuid}
 	paths := make(map[string]struct{}, len(req.UpdateMask.GetPaths()))
 	for _, path := range req.UpdateMask.GetPaths() {
 		paths[path] = struct{}{}
@@ -207,47 +216,54 @@ func (s *UserService) UpdateMe(ctx context.Context, uid string, req *api.UpdateM
 	if _, ok := paths["avatar_url"]; ok {
 		params.AvatarUrl = pgtype.Text{String: req.User.AvatarUrl, Valid: true}
 	}
+
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 
-		err := qtx.UpdateUser(ctx, params)
+		_, err := qtx.UpdateUser(ctx, params)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return fmt.Errorf("user not found")
 			}
 			return fmt.Errorf("update user: %w", err)
 		}
+
 		if err := s.producer.EnqueueUpdateUserSearchTx(ctx, tx, async.UpdateUserSearchArgs{
-			UserUID: userUID,
+			UserUID: vuid,
 			Action:  async.UserSearchActionUpsert,
 		}); err != nil {
 			return fmt.Errorf("enqueue update user search job: %w", err)
 		}
+
 		return nil
 	})
 }
 
 func (s *UserService) ChangePassword(ctx context.Context, uid string, req *api.ChangePasswordRequest) error {
-	userUID := util.UUID(uid)
+	vuid := util.UUID(uid)
+
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 
-		passwordHash, err := qtx.GetUserPasswordHashByUid(ctx, userUID)
+		passwordHash, err := qtx.GetUserPasswordHashByUid(ctx, vuid)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("user not found")
+		}
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				return fmt.Errorf("user not found")
-			}
 			return fmt.Errorf("get user password: %w", err)
 		}
+
 		if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.OldPassword)); err != nil {
 			return fmt.Errorf("invalid old password")
 		}
+
 		newPasswordHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 		if err != nil {
 			return fmt.Errorf("hash new password: %w", err)
 		}
+
 		affected, err := qtx.UpdateUserPasswordByUid(ctx, db.UpdateUserPasswordByUidParams{
-			Uid:          userUID,
+			Uid:          vuid,
 			PasswordHash: string(newPasswordHash),
 		})
 		if err != nil {
@@ -256,25 +272,29 @@ func (s *UserService) ChangePassword(ctx context.Context, uid string, req *api.C
 		if affected == 0 {
 			return fmt.Errorf("user not found")
 		}
-		if _, err := qtx.DeleteRefreshTokenByUid(ctx, userUID); err != nil {
+
+		if _, err := qtx.DeleteRefreshTokenByUid(ctx, vuid); err != nil {
 			return fmt.Errorf("clear refresh token: %w", err)
 		}
+
 		return nil
 	})
 }
 
 func (s *UserService) Login(ctx context.Context, req *api.LoginRequest) (*api.LoginResponse, error) {
 	var resp *api.LoginResponse
+
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 
 		row, err := qtx.GetUserByUsername(ctx, req.Account)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("invalid credentials")
+		}
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				return fmt.Errorf("invalid credentials")
-			}
 			return fmt.Errorf("get user: %w", err)
 		}
+
 		if err := bcrypt.CompareHashAndPassword([]byte(row.PasswordHash), []byte(req.Password)); err != nil {
 			return fmt.Errorf("invalid credentials")
 		}
@@ -307,28 +327,27 @@ func (s *UserService) Login(ctx context.Context, req *api.LoginRequest) (*api.Lo
 
 func (s *UserService) RefreshToken(ctx context.Context, req *api.RefreshTokenRequest) (*api.RefreshTokenResponse, error) {
 	var resp *api.RefreshTokenResponse
+
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 
 		row, err := qtx.GetRefreshToken(ctx, req.RefreshToken)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("invalid refresh token")
+		}
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				return fmt.Errorf("invalid refresh token")
-			}
 			return fmt.Errorf("get refresh token: %w", err)
 		}
 
-		now := time.Now()
-		uid := row.Uid
-		accessToken, refreshToken, err := s.genToken(uid.String())
+		accessToken, refreshToken, err := s.genToken(row.Uid.String())
 		if err != nil {
 			return err
 		}
 
 		if err := qtx.UpsertRefreshToken(ctx, db.UpsertRefreshTokenParams{
-			Uid:       uid,
+			Uid:       row.Uid,
 			Token:     refreshToken,
-			ExpiresAt: pgtype.Timestamptz{Time: now.Add(s.cfg.Auth.RefreshTTL), Valid: true},
+			ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(s.cfg.Auth.RefreshTTL), Valid: true},
 		}); err != nil {
 			return fmt.Errorf("save refresh token: %w", err)
 		}

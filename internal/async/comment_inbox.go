@@ -41,18 +41,18 @@ func NewCommentInboxWorker(pool *pgxpool.Pool) *CommentInboxWorker {
 
 func (w *CommentInboxWorker) Work(ctx context.Context, job *river.Job[CommentInboxArgs]) error {
 	_, err := w.db.CreateCommentInboxMessage(ctx, db.CreateCommentInboxMessageParams{
-		Uid:         job.Args.MessageUID,
-		ReceiverUid: job.Args.ReceiverUID,
-		ActorUid:    job.Args.ActorUID,
-		CommentUid:  uuid.NullUUID{UUID: job.Args.CommentUID, Valid: job.Args.CommentUID != uuid.Nil},
-		PostUid:     uuid.NullUUID{UUID: job.Args.PostUID, Valid: job.Args.PostUID != uuid.Nil},
-		ParentUid:   uuid.NullUUID{UUID: job.Args.ParentUID, Valid: job.Args.ParentUID != uuid.Nil},
+		Uid:              job.Args.MessageUID,
+		ReceiverUid:      job.Args.ReceiverUID,
+		ActorUid:         job.Args.ActorUID,
+		CommentUid:       job.Args.CommentUID,
+		PostUid:          job.Args.PostUID,
+		ParentCommentUid: uuid.NullUUID{UUID: job.Args.ParentUID, Valid: job.Args.ParentUID != uuid.Nil},
 	})
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return nil
+	}
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return nil
-		}
 		return fmt.Errorf("create comment inbox message: %w", err)
 	}
 

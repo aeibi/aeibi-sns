@@ -1,0 +1,22 @@
+DROP TABLE IF EXISTS reports;
+DROP TABLE IF EXISTS inbox_follow_messages;
+DROP TABLE IF EXISTS inbox_comment_messages;
+DROP TABLE IF EXISTS comment_likes;
+DROP TABLE IF EXISTS post_comments;
+DROP TABLE IF EXISTS files;
+DROP TABLE IF EXISTS post_collections;
+DROP TABLE IF EXISTS post_likes;
+DROP TABLE IF EXISTS posts;
+DROP TABLE IF EXISTS refresh_tokens;
+DROP TABLE IF EXISTS user_follows;
+DROP TABLE IF EXISTS users;
+
+DROP TYPE IF EXISTS report_status;
+DROP TYPE IF EXISTS report_target_type;
+DROP TYPE IF EXISTS inbox_message_status;
+DROP TYPE IF EXISTS comment_status;
+DROP TYPE IF EXISTS file_status;
+DROP TYPE IF EXISTS post_status;
+DROP TYPE IF EXISTS post_visibility;
+DROP TYPE IF EXISTS user_status;
+DROP TYPE IF EXISTS user_role;

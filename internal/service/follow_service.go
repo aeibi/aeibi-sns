@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,9 +42,7 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 		return nil, fmt.Errorf("follow: cannot follow yourself")
 	}
 
-	var followingCount int32
-	var followersCount int32
-	var createdFollowMessage bool
+	var resp *api.FollowResponse
 
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
@@ -61,29 +58,38 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 			}
 
 			if affected > 0 {
-				followingCount, err = qtx.IncrementFollowingCount(ctx, followerUID)
+				followingCount, err := qtx.IncrementFollowingCount(ctx, followerUID)
 				if err != nil {
 					return fmt.Errorf("follow: increment following_count: %w", err)
 				}
 
-				followersCount, err = qtx.IncrementFollowersCount(ctx, followeeUID)
+				followersCount, err := qtx.IncrementFollowersCount(ctx, followeeUID)
 				if err != nil {
 					return fmt.Errorf("follow: increment followers_count: %w", err)
 				}
 
-				createdFollowMessage = true
+				if err := s.producer.EnqueueFollowInboxTx(ctx, tx, async.FollowInboxArgs{
+					MessageUID:  uuid.New(),
+					ReceiverUID: followeeUID,
+					ActorUID:    followerUID,
+				}); err != nil {
+					return fmt.Errorf("follow: enqueue follow inbox job: %w", err)
+				}
+
+				resp = &api.FollowResponse{
+					FollowingCount: followingCount,
+					FollowersCount: followersCount,
+				}
 			} else {
-				row, err := qtx.GetFollowCounts(ctx, db.GetFollowCountsParams{
-					FollowerUid: followerUID,
-					FolloweeUid: followeeUID,
-				})
+				row, err := qtx.GetUserByUid(ctx, followeeUID)
 				if err != nil {
 					return fmt.Errorf("follow: get follow counts: %w", err)
 				}
-				followingCount = row.FollowingCount
-				followersCount = row.FollowersCount
+				resp = &api.FollowResponse{
+					FollowingCount: row.FollowingCount,
+					FollowersCount: row.FollowersCount,
+				}
 			}
-
 		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
 			affected, err := qtx.DeleteFollowEdge(ctx, db.DeleteFollowEdgeParams{
 				FollowerUid: followerUID,
@@ -94,39 +100,33 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 			}
 
 			if affected > 0 {
-				followingCount, err = qtx.DecrementFollowingCount(ctx, followerUID)
+				followingCount, err := qtx.DecrementFollowingCount(ctx, followerUID)
 				if err != nil {
 					return fmt.Errorf("follow: decrement following_count: %w", err)
 				}
 
-				followersCount, err = qtx.DecrementFollowersCount(ctx, followeeUID)
+				followersCount, err := qtx.DecrementFollowersCount(ctx, followeeUID)
 				if err != nil {
 					return fmt.Errorf("follow: decrement followers_count: %w", err)
 				}
+
+				resp = &api.FollowResponse{
+					FollowingCount: followingCount,
+					FollowersCount: followersCount,
+				}
 			} else {
-				row, err := qtx.GetFollowCounts(ctx, db.GetFollowCountsParams{
-					FollowerUid: followerUID,
-					FolloweeUid: followeeUID,
-				})
+				row, err := qtx.GetUserByUid(ctx, followeeUID)
 				if err != nil {
 					return fmt.Errorf("follow: get follow counts: %w", err)
 				}
-				followingCount = row.FollowingCount
-				followersCount = row.FollowersCount
+				resp = &api.FollowResponse{
+					FollowingCount: row.FollowingCount,
+					FollowersCount: row.FollowersCount,
+				}
 			}
 
 		default:
 			return fmt.Errorf("follow: unsupported action: %v", req.Action)
-		}
-
-		if createdFollowMessage {
-			if err := s.producer.EnqueueFollowInboxTx(ctx, tx, async.FollowInboxArgs{
-				MessageUID:  uuid.New(),
-				ReceiverUID: followeeUID,
-				ActorUID:    followerUID,
-			}); err != nil {
-				return fmt.Errorf("follow: enqueue follow inbox job: %w", err)
-			}
 		}
 
 		return nil
@@ -134,39 +134,71 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 		return nil, err
 	}
 
-	return &api.FollowResponse{
-		FollowingCount: followingCount,
-		FollowersCount: followersCount,
-	}, nil
+	return resp, nil
 }
 
 func (s *FollowService) ListMyFollowers(ctx context.Context, uid string, req *api.ListMyFollowersRequest) (*api.ListMyFollowersResponse, error) {
-	query := strings.TrimSpace(req.GetQuery())
+	vuid := util.UUID(uid)
+
 	token, err := decodeFollowPageToken(req.GetPageToken())
 	if err != nil {
 		return nil, err
 	}
 
 	rows, err := s.db.ListFollowers(ctx, db.ListFollowersParams{
-		Uid:             util.UUID(uid),
+		Uid:             vuid,
 		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: token.CursorCreatedAt > 0},
-		CursorID:        uuid.NullUUID{UUID: util.UUID(token.CursorID), Valid: token.CursorID != ""},
-		Query:           pgtype.Text{String: query, Valid: query != ""},
+		CursorID:        util.UUID(token.CursorID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list followers: %w", err)
 	}
 
+	userUIDs := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		userUIDs = append(userUIDs, row.Uid)
+	}
+
+	userRows, err := s.db.GetUsersByUIDs(ctx, userUIDs)
+	if err != nil {
+		return nil, fmt.Errorf("get users by uids: %w", err)
+	}
+
+	userMap := make(map[uuid.UUID]db.GetUsersByUIDsRow, len(userRows))
+	for _, row := range userRows {
+		userMap[row.Uid] = row
+	}
+
+	followingUIDs, err := s.db.ListFollowingUIDsByFollowerAndFolloweeUIDs(ctx, db.ListFollowingUIDsByFollowerAndFolloweeUIDsParams{
+		FollowerUid:  vuid,
+		FolloweeUids: userUIDs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list following uids by follower and followee uids: %w", err)
+	}
+
+	followingSet := make(map[uuid.UUID]struct{}, len(followingUIDs))
+	for _, followeeUID := range followingUIDs {
+		followingSet[followeeUID] = struct{}{}
+	}
+
 	users := make([]*api.User, 0, len(rows))
 	for _, row := range rows {
+		user, ok := userMap[row.Uid]
+		if !ok {
+			continue
+		}
+
+		_, isFollowing := followingSet[row.Uid]
+
 		users = append(users, &api.User{
 			Uid:            row.Uid.String(),
-			Role:           string(row.Role),
-			Nickname:       row.Nickname,
-			AvatarUrl:      row.AvatarUrl,
-			FollowersCount: row.FollowersCount,
-			FollowingCount: row.FollowingCount,
-			IsFollowing:    row.Following,
+			Role:           string(user.Role),
+			Nickname:       user.Nickname,
+			AvatarUrl:      user.AvatarUrl,
+			FollowersCount: user.FollowersCount,
+			FollowingCount: user.FollowingCount,
+			IsFollowing:    isFollowing,
 		})
 	}
 
@@ -189,31 +221,51 @@ func (s *FollowService) ListMyFollowers(ctx context.Context, uid string, req *ap
 }
 
 func (s *FollowService) ListMyFollowing(ctx context.Context, uid string, req *api.ListMyFollowingRequest) (*api.ListMyFollowingResponse, error) {
-	query := strings.TrimSpace(req.GetQuery())
-	token, err := decodeFollowPageToken(req.GetPageToken())
+	vuid := util.UUID(uid)
+
+	token, err := decodeFollowPageToken(req.PageToken)
 	if err != nil {
 		return nil, err
 	}
 
 	rows, err := s.db.ListFollowing(ctx, db.ListFollowingParams{
-		Uid:             util.UUID(uid),
+		Uid:             vuid,
 		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: token.CursorCreatedAt > 0},
-		CursorID:        uuid.NullUUID{UUID: util.UUID(token.CursorID), Valid: token.CursorID != ""},
-		Query:           pgtype.Text{String: query, Valid: query != ""},
+		CursorID:        util.UUID(token.CursorID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list following: %w", err)
 	}
 
+	userUIDs := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		userUIDs = append(userUIDs, row.Uid)
+	}
+
+	userRows, err := s.db.GetUsersByUIDs(ctx, userUIDs)
+	if err != nil {
+		return nil, fmt.Errorf("get users by uids: %w", err)
+	}
+
+	userMap := make(map[uuid.UUID]db.GetUsersByUIDsRow, len(userRows))
+	for _, row := range userRows {
+		userMap[row.Uid] = row
+	}
+
 	users := make([]*api.User, 0, len(rows))
 	for _, row := range rows {
+		user, ok := userMap[row.Uid]
+		if !ok {
+			continue
+		}
+
 		users = append(users, &api.User{
-			Uid:            row.Uid.String(),
-			Role:           string(row.Role),
-			Nickname:       row.Nickname,
-			AvatarUrl:      row.AvatarUrl,
-			FollowersCount: row.FollowersCount,
-			FollowingCount: row.FollowingCount,
+			Uid:            user.Uid.String(),
+			Role:           string(user.Role),
+			Nickname:       user.Nickname,
+			AvatarUrl:      user.AvatarUrl,
+			FollowersCount: user.FollowersCount,
+			FollowingCount: user.FollowingCount,
 			IsFollowing:    true,
 		})
 	}
@@ -254,6 +306,11 @@ func decodeFollowPageToken(pageToken string) (followPageToken, error) {
 	var token followPageToken
 	if err := json.Unmarshal(raw, &token); err != nil {
 		return followPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	if token.CursorCreatedAt == 0 || token.CursorID == "" {
+		token.CursorCreatedAt = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC).Unix()
+		token.CursorID = "ffffffff-ffff-ffff-ffff-ffffffffffff"
 	}
 	return token, nil
 }

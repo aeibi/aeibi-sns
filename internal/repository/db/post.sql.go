@@ -445,6 +445,48 @@ func (q *Queries) InsertPostLikeEdge(ctx context.Context, arg InsertPostLikeEdge
 	return result.RowsAffected(), nil
 }
 
+const isPostCollected = `-- name: IsPostCollected :one
+SELECT EXISTS (
+  SELECT 1
+  FROM post_collections
+  WHERE post_uid = $1
+    AND user_uid = $2
+) AS is_collected
+`
+
+type IsPostCollectedParams struct {
+	PostUid uuid.UUID
+	UserUid uuid.UUID
+}
+
+func (q *Queries) IsPostCollected(ctx context.Context, arg IsPostCollectedParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isPostCollected, arg.PostUid, arg.UserUid)
+	var is_collected bool
+	err := row.Scan(&is_collected)
+	return is_collected, err
+}
+
+const isPostLiked = `-- name: IsPostLiked :one
+SELECT EXISTS (
+  SELECT 1
+  FROM post_likes
+  WHERE post_uid = $1
+    AND user_uid = $2
+) AS is_liked
+`
+
+type IsPostLikedParams struct {
+	PostUid uuid.UUID
+	UserUid uuid.UUID
+}
+
+func (q *Queries) IsPostLiked(ctx context.Context, arg IsPostLikedParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isPostLiked, arg.PostUid, arg.UserUid)
+	var is_liked bool
+	err := row.Scan(&is_liked)
+	return is_liked, err
+}
+
 const listCollectedPostRefsByUser = `-- name: ListCollectedPostRefsByUser :many
 SELECT
   post_uid,

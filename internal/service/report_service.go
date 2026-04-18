@@ -32,7 +32,7 @@ func (s *ReportService) CreateReport(ctx context.Context, uid string, req *api.C
 		return fmt.Errorf("report_target_type is invalid")
 	}
 
-	if err := s.db.CreateReport(ctx, db.CreateReportParams{
+	if _, err := s.db.CreateReport(ctx, db.CreateReportParams{
 		Uid:              uuid.New(),
 		ReporterUid:      util.UUID(uid),
 		ReportTargetType: targetType,

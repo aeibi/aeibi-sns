@@ -50,10 +50,7 @@ func (w *UpdatePostSearchWorker) Work(ctx context.Context, job *river.Job[Update
 
 	switch job.Args.Action {
 	case "", PostSearchActionUpsert:
-		row, err := w.db.GetPostByUid(ctx, db.GetPostByUidParams{
-			Viewer: uuid.NullUUID{},
-			Uid:    job.Args.PostUID,
-		})
+		row, err := w.db.GetPostByUid(ctx, job.Args.PostUID)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				if err := w.search.DeletePostsByUIDs([]string{job.Args.PostUID.String()}); err != nil {
@@ -64,12 +61,23 @@ func (w *UpdatePostSearchWorker) Work(ctx context.Context, job *river.Job[Update
 			return fmt.Errorf("get post by uid: %w", err)
 		}
 
+		userRow, err := w.db.GetUserByUid(ctx, row.AuthorUid)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				if err := w.search.DeletePostsByUIDs([]string{job.Args.PostUID.String()}); err != nil {
+					return fmt.Errorf("delete post with missing author from search: %w", err)
+				}
+				return nil
+			}
+			return fmt.Errorf("get post author by uid: %w", err)
+		}
+
 		doc := searchrepo.PostDocument{
 			UID:             row.Uid.String(),
 			AuthorUID:       row.AuthorUid.String(),
-			AuthorNickname:  row.AuthorNickname,
+			AuthorNickname:  userRow.Nickname,
 			Text:            row.Text,
-			TagNames:        row.TagNames,
+			TagNames:        row.Tags,
 			Images:          row.Images,
 			Attachments:     row.Attachments,
 			ImageCount:      len(row.Images),
