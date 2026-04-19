@@ -89,6 +89,7 @@ SELECT
   created_at
 FROM files
 WHERE url = $1
+  AND status = 'NORMAL'::file_status
 `
 
 type GetFileByURLRow struct {

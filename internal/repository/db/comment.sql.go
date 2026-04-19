@@ -149,7 +149,6 @@ UPDATE post_comments
 SET reply_count = GREATEST(reply_count - 1, 0),
     updated_at = now()
 WHERE uid = $1
-  AND status = 'NORMAL'::comment_status
 RETURNING reply_count
 `
 
@@ -318,6 +317,7 @@ UPDATE post_comments
 SET like_count = like_count + 1,
     updated_at = now()
 WHERE uid = $1
+  AND status = 'NORMAL'::comment_status
 RETURNING like_count
 `
 
@@ -346,17 +346,20 @@ func (q *Queries) IncrementCommentReplyCount(ctx context.Context, commentUid uui
 
 const insertCommentLikeEdge = `-- name: InsertCommentLikeEdge :execrows
 INSERT INTO comment_likes (comment_uid, user_uid)
-VALUES ($1, $2)
+SELECT c.uid, $1
+FROM post_comments c
+WHERE c.uid = $2
+  AND c.status = 'NORMAL'::comment_status
 ON CONFLICT DO NOTHING
 `
 
 type InsertCommentLikeEdgeParams struct {
-	CommentUid uuid.UUID
 	UserUid    uuid.UUID
+	CommentUid uuid.UUID
 }
 
 func (q *Queries) InsertCommentLikeEdge(ctx context.Context, arg InsertCommentLikeEdgeParams) (int64, error) {
-	result, err := q.db.Exec(ctx, insertCommentLikeEdge, arg.CommentUid, arg.UserUid)
+	result, err := q.db.Exec(ctx, insertCommentLikeEdge, arg.UserUid, arg.CommentUid)
 	if err != nil {
 		return 0, err
 	}
@@ -364,10 +367,12 @@ func (q *Queries) InsertCommentLikeEdge(ctx context.Context, arg InsertCommentLi
 }
 
 const listLikedCommentUIDsByUserAndCommentUIDs = `-- name: ListLikedCommentUIDsByUserAndCommentUIDs :many
-SELECT comment_uid
-FROM comment_likes
-WHERE user_uid = $1
-  AND comment_uid = ANY($2::uuid[])
+SELECT cl.comment_uid
+FROM comment_likes cl
+JOIN post_comments c ON c.uid = cl.comment_uid
+WHERE cl.user_uid = $1
+  AND cl.comment_uid = ANY($2::uuid[])
+  AND c.status = 'NORMAL'::comment_status
 `
 
 type ListLikedCommentUIDsByUserAndCommentUIDsParams struct {

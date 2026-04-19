@@ -106,16 +106,27 @@ func (s *CommentService) CreateReply(ctx context.Context, uid string, req *api.C
 	replyUid := uuid.New()
 	parentUid := util.UUID(req.ParentUid)
 	authorUid := util.UUID(uid)
-	parentRow, err := s.db.GetCommentByUid(ctx, parentUid)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, fmt.Errorf("parent comment not found")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get parent comment: %w", err)
-	}
 	var resp *api.CreateReplyResponse
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
+
+		parentRow, err := qtx.GetCommentByUid(ctx, parentUid)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("parent comment not found")
+		}
+		if err != nil {
+			return fmt.Errorf("get parent comment: %w", err)
+		}
+		postRow, err := qtx.GetPostByUid(ctx, parentRow.PostUid)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("post not found")
+		}
+		if err != nil {
+			return fmt.Errorf("get post: %w", err)
+		}
+		if postRow.Visibility == db.PostVisibilityPRIVATE && postRow.AuthorUid != authorUid {
+			return fmt.Errorf("post not found")
+		}
 
 		_, err = qtx.CreateComment(ctx, db.CreateCommentParams{
 			Uid:              replyUid,
@@ -159,14 +170,25 @@ func (s *CommentService) CreateReply(ctx context.Context, uid string, req *api.C
 
 func (s *CommentService) ListTopComments(ctx context.Context, viewerUid string, req *api.ListTopCommentsRequest) (*api.ListTopCommentsResponse, error) {
 	vuid := util.UUID(viewerUid)
+	postUID := util.UUID(req.PostUid)
 
 	token, err := decodeTopCommentsPageToken(req.GetPageToken())
 	if err != nil {
 		return nil, err
 	}
+	postRow, err := s.db.GetPostByUid(ctx, postUID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("post not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get post: %w", err)
+	}
+	if postRow.Visibility == db.PostVisibilityPRIVATE && (viewerUid == "" || postRow.AuthorUid != vuid) {
+		return nil, fmt.Errorf("post not found")
+	}
 
 	rows, err := s.db.ListTopComments(ctx, db.ListTopCommentsParams{
-		PostUid:         util.UUID(req.PostUid),
+		PostUid:         postUID,
 		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true},
 		CursorID:        util.UUID(token.CursorID),
 	})
@@ -257,13 +279,31 @@ func (s *CommentService) ListTopComments(ctx context.Context, viewerUid string, 
 
 func (s *CommentService) ListReplies(ctx context.Context, viewerUid string, req *api.ListRepliesRequest) (*api.ListRepliesResponse, error) {
 	vuid := util.UUID(viewerUid)
+	rootUID := util.UUID(req.Uid)
 	page := req.Page
 	if page < 1 {
 		page = 1
 	}
+	rootRow, err := s.db.GetCommentByUid(ctx, rootUID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("comment not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get comment: %w", err)
+	}
+	postRow, err := s.db.GetPostByUid(ctx, rootRow.PostUid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("comment not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get post: %w", err)
+	}
+	if postRow.Visibility == db.PostVisibilityPRIVATE && (viewerUid == "" || postRow.AuthorUid != vuid) {
+		return nil, fmt.Errorf("comment not found")
+	}
 
 	rows, err := s.db.ListReplies(ctx, db.ListRepliesParams{
-		RootUid: util.UUID(req.Uid),
+		RootUid: rootUID,
 		Page:    page,
 	})
 	if err != nil {
@@ -372,6 +412,16 @@ func (s *CommentService) GetComment(ctx context.Context, viewerUid string, req *
 			return nil, fmt.Errorf("comment not found")
 		}
 		return nil, fmt.Errorf("get comment: %w", err)
+	}
+	postRow, err := s.db.GetPostByUid(ctx, row.PostUid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("comment not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get post: %w", err)
+	}
+	if postRow.Visibility == db.PostVisibilityPRIVATE && (viewerUid == "" || postRow.AuthorUid != vuid) {
+		return nil, fmt.Errorf("comment not found")
 	}
 
 	userUIDs := make([]uuid.UUID, 0, 2)

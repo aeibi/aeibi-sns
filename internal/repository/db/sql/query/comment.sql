@@ -124,7 +124,10 @@ LIMIT 10 OFFSET (sqlc.arg(page)::int - 1) * 10;
 
 -- name: InsertCommentLikeEdge :execrows
 INSERT INTO comment_likes (comment_uid, user_uid)
-VALUES (sqlc.arg(comment_uid), sqlc.arg(user_uid))
+SELECT c.uid, sqlc.arg(user_uid)
+FROM post_comments c
+WHERE c.uid = sqlc.arg(comment_uid)
+  AND c.status = 'NORMAL'::comment_status
 ON CONFLICT DO NOTHING;
 
 -- name: DeleteCommentLikeEdge :execrows
@@ -133,16 +136,19 @@ WHERE comment_uid = sqlc.arg(comment_uid)
   AND user_uid = sqlc.arg(user_uid);
 
 -- name: ListLikedCommentUIDsByUserAndCommentUIDs :many
-SELECT comment_uid
-FROM comment_likes
-WHERE user_uid = sqlc.arg(user_uid)
-  AND comment_uid = ANY(sqlc.arg(comment_uids)::uuid[]);
+SELECT cl.comment_uid
+FROM comment_likes cl
+JOIN post_comments c ON c.uid = cl.comment_uid
+WHERE cl.user_uid = sqlc.arg(user_uid)
+  AND cl.comment_uid = ANY(sqlc.arg(comment_uids)::uuid[])
+  AND c.status = 'NORMAL'::comment_status;
 
 -- name: IncrementCommentLikeCount :one
 UPDATE post_comments
 SET like_count = like_count + 1,
     updated_at = now()
 WHERE uid = sqlc.arg(comment_uid)
+  AND status = 'NORMAL'::comment_status
 RETURNING like_count;
 
 -- name: DecrementCommentLikeCount :one
@@ -165,7 +171,6 @@ UPDATE post_comments
 SET reply_count = GREATEST(reply_count - 1, 0),
     updated_at = now()
 WHERE uid = sqlc.arg(comment_uid)
-  AND status = 'NORMAL'::comment_status
 RETURNING reply_count;
 
 -- name: ArchiveCommentByUidAndAuthor :execrows

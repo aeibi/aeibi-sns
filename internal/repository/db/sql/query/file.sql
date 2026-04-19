@@ -34,7 +34,8 @@ SELECT
   status,
   created_at
 FROM files
-WHERE url = sqlc.arg(url);
+WHERE url = sqlc.arg(url)
+  AND status = 'NORMAL'::file_status;
 
 -- name: GetFilesByUrls :many
 SELECT

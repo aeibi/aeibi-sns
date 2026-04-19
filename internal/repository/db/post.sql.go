@@ -144,7 +144,6 @@ UPDATE posts
 SET comment_count = GREATEST(comment_count - 1, 0),
     updated_at = now()
 WHERE uid = $1
-  AND status = 'NORMAL'::post_status
 RETURNING comment_count
 `
 
@@ -262,6 +261,7 @@ const getPostCollectionCount = `-- name: GetPostCollectionCount :one
 SELECT collection_count
 FROM posts
 WHERE uid = $1
+  AND status = 'NORMAL'::post_status
 `
 
 func (q *Queries) GetPostCollectionCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
@@ -289,6 +289,7 @@ const getPostLikeCount = `-- name: GetPostLikeCount :one
 SELECT like_count
 FROM posts
 WHERE uid = $1
+  AND status = 'NORMAL'::post_status
 `
 
 func (q *Queries) GetPostLikeCount(ctx context.Context, postUid uuid.UUID) (int32, error) {
@@ -365,6 +366,7 @@ UPDATE posts
 SET collection_count = collection_count + 1,
     updated_at = now()
 WHERE uid = $1
+  AND status = 'NORMAL'::post_status
 RETURNING collection_count
 `
 
@@ -397,6 +399,7 @@ UPDATE posts
 SET like_count = like_count + 1,
     updated_at = now()
 WHERE uid = $1
+  AND status = 'NORMAL'::post_status
 RETURNING like_count
 `
 
@@ -409,17 +412,20 @@ func (q *Queries) IncrementPostLikeCount(ctx context.Context, postUid uuid.UUID)
 
 const insertPostCollectionEdge = `-- name: InsertPostCollectionEdge :execrows
 INSERT INTO post_collections (post_uid, user_uid)
-VALUES ($1, $2)
+SELECT p.uid, $1
+FROM posts p
+WHERE p.uid = $2
+  AND p.status = 'NORMAL'::post_status
 ON CONFLICT DO NOTHING
 `
 
 type InsertPostCollectionEdgeParams struct {
-	PostUid uuid.UUID
 	UserUid uuid.UUID
+	PostUid uuid.UUID
 }
 
 func (q *Queries) InsertPostCollectionEdge(ctx context.Context, arg InsertPostCollectionEdgeParams) (int64, error) {
-	result, err := q.db.Exec(ctx, insertPostCollectionEdge, arg.PostUid, arg.UserUid)
+	result, err := q.db.Exec(ctx, insertPostCollectionEdge, arg.UserUid, arg.PostUid)
 	if err != nil {
 		return 0, err
 	}
@@ -428,17 +434,20 @@ func (q *Queries) InsertPostCollectionEdge(ctx context.Context, arg InsertPostCo
 
 const insertPostLikeEdge = `-- name: InsertPostLikeEdge :execrows
 INSERT INTO post_likes (post_uid, user_uid)
-VALUES ($1, $2)
+SELECT p.uid, $1
+FROM posts p
+WHERE p.uid = $2
+  AND p.status = 'NORMAL'::post_status
 ON CONFLICT DO NOTHING
 `
 
 type InsertPostLikeEdgeParams struct {
-	PostUid uuid.UUID
 	UserUid uuid.UUID
+	PostUid uuid.UUID
 }
 
 func (q *Queries) InsertPostLikeEdge(ctx context.Context, arg InsertPostLikeEdgeParams) (int64, error) {
-	result, err := q.db.Exec(ctx, insertPostLikeEdge, arg.PostUid, arg.UserUid)
+	result, err := q.db.Exec(ctx, insertPostLikeEdge, arg.UserUid, arg.PostUid)
 	if err != nil {
 		return 0, err
 	}
@@ -448,9 +457,11 @@ func (q *Queries) InsertPostLikeEdge(ctx context.Context, arg InsertPostLikeEdge
 const isPostCollected = `-- name: IsPostCollected :one
 SELECT EXISTS (
   SELECT 1
-  FROM post_collections
-  WHERE post_uid = $1
-    AND user_uid = $2
+  FROM post_collections pc
+  JOIN posts p ON p.uid = pc.post_uid
+  WHERE pc.post_uid = $1
+    AND pc.user_uid = $2
+    AND p.status = 'NORMAL'::post_status
 ) AS is_collected
 `
 
@@ -469,9 +480,11 @@ func (q *Queries) IsPostCollected(ctx context.Context, arg IsPostCollectedParams
 const isPostLiked = `-- name: IsPostLiked :one
 SELECT EXISTS (
   SELECT 1
-  FROM post_likes
-  WHERE post_uid = $1
-    AND user_uid = $2
+  FROM post_likes pl
+  JOIN posts p ON p.uid = pl.post_uid
+  WHERE pl.post_uid = $1
+    AND pl.user_uid = $2
+    AND p.status = 'NORMAL'::post_status
 ) AS is_liked
 `
 
@@ -489,15 +502,17 @@ func (q *Queries) IsPostLiked(ctx context.Context, arg IsPostLikedParams) (bool,
 
 const listCollectedPostRefsByUser = `-- name: ListCollectedPostRefsByUser :many
 SELECT
-  post_uid,
-  created_at AS collected_at
-FROM post_collections
-WHERE user_uid = $1
-  AND (created_at, post_uid) < (
+  pc.post_uid,
+  pc.created_at AS collected_at
+FROM post_collections pc
+JOIN posts p ON p.uid = pc.post_uid
+WHERE pc.user_uid = $1
+  AND p.status = 'NORMAL'::post_status
+  AND (pc.created_at, pc.post_uid) < (
     $2::timestamptz,
     $3::uuid
   )
-ORDER BY created_at DESC, post_uid DESC
+ORDER BY pc.created_at DESC, pc.post_uid DESC
 LIMIT 20
 `
 
@@ -533,10 +548,12 @@ func (q *Queries) ListCollectedPostRefsByUser(ctx context.Context, arg ListColle
 }
 
 const listCollectedPostUIDsByUserAndPostUIDs = `-- name: ListCollectedPostUIDsByUserAndPostUIDs :many
-SELECT post_uid
-FROM post_collections
-WHERE user_uid = $1
-  AND post_uid = ANY($2::uuid[])
+SELECT pc.post_uid
+FROM post_collections pc
+JOIN posts p ON p.uid = pc.post_uid
+WHERE pc.user_uid = $1
+  AND pc.post_uid = ANY($2::uuid[])
+  AND p.status = 'NORMAL'::post_status
 `
 
 type ListCollectedPostUIDsByUserAndPostUIDsParams struct {
@@ -565,10 +582,12 @@ func (q *Queries) ListCollectedPostUIDsByUserAndPostUIDs(ctx context.Context, ar
 }
 
 const listLikedPostUIDsByUserAndPostUIDs = `-- name: ListLikedPostUIDsByUserAndPostUIDs :many
-SELECT post_uid
-FROM post_likes
-WHERE user_uid = $1
-  AND post_uid = ANY($2::uuid[])
+SELECT pl.post_uid
+FROM post_likes pl
+JOIN posts p ON p.uid = pl.post_uid
+WHERE pl.user_uid = $1
+  AND pl.post_uid = ANY($2::uuid[])
+  AND p.status = 'NORMAL'::post_status
 `
 
 type ListLikedPostUIDsByUserAndPostUIDsParams struct {
