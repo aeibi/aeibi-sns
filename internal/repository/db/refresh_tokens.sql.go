@@ -25,24 +25,26 @@ func (q *Queries) DeleteRefreshTokenByUid(ctx context.Context, uid uuid.UUID) (i
 	return result.RowsAffected(), nil
 }
 
-const getRefreshToken = `-- name: GetRefreshToken :one
-SELECT uid,
-  token
-FROM refresh_tokens
-WHERE token = $1
+const rotateRefreshToken = `-- name: RotateRefreshToken :one
+UPDATE refresh_tokens
+SET token = $1,
+  expires_at = $2
+WHERE token = $3
   AND expires_at > now()
+RETURNING uid
 `
 
-type GetRefreshTokenRow struct {
-	Uid   uuid.UUID
-	Token string
+type RotateRefreshTokenParams struct {
+	NewToken  string
+	ExpiresAt pgtype.Timestamptz
+	OldToken  string
 }
 
-func (q *Queries) GetRefreshToken(ctx context.Context, token string) (GetRefreshTokenRow, error) {
-	row := q.db.QueryRow(ctx, getRefreshToken, token)
-	var i GetRefreshTokenRow
-	err := row.Scan(&i.Uid, &i.Token)
-	return i, err
+func (q *Queries) RotateRefreshToken(ctx context.Context, arg RotateRefreshTokenParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, rotateRefreshToken, arg.NewToken, arg.ExpiresAt, arg.OldToken)
+	var uid uuid.UUID
+	err := row.Scan(&uid)
+	return uid, err
 }
 
 const upsertRefreshToken = `-- name: UpsertRefreshToken :exec

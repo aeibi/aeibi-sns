@@ -153,7 +153,7 @@ message ChangePasswordRequest {
 // Auth
 
 message LoginRequest {
-  string account   = 1 [(google.api.field_behavior) = REQUIRED]; // username/email/phone
+  string account   = 1 [(google.api.field_behavior) = REQUIRED]; // username
   string password  = 2 [(google.api.field_behavior) = REQUIRED];
   string captcha   = 3;
   string device_id = 4;

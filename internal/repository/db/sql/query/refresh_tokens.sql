@@ -1,9 +1,10 @@
--- name: GetRefreshToken :one
-SELECT uid,
-  token
-FROM refresh_tokens
-WHERE token = sqlc.arg(token)
-  AND expires_at > now();
+-- name: RotateRefreshToken :one
+UPDATE refresh_tokens
+SET token = sqlc.arg(new_token),
+  expires_at = sqlc.arg(expires_at)
+WHERE token = sqlc.arg(old_token)
+  AND expires_at > now()
+RETURNING uid;
 
 -- name: UpsertRefreshToken :exec
 INSERT INTO refresh_tokens (uid, token, expires_at)

@@ -331,25 +331,26 @@ func (s *UserService) RefreshToken(ctx context.Context, req *api.RefreshTokenReq
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 
-		row, err := qtx.GetRefreshToken(ctx, req.RefreshToken)
+		refreshToken, err := util.RandomString64()
+		if err != nil {
+			return fmt.Errorf("generate refresh token: %w", err)
+		}
+
+		tokenUID, err := qtx.RotateRefreshToken(ctx, db.RotateRefreshTokenParams{
+			NewToken:  refreshToken,
+			ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(s.cfg.Auth.RefreshTTL), Valid: true},
+			OldToken:  req.RefreshToken,
+		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("invalid refresh token")
 		}
 		if err != nil {
-			return fmt.Errorf("get refresh token: %w", err)
+			return fmt.Errorf("rotate refresh token: %w", err)
 		}
 
-		accessToken, refreshToken, err := s.genToken(row.Uid.String())
+		accessToken, err := util.GenerateJWT(tokenUID.String(), s.cfg.Auth.JWTSecret, s.cfg.Auth.JWTIssuer, s.cfg.Auth.JWTTTL)
 		if err != nil {
-			return err
-		}
-
-		if err := qtx.UpsertRefreshToken(ctx, db.UpsertRefreshTokenParams{
-			Uid:       row.Uid,
-			Token:     refreshToken,
-			ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(s.cfg.Auth.RefreshTTL), Valid: true},
-		}); err != nil {
-			return fmt.Errorf("save refresh token: %w", err)
+			return fmt.Errorf("generate access token: %w", err)
 		}
 
 		resp = &api.RefreshTokenResponse{
