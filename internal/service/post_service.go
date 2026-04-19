@@ -805,6 +805,8 @@ func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.Updat
 			Uid:       util.UUID(req.Uid),
 			AuthorUid: util.UUID(uid),
 		}
+		updatedTags := []string{}
+		tagUpdated := false
 
 		paths := make(map[string]struct{}, len(req.UpdateMask.GetPaths()))
 		for _, path := range req.UpdateMask.GetPaths() {
@@ -821,7 +823,9 @@ func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.Updat
 			params.Attachments = req.Post.Attachments
 		}
 		if _, ok := paths["tags"]; ok {
-			params.Tags = req.Post.Tags
+			updatedTags = util.NormalizeStrings(req.Post.Tags)
+			params.Tags = updatedTags
+			tagUpdated = true
 		}
 		if _, ok := paths["visibility"]; ok {
 			params.Visibility = db.NullPostVisibility{PostVisibility: db.PostVisibility(req.Post.Visibility), Valid: true}
@@ -836,6 +840,13 @@ func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.Updat
 				return fmt.Errorf("post not found")
 			}
 			return fmt.Errorf("update post: %w", err)
+		}
+		if tagUpdated && len(updatedTags) > 0 {
+			if err := s.producer.EnqueueUpdateTagSearchTx(ctx, tx, async.UpdateTagSearchArgs{
+				TagNames: updatedTags,
+			}); err != nil {
+				return fmt.Errorf("enqueue update tag search job: %w", err)
+			}
 		}
 		if err := s.producer.EnqueueUpdatePostSearchTx(ctx, tx, async.UpdatePostSearchArgs{
 			PostUID: params.Uid,
@@ -885,6 +896,16 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
+		postRow, err := qtx.GetPostByUid(ctx, postUid)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("post not found")
+		}
+		if err != nil {
+			return fmt.Errorf("get post: %w", err)
+		}
+		if postRow.Visibility == db.PostVisibilityPRIVATE && postRow.AuthorUid != vuid {
+			return fmt.Errorf("post not found")
+		}
 
 		switch req.Action {
 		case api.ToggleAction_TOGGLE_ACTION_ADD:
@@ -962,6 +983,16 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
+		postRow, err := qtx.GetPostByUid(ctx, postUid)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("post not found")
+		}
+		if err != nil {
+			return fmt.Errorf("get post: %w", err)
+		}
+		if postRow.Visibility == db.PostVisibilityPRIVATE && postRow.AuthorUid != vuid {
+			return fmt.Errorf("post not found")
+		}
 
 		switch req.Action {
 		case api.ToggleAction_TOGGLE_ACTION_ADD:
