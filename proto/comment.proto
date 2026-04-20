@@ -159,5 +159,4 @@ message LikeCommentRequest {
 }
 
 message LikeCommentResponse {
-  int32 count = 1 [(google.api.field_behavior) = REQUIRED];
 }

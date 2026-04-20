@@ -574,7 +574,7 @@ func (x *ChangePasswordRequest) GetNewPassword() string {
 
 type LoginRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Account       string                 `protobuf:"bytes,1,opt,name=account,proto3" json:"account,omitempty"` // username/email/phone
+	Account       string                 `protobuf:"bytes,1,opt,name=account,proto3" json:"account,omitempty"` // username
 	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	Captcha       string                 `protobuf:"bytes,3,opt,name=captcha,proto3" json:"captcha,omitempty"`
 	DeviceId      string                 `protobuf:"bytes,4,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`

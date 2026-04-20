@@ -1207,7 +1207,6 @@ func (x *LikePostRequest) GetAction() ToggleAction {
 
 type LikePostResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Count         int32                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1240,13 +1239,6 @@ func (x *LikePostResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use LikePostResponse.ProtoReflect.Descriptor instead.
 func (*LikePostResponse) Descriptor() ([]byte, []int) {
 	return file_post_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *LikePostResponse) GetCount() int32 {
-	if x != nil {
-		return x.Count
-	}
-	return 0
 }
 
 type CollectPostRequest struct {
@@ -1303,7 +1295,6 @@ func (x *CollectPostRequest) GetAction() ToggleAction {
 
 type CollectPostResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Count         int32                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1336,13 +1327,6 @@ func (x *CollectPostResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CollectPostResponse.ProtoReflect.Descriptor instead.
 func (*CollectPostResponse) Descriptor() ([]byte, []int) {
 	return file_post_proto_rawDescGZIP(), []int{21}
-}
-
-func (x *CollectPostResponse) GetCount() int32 {
-	if x != nil {
-		return x.Count
-	}
-	return 0
 }
 
 var File_post_proto protoreflect.FileDescriptor
@@ -1451,14 +1435,12 @@ const file_post_proto_rawDesc = "" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\"V\n" +
 	"\x0fLikePostRequest\x12\x15\n" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\x12,\n" +
-	"\x06action\x18\x02 \x01(\x0e2\x14.common.ToggleActionR\x06action\"-\n" +
-	"\x10LikePostResponse\x12\x19\n" +
-	"\x05count\x18\x01 \x01(\x05B\x03\xe0A\x02R\x05count\"Y\n" +
+	"\x06action\x18\x02 \x01(\x0e2\x14.common.ToggleActionR\x06action\"\x12\n" +
+	"\x10LikePostResponse\"Y\n" +
 	"\x12CollectPostRequest\x12\x15\n" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\x12,\n" +
-	"\x06action\x18\x02 \x01(\x0e2\x14.common.ToggleActionR\x06action\"0\n" +
-	"\x13CollectPostResponse\x12\x19\n" +
-	"\x05count\x18\x01 \x01(\x05B\x03\xe0A\x02R\x05count2\xbe\b\n" +
+	"\x06action\x18\x02 \x01(\x0e2\x14.common.ToggleActionR\x06action\"\x15\n" +
+	"\x13CollectPostResponse2\xbe\b\n" +
 	"\vPostService\x12Y\n" +
 	"\n" +
 	"CreatePost\x12\x17.post.CreatePostRequest\x1a\x18.post.CreatePostResponse\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/api/v1/posts\x12S\n" +

@@ -8,7 +8,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,10 +44,15 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 		return nil, fmt.Errorf("follow: cannot follow yourself")
 	}
 
-	var resp *api.FollowResponse
-
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
+
+		if _, err := qtx.GetUserByUid(ctx, followeeUID); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return status.Error(codes.NotFound, "user not found")
+			}
+			return fmt.Errorf("follow: get target user: %w", err)
+		}
 
 		switch req.Action {
 		case api.ToggleAction_TOGGLE_ACTION_ADD:
@@ -58,13 +65,17 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 			}
 
 			if affected > 0 {
-				followingCount, err := qtx.IncrementFollowingCount(ctx, followerUID)
-				if err != nil {
+				if _, err := qtx.IncrementFollowingCount(ctx, followerUID); err != nil {
+					if errors.Is(err, pgx.ErrNoRows) {
+						return status.Error(codes.NotFound, "user not found")
+					}
 					return fmt.Errorf("follow: increment following_count: %w", err)
 				}
 
-				followersCount, err := qtx.IncrementFollowersCount(ctx, followeeUID)
-				if err != nil {
+				if _, err := qtx.IncrementFollowersCount(ctx, followeeUID); err != nil {
+					if errors.Is(err, pgx.ErrNoRows) {
+						return status.Error(codes.NotFound, "user not found")
+					}
 					return fmt.Errorf("follow: increment followers_count: %w", err)
 				}
 
@@ -74,20 +85,6 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 					ActorUID:    followerUID,
 				}); err != nil {
 					return fmt.Errorf("follow: enqueue follow inbox job: %w", err)
-				}
-
-				resp = &api.FollowResponse{
-					FollowingCount: followingCount,
-					FollowersCount: followersCount,
-				}
-			} else {
-				row, err := qtx.GetUserByUid(ctx, followeeUID)
-				if err != nil {
-					return fmt.Errorf("follow: get follow counts: %w", err)
-				}
-				resp = &api.FollowResponse{
-					FollowingCount: row.FollowingCount,
-					FollowersCount: row.FollowersCount,
 				}
 			}
 		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
@@ -100,28 +97,18 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 			}
 
 			if affected > 0 {
-				followingCount, err := qtx.DecrementFollowingCount(ctx, followerUID)
-				if err != nil {
+				if _, err := qtx.DecrementFollowingCount(ctx, followerUID); err != nil {
+					if errors.Is(err, pgx.ErrNoRows) {
+						return status.Error(codes.NotFound, "user not found")
+					}
 					return fmt.Errorf("follow: decrement following_count: %w", err)
 				}
 
-				followersCount, err := qtx.DecrementFollowersCount(ctx, followeeUID)
-				if err != nil {
+				if _, err := qtx.DecrementFollowersCount(ctx, followeeUID); err != nil {
+					if errors.Is(err, pgx.ErrNoRows) {
+						return status.Error(codes.NotFound, "user not found")
+					}
 					return fmt.Errorf("follow: decrement followers_count: %w", err)
-				}
-
-				resp = &api.FollowResponse{
-					FollowingCount: followingCount,
-					FollowersCount: followersCount,
-				}
-			} else {
-				row, err := qtx.GetUserByUid(ctx, followeeUID)
-				if err != nil {
-					return fmt.Errorf("follow: get follow counts: %w", err)
-				}
-				resp = &api.FollowResponse{
-					FollowingCount: row.FollowingCount,
-					FollowersCount: row.FollowersCount,
 				}
 			}
 
@@ -134,11 +121,13 @@ func (s *FollowService) Follow(ctx context.Context, uid string, req *api.FollowR
 		return nil, err
 	}
 
-	return resp, nil
+	return &api.FollowResponse{}, nil
 }
 
 func (s *FollowService) ListMyFollowers(ctx context.Context, uid string, req *api.ListMyFollowersRequest) (*api.ListMyFollowersResponse, error) {
 	vuid := util.UUID(uid)
+	query := strings.TrimSpace(req.GetQuery())
+	queryText := pgtype.Text{String: query, Valid: query != ""}
 
 	token, err := decodeFollowPageToken(req.GetPageToken())
 	if err != nil {
@@ -147,7 +136,8 @@ func (s *FollowService) ListMyFollowers(ctx context.Context, uid string, req *ap
 
 	rows, err := s.db.ListFollowers(ctx, db.ListFollowersParams{
 		Uid:             vuid,
-		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: token.CursorCreatedAt > 0},
+		Query:           queryText,
+		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true},
 		CursorID:        util.UUID(token.CursorID),
 	})
 	if err != nil {
@@ -157,16 +147,6 @@ func (s *FollowService) ListMyFollowers(ctx context.Context, uid string, req *ap
 	userUIDs := make([]uuid.UUID, 0, len(rows))
 	for _, row := range rows {
 		userUIDs = append(userUIDs, row.Uid)
-	}
-
-	userRows, err := s.db.GetUsersByUIDs(ctx, userUIDs)
-	if err != nil {
-		return nil, fmt.Errorf("get users by uids: %w", err)
-	}
-
-	userMap := make(map[uuid.UUID]db.GetUsersByUIDsRow, len(userRows))
-	for _, row := range userRows {
-		userMap[row.Uid] = row
 	}
 
 	followingUIDs, err := s.db.ListFollowingUIDsByFollowerAndFolloweeUIDs(ctx, db.ListFollowingUIDsByFollowerAndFolloweeUIDsParams{
@@ -184,20 +164,15 @@ func (s *FollowService) ListMyFollowers(ctx context.Context, uid string, req *ap
 
 	users := make([]*api.User, 0, len(rows))
 	for _, row := range rows {
-		user, ok := userMap[row.Uid]
-		if !ok {
-			continue
-		}
-
 		_, isFollowing := followingSet[row.Uid]
 
 		users = append(users, &api.User{
 			Uid:            row.Uid.String(),
-			Role:           string(user.Role),
-			Nickname:       user.Nickname,
-			AvatarUrl:      user.AvatarUrl,
-			FollowersCount: user.FollowersCount,
-			FollowingCount: user.FollowingCount,
+			Role:           string(row.Role),
+			Nickname:       row.Nickname,
+			AvatarUrl:      row.AvatarUrl,
+			FollowersCount: row.FollowersCount,
+			FollowingCount: row.FollowingCount,
 			IsFollowing:    isFollowing,
 		})
 	}
@@ -222,6 +197,8 @@ func (s *FollowService) ListMyFollowers(ctx context.Context, uid string, req *ap
 
 func (s *FollowService) ListMyFollowing(ctx context.Context, uid string, req *api.ListMyFollowingRequest) (*api.ListMyFollowingResponse, error) {
 	vuid := util.UUID(uid)
+	query := strings.TrimSpace(req.GetQuery())
+	queryText := pgtype.Text{String: query, Valid: query != ""}
 
 	token, err := decodeFollowPageToken(req.PageToken)
 	if err != nil {
@@ -230,42 +207,23 @@ func (s *FollowService) ListMyFollowing(ctx context.Context, uid string, req *ap
 
 	rows, err := s.db.ListFollowing(ctx, db.ListFollowingParams{
 		Uid:             vuid,
-		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: token.CursorCreatedAt > 0},
+		Query:           queryText,
+		CursorCreatedAt: pgtype.Timestamptz{Time: time.Unix(token.CursorCreatedAt, 0).UTC(), Valid: true},
 		CursorID:        util.UUID(token.CursorID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list following: %w", err)
 	}
 
-	userUIDs := make([]uuid.UUID, 0, len(rows))
-	for _, row := range rows {
-		userUIDs = append(userUIDs, row.Uid)
-	}
-
-	userRows, err := s.db.GetUsersByUIDs(ctx, userUIDs)
-	if err != nil {
-		return nil, fmt.Errorf("get users by uids: %w", err)
-	}
-
-	userMap := make(map[uuid.UUID]db.GetUsersByUIDsRow, len(userRows))
-	for _, row := range userRows {
-		userMap[row.Uid] = row
-	}
-
 	users := make([]*api.User, 0, len(rows))
 	for _, row := range rows {
-		user, ok := userMap[row.Uid]
-		if !ok {
-			continue
-		}
-
 		users = append(users, &api.User{
-			Uid:            user.Uid.String(),
-			Role:           string(user.Role),
-			Nickname:       user.Nickname,
-			AvatarUrl:      user.AvatarUrl,
-			FollowersCount: user.FollowersCount,
-			FollowingCount: user.FollowingCount,
+			Uid:            row.Uid.String(),
+			Role:           string(row.Role),
+			Nickname:       row.Nickname,
+			AvatarUrl:      row.AvatarUrl,
+			FollowersCount: row.FollowersCount,
+			FollowingCount: row.FollowingCount,
 			IsFollowing:    true,
 		})
 	}
@@ -294,18 +252,15 @@ type followPageToken struct {
 }
 
 func decodeFollowPageToken(pageToken string) (followPageToken, error) {
-	if pageToken == "" {
-		return followPageToken{}, nil
-	}
-
-	raw, err := base64.RawURLEncoding.DecodeString(pageToken)
-	if err != nil {
-		return followPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
-	}
-
 	var token followPageToken
-	if err := json.Unmarshal(raw, &token); err != nil {
-		return followPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
+	if pageToken != "" {
+		raw, err := base64.RawURLEncoding.DecodeString(pageToken)
+		if err != nil {
+			return followPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		}
+		if err := json.Unmarshal(raw, &token); err != nil {
+			return followPageToken{}, status.Error(codes.InvalidArgument, "invalid page_token")
+		}
 	}
 
 	if token.CursorCreatedAt == 0 || token.CursorID == "" {

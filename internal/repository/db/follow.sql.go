@@ -73,31 +73,53 @@ func (q *Queries) IsFollowing(ctx context.Context, arg IsFollowingParams) (bool,
 
 const listFollowers = `-- name: ListFollowers :many
 SELECT
-  created_at AS followed_at,
-  follower_uid AS uid
-FROM user_follows
-WHERE followee_uid = $1
-  AND (created_at, follower_uid) < (
-    $2::timestamptz,
-    $3::uuid
+  uf.created_at AS followed_at,
+  u.uid,
+  u.role,
+  u.nickname,
+  u.avatar_url,
+  u.followers_count,
+  u.following_count
+FROM user_follows uf
+JOIN users u ON u.uid = uf.follower_uid
+WHERE uf.followee_uid = $1
+  AND u.status = 'NORMAL'::user_status
+  AND (
+    $2::text IS NULL
+    OR u.nickname ILIKE '%' || $2::text || '%'
   )
-ORDER BY created_at DESC, follower_uid DESC
+  AND (uf.created_at, uf.follower_uid) < (
+    $3::timestamptz,
+    $4::uuid
+  )
+ORDER BY uf.created_at DESC, uf.follower_uid DESC
 LIMIT 20
 `
 
 type ListFollowersParams struct {
 	Uid             uuid.UUID
+	Query           pgtype.Text
 	CursorCreatedAt pgtype.Timestamptz
 	CursorID        uuid.UUID
 }
 
 type ListFollowersRow struct {
-	FollowedAt pgtype.Timestamptz
-	Uid        uuid.UUID
+	FollowedAt     pgtype.Timestamptz
+	Uid            uuid.UUID
+	Role           UserRole
+	Nickname       string
+	AvatarUrl      string
+	FollowersCount int32
+	FollowingCount int32
 }
 
 func (q *Queries) ListFollowers(ctx context.Context, arg ListFollowersParams) ([]ListFollowersRow, error) {
-	rows, err := q.db.Query(ctx, listFollowers, arg.Uid, arg.CursorCreatedAt, arg.CursorID)
+	rows, err := q.db.Query(ctx, listFollowers,
+		arg.Uid,
+		arg.Query,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +127,15 @@ func (q *Queries) ListFollowers(ctx context.Context, arg ListFollowersParams) ([
 	var items []ListFollowersRow
 	for rows.Next() {
 		var i ListFollowersRow
-		if err := rows.Scan(&i.FollowedAt, &i.Uid); err != nil {
+		if err := rows.Scan(
+			&i.FollowedAt,
+			&i.Uid,
+			&i.Role,
+			&i.Nickname,
+			&i.AvatarUrl,
+			&i.FollowersCount,
+			&i.FollowingCount,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -118,31 +148,53 @@ func (q *Queries) ListFollowers(ctx context.Context, arg ListFollowersParams) ([
 
 const listFollowing = `-- name: ListFollowing :many
 SELECT
-  created_at AS followed_at,
-  followee_uid AS uid
-FROM user_follows
-WHERE follower_uid = $1
-  AND (created_at, followee_uid) < (
-    $2::timestamptz,
-    $3::uuid
+  uf.created_at AS followed_at,
+  u.uid,
+  u.role,
+  u.nickname,
+  u.avatar_url,
+  u.followers_count,
+  u.following_count
+FROM user_follows uf
+JOIN users u ON u.uid = uf.followee_uid
+WHERE uf.follower_uid = $1
+  AND u.status = 'NORMAL'::user_status
+  AND (
+    $2::text IS NULL
+    OR u.nickname ILIKE '%' || $2::text || '%'
   )
-ORDER BY created_at DESC, followee_uid DESC
+  AND (uf.created_at, uf.followee_uid) < (
+    $3::timestamptz,
+    $4::uuid
+  )
+ORDER BY uf.created_at DESC, uf.followee_uid DESC
 LIMIT 20
 `
 
 type ListFollowingParams struct {
 	Uid             uuid.UUID
+	Query           pgtype.Text
 	CursorCreatedAt pgtype.Timestamptz
 	CursorID        uuid.UUID
 }
 
 type ListFollowingRow struct {
-	FollowedAt pgtype.Timestamptz
-	Uid        uuid.UUID
+	FollowedAt     pgtype.Timestamptz
+	Uid            uuid.UUID
+	Role           UserRole
+	Nickname       string
+	AvatarUrl      string
+	FollowersCount int32
+	FollowingCount int32
 }
 
 func (q *Queries) ListFollowing(ctx context.Context, arg ListFollowingParams) ([]ListFollowingRow, error) {
-	rows, err := q.db.Query(ctx, listFollowing, arg.Uid, arg.CursorCreatedAt, arg.CursorID)
+	rows, err := q.db.Query(ctx, listFollowing,
+		arg.Uid,
+		arg.Query,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +202,15 @@ func (q *Queries) ListFollowing(ctx context.Context, arg ListFollowingParams) ([
 	var items []ListFollowingRow
 	for rows.Next() {
 		var i ListFollowingRow
-		if err := rows.Scan(&i.FollowedAt, &i.Uid); err != nil {
+		if err := rows.Scan(
+			&i.FollowedAt,
+			&i.Uid,
+			&i.Role,
+			&i.Nickname,
+			&i.AvatarUrl,
+			&i.FollowersCount,
+			&i.FollowingCount,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

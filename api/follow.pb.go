@@ -76,11 +76,9 @@ func (x *FollowRequest) GetAction() ToggleAction {
 }
 
 type FollowResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	FollowingCount int32                  `protobuf:"varint,1,opt,name=following_count,json=followingCount,proto3" json:"following_count,omitempty"`
-	FollowersCount int32                  `protobuf:"varint,2,opt,name=followers_count,json=followersCount,proto3" json:"followers_count,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *FollowResponse) Reset() {
@@ -111,20 +109,6 @@ func (x *FollowResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use FollowResponse.ProtoReflect.Descriptor instead.
 func (*FollowResponse) Descriptor() ([]byte, []int) {
 	return file_follow_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *FollowResponse) GetFollowingCount() int32 {
-	if x != nil {
-		return x.FollowingCount
-	}
-	return 0
-}
-
-func (x *FollowResponse) GetFollowersCount() int32 {
-	if x != nil {
-		return x.FollowersCount
-	}
-	return 0
 }
 
 // List
@@ -343,10 +327,8 @@ const file_follow_proto_rawDesc = "" +
 	"\ffollow.proto\x12\x06follow\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\fcommon.proto\"T\n" +
 	"\rFollowRequest\x12\x15\n" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\x12,\n" +
-	"\x06action\x18\x02 \x01(\x0e2\x14.common.ToggleActionR\x06action\"l\n" +
-	"\x0eFollowResponse\x12,\n" +
-	"\x0ffollowing_count\x18\x01 \x01(\x05B\x03\xe0A\x02R\x0efollowingCount\x12,\n" +
-	"\x0ffollowers_count\x18\x02 \x01(\x05B\x03\xe0A\x02R\x0efollowersCount\"M\n" +
+	"\x06action\x18\x02 \x01(\x0e2\x14.common.ToggleActionR\x06action\"\x10\n" +
+	"\x0eFollowResponse\"M\n" +
 	"\x16ListMyFollowersRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x1d\n" +
 	"\n" +

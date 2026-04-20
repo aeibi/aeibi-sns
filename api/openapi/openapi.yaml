@@ -932,13 +932,8 @@ components:
                     type: integer
                     format: enum
         comment.LikeCommentResponse:
-            required:
-                - count
             type: object
-            properties:
-                count:
-                    type: integer
-                    format: int32
+            properties: {}
         comment.ListRepliesResponse:
             required:
                 - comments
@@ -1071,17 +1066,8 @@ components:
                     format: enum
             description: Follow
         follow.FollowResponse:
-            required:
-                - followingCount
-                - followersCount
             type: object
-            properties:
-                followingCount:
-                    type: integer
-                    format: int32
-                followersCount:
-                    type: integer
-                    format: int32
+            properties: {}
         follow.ListMyFollowersResponse:
             required:
                 - users
@@ -1239,13 +1225,8 @@ components:
                     type: integer
                     format: enum
         post.CollectPostResponse:
-            required:
-                - count
             type: object
-            properties:
-                count:
-                    type: integer
-                    format: int32
+            properties: {}
         post.CreatePostRequest:
             required:
                 - text
@@ -1294,13 +1275,8 @@ components:
                     type: integer
                     format: enum
         post.LikePostResponse:
-            required:
-                - count
             type: object
-            properties:
-                count:
-                    type: integer
-                    format: int32
+            properties: {}
         post.ListPostsResponse:
             required:
                 - posts

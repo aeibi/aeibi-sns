@@ -842,7 +842,6 @@ func (x *LikeCommentRequest) GetAction() ToggleAction {
 
 type LikeCommentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Count         int32                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -875,13 +874,6 @@ func (x *LikeCommentResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use LikeCommentResponse.ProtoReflect.Descriptor instead.
 func (*LikeCommentResponse) Descriptor() ([]byte, []int) {
 	return file_comment_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *LikeCommentResponse) GetCount() int32 {
-	if x != nil {
-		return x.Count
-	}
-	return 0
 }
 
 var File_comment_proto protoreflect.FileDescriptor
@@ -951,9 +943,8 @@ const file_comment_proto_rawDesc = "" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\"Y\n" +
 	"\x12LikeCommentRequest\x12\x15\n" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\x12,\n" +
-	"\x06action\x18\x02 \x01(\x0e2\x14.common.ToggleActionR\x06action\"0\n" +
-	"\x13LikeCommentResponse\x12\x19\n" +
-	"\x05count\x18\x01 \x01(\x05B\x03\xe0A\x02R\x05count2\xc8\x06\n" +
+	"\x06action\x18\x02 \x01(\x0e2\x14.common.ToggleActionR\x06action\"\x15\n" +
+	"\x13LikeCommentResponse2\xc8\x06\n" +
 	"\x0eCommentService\x12\x85\x01\n" +
 	"\x10CreateTopComment\x12 .comment.CreateTopCommentRequest\x1a!.comment.CreateTopCommentResponse\",\x82\xd3\xe4\x93\x02&:\x01*\"!/api/v1/posts/{post_uid}/comments\x12z\n" +
 	"\vCreateReply\x12\x1b.comment.CreateReplyRequest\x1a\x1c.comment.CreateReplyResponse\"0\x82\xd3\xe4\x93\x02*:\x01*\"%/api/v1/comments/{parent_uid}/replies\x12\x7f\n" +

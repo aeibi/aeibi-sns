@@ -42,8 +42,6 @@ message FollowRequest {
 }
 
 message FollowResponse {
-  int32 following_count = 1 [(google.api.field_behavior) = REQUIRED];
-  int32 followers_count = 2 [(google.api.field_behavior) = REQUIRED];
 }
 
 // List

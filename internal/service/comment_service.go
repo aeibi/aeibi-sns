@@ -539,8 +539,6 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 	commentUid := util.UUID(req.Uid)
 	userUid := util.UUID(uid)
 
-	var count int32
-
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 
@@ -555,16 +553,9 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 			}
 
 			if affected > 0 {
-				count, err = qtx.IncrementCommentLikeCount(ctx, commentUid)
-				if err != nil {
+				if _, err := qtx.IncrementCommentLikeCount(ctx, commentUid); err != nil {
 					return fmt.Errorf("comment like: increment comment like count: %w", err)
 				}
-			} else {
-				commentRow, err := qtx.GetCommentByUid(ctx, commentUid)
-				if err != nil {
-					return fmt.Errorf("comment like: get comment: %w", err)
-				}
-				count = commentRow.LikeCount
 			}
 
 		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
@@ -577,16 +568,9 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 			}
 
 			if affected > 0 {
-				count, err = qtx.DecrementCommentLikeCount(ctx, commentUid)
-				if err != nil {
+				if _, err := qtx.DecrementCommentLikeCount(ctx, commentUid); err != nil {
 					return fmt.Errorf("comment like: decrement comment like count: %w", err)
 				}
-			} else {
-				commentRow, err := qtx.GetCommentByUid(ctx, commentUid)
-				if err != nil {
-					return fmt.Errorf("comment like: get comment: %w", err)
-				}
-				count = commentRow.LikeCount
 			}
 
 		default:
@@ -598,9 +582,7 @@ func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.L
 		return nil, err
 	}
 
-	return &api.LikeCommentResponse{
-		Count: count,
-	}, nil
+	return &api.LikeCommentResponse{}, nil
 }
 
 type topCommentsPageToken struct {

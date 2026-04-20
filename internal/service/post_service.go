@@ -891,7 +891,6 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 	postUid := util.UUID(req.Uid)
 	vuid := util.UUID(uid)
 
-	var count int32
 	var shouldEnqueue bool
 
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -918,16 +917,10 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 			}
 
 			if affected > 0 {
-				count, err = qtx.IncrementPostLikeCount(ctx, postUid)
-				if err != nil {
+				if _, err := qtx.IncrementPostLikeCount(ctx, postUid); err != nil {
 					return fmt.Errorf("increment post like count: %w", err)
 				}
 				shouldEnqueue = true
-			} else {
-				count, err = qtx.GetPostLikeCount(ctx, postUid)
-				if err != nil {
-					return fmt.Errorf("get post like count: %w", err)
-				}
 			}
 
 		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
@@ -940,16 +933,10 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 			}
 
 			if affected > 0 {
-				count, err = qtx.DecrementPostLikeCount(ctx, postUid)
-				if err != nil {
+				if _, err := qtx.DecrementPostLikeCount(ctx, postUid); err != nil {
 					return fmt.Errorf("decrement post like count: %w", err)
 				}
 				shouldEnqueue = true
-			} else {
-				count, err = qtx.GetPostLikeCount(ctx, postUid)
-				if err != nil {
-					return fmt.Errorf("get post like count: %w", err)
-				}
 			}
 
 		default:
@@ -969,16 +956,13 @@ func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePos
 		return nil, err
 	}
 
-	return &api.LikePostResponse{
-		Count: count,
-	}, nil
+	return &api.LikePostResponse{}, nil
 }
 
 func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.CollectPostRequest) (*api.CollectPostResponse, error) {
 	postUid := util.UUID(req.Uid)
 	vuid := util.UUID(uid)
 
-	var count int32
 	var shouldEnqueue bool
 
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -1005,16 +989,10 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 			}
 
 			if affected > 0 {
-				count, err = qtx.IncrementPostCollectionCount(ctx, postUid)
-				if err != nil {
+				if _, err := qtx.IncrementPostCollectionCount(ctx, postUid); err != nil {
 					return fmt.Errorf("post collection: increment post collection count: %w", err)
 				}
 				shouldEnqueue = true
-			} else {
-				count, err = qtx.GetPostCollectionCount(ctx, postUid)
-				if err != nil {
-					return fmt.Errorf("post collection: get post collection count: %w", err)
-				}
 			}
 
 		case api.ToggleAction_TOGGLE_ACTION_REMOVE:
@@ -1027,16 +1005,10 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 			}
 
 			if affected > 0 {
-				count, err = qtx.DecrementPostCollectionCount(ctx, postUid)
-				if err != nil {
+				if _, err := qtx.DecrementPostCollectionCount(ctx, postUid); err != nil {
 					return fmt.Errorf("post collection: decrement post collection count: %w", err)
 				}
 				shouldEnqueue = true
-			} else {
-				count, err = qtx.GetPostCollectionCount(ctx, postUid)
-				if err != nil {
-					return fmt.Errorf("post collection: get post collection count: %w", err)
-				}
 			}
 
 		default:
@@ -1056,9 +1028,7 @@ func (s *PostService) CollectPost(ctx context.Context, uid string, req *api.Coll
 		return nil, err
 	}
 
-	return &api.CollectPostResponse{
-		Count: count,
-	}, nil
+	return &api.CollectPostResponse{}, nil
 }
 
 type postPageToken struct {

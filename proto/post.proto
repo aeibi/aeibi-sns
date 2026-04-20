@@ -229,7 +229,6 @@ message LikePostRequest {
 }
 
 message LikePostResponse {
-  int32 count = 1 [(google.api.field_behavior) = REQUIRED];
 }
 
 message CollectPostRequest {
@@ -238,5 +237,4 @@ message CollectPostRequest {
 }
 
 message CollectPostResponse {
-  int32 count = 1 [(google.api.field_behavior) = REQUIRED];
 }
