@@ -43,6 +43,9 @@ func NewGatewayHandler(ctx context.Context, cfg *config.Config) (http.Handler, e
 	if err := api.RegisterReportServiceHandlerFromEndpoint(ctx, mux, gatewayEndpoint, gatewayDialOpts); err != nil {
 		return nil, fmt.Errorf("register gateway handlers: %w", err)
 	}
+	if err := api.RegisterConfigServiceHandlerFromEndpoint(ctx, mux, gatewayEndpoint, gatewayDialOpts); err != nil {
+		return nil, fmt.Errorf("register gateway handlers: %w", err)
+	}
 
 	return mux, nil
 }

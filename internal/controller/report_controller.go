@@ -8,7 +8,6 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type ReportHandler struct {
@@ -20,7 +19,7 @@ func NewReportHandler(svc *service.ReportService) *ReportHandler {
 	return &ReportHandler{svc: svc}
 }
 
-func (h *ReportHandler) CreateReport(ctx context.Context, req *api.CreateReportRequest) (*emptypb.Empty, error) {
+func (h *ReportHandler) CreateReport(ctx context.Context, req *api.CreateReportRequest) (*api.CreateReportResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
@@ -39,8 +38,9 @@ func (h *ReportHandler) CreateReport(ctx context.Context, req *api.CreateReportR
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 	}
-	if err := h.svc.CreateReport(ctx, uid, req); err != nil {
+	resp, err := h.svc.CreateReport(ctx, uid, req)
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &emptypb.Empty{}, nil
+	return resp, nil
 }

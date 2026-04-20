@@ -6,7 +6,6 @@ option go_package = "aeibi/api;api";
 
 import "google/api/annotations.proto";
 import "google/api/field_behavior.proto";
-import "google/protobuf/empty.proto";
 import "common.proto";
 
 // CommentService
@@ -49,7 +48,7 @@ service CommentService {
   }
 
   // DELETE /api/v1/comments/{uid} 软删评论
-  rpc DeleteComment(DeleteCommentRequest) returns (google.protobuf.Empty) {
+  rpc DeleteComment(DeleteCommentRequest) returns (DeleteCommentResponse) {
     option (google.api.http) = {
       delete: "/api/v1/comments/{uid}"
     };
@@ -149,6 +148,9 @@ message GetCommentResponse {
 
 message DeleteCommentRequest {
   string uid = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message DeleteCommentResponse {
 }
 
 // Like

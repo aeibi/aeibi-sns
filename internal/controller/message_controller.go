@@ -8,7 +8,6 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type MessageHandler struct {
@@ -42,7 +41,7 @@ func (h *MessageHandler) ListFollowInboxMessages(ctx context.Context, req *api.L
 	return h.svc.ListFollowInboxMessages(ctx, uid, req)
 }
 
-func (h *MessageHandler) DeleteInboxMessage(ctx context.Context, req *api.DeleteInboxMessageRequest) (*emptypb.Empty, error) {
+func (h *MessageHandler) DeleteInboxMessage(ctx context.Context, req *api.DeleteInboxMessageRequest) (*api.DeleteInboxMessageResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
@@ -53,13 +52,14 @@ func (h *MessageHandler) DeleteInboxMessage(ctx context.Context, req *api.Delete
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 	}
-	if err := h.svc.DeleteInboxMessage(ctx, uid, req); err != nil {
+	resp, err := h.svc.DeleteInboxMessage(ctx, uid, req)
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &emptypb.Empty{}, nil
+	return resp, nil
 }
 
-func (h *MessageHandler) MarkAllInboxMessagesRead(ctx context.Context, _ *emptypb.Empty) (*api.MarkAllInboxMessagesReadResponse, error) {
+func (h *MessageHandler) MarkAllInboxMessagesRead(ctx context.Context, _ *api.MarkAllInboxMessagesReadRequest) (*api.MarkAllInboxMessagesReadResponse, error) {
 	uid, ok := auth.SubjectFromContext(ctx)
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
@@ -67,7 +67,7 @@ func (h *MessageHandler) MarkAllInboxMessagesRead(ctx context.Context, _ *emptyp
 	return h.svc.MarkAllInboxMessagesRead(ctx, uid)
 }
 
-func (h *MessageHandler) CountUnreadInboxMessages(ctx context.Context, _ *emptypb.Empty) (*api.CountUnreadInboxMessagesResponse, error) {
+func (h *MessageHandler) CountUnreadInboxMessages(ctx context.Context, _ *api.CountUnreadInboxMessagesRequest) (*api.CountUnreadInboxMessagesResponse, error) {
 	uid, ok := auth.SubjectFromContext(ctx)
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")

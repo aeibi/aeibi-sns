@@ -758,7 +758,7 @@ func (s *PostService) SearchPosts(ctx context.Context, viewerUid string, req *ap
 	}, nil
 }
 
-func (s *PostService) SearchTags(_ context.Context, req *api.SearchTagsRequest) (*api.SearchTagsResponse, error) {
+func (s *PostService) SearchTags(_ context.Context, viewerUID string, req *api.SearchTagsRequest) (*api.SearchTagsResponse, error) {
 	result, err := s.search.SearchTags(searchrepo.SearchTagsParams{
 		Query: req.Query,
 		Limit: 20,
@@ -779,7 +779,7 @@ func (s *PostService) SearchTags(_ context.Context, req *api.SearchTagsRequest) 
 	}, nil
 }
 
-func (s *PostService) SuggestTagsByPrefix(_ context.Context, req *api.SuggestTagsByPrefixRequest) (*api.SuggestTagsByPrefixResponse, error) {
+func (s *PostService) SuggestTagsByPrefix(_ context.Context, viewerUID string, req *api.SuggestTagsByPrefixRequest) (*api.SuggestTagsByPrefixResponse, error) {
 	result, err := s.search.SuggestTagsByName(req.Prefix, 10)
 	if err != nil {
 		return nil, fmt.Errorf("suggest tags by prefix: %w", err)
@@ -797,7 +797,7 @@ func (s *PostService) SuggestTagsByPrefix(_ context.Context, req *api.SuggestTag
 	}, nil
 }
 
-func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.UpdatePostRequest) error {
+func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.UpdatePostRequest) (*api.UpdatePostResponse, error) {
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 
@@ -857,15 +857,15 @@ func (s *PostService) UpdatePost(ctx context.Context, uid string, req *api.Updat
 
 		return nil
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return &api.UpdatePostResponse{}, nil
 }
 
-func (s *PostService) DeletePost(ctx context.Context, uid string, req *api.DeletePostRequest) error {
+func (s *PostService) DeletePost(ctx context.Context, uid string, req *api.DeletePostRequest) (*api.DeletePostResponse, error) {
 	vuid := util.UUID(uid)
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 		affected, err := qtx.ArchivePostByUidAndAuthor(ctx, db.ArchivePostByUidAndAuthorParams{
 			Uid:       util.UUID(req.Uid),
@@ -884,7 +884,10 @@ func (s *PostService) DeletePost(ctx context.Context, uid string, req *api.Delet
 			return fmt.Errorf("enqueue update post search job: %w", err)
 		}
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
+	return &api.DeletePostResponse{}, nil
 }
 
 func (s *PostService) LikePost(ctx context.Context, uid string, req *api.LikePostRequest) (*api.LikePostResponse, error) {

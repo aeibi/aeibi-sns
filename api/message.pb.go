@@ -10,7 +10,6 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -560,6 +559,78 @@ func (x *DeleteInboxMessageRequest) GetUid() string {
 	return ""
 }
 
+type DeleteInboxMessageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteInboxMessageResponse) Reset() {
+	*x = DeleteInboxMessageResponse{}
+	mi := &file_message_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteInboxMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteInboxMessageResponse) ProtoMessage() {}
+
+func (x *DeleteInboxMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteInboxMessageResponse.ProtoReflect.Descriptor instead.
+func (*DeleteInboxMessageResponse) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{8}
+}
+
+type MarkAllInboxMessagesReadRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkAllInboxMessagesReadRequest) Reset() {
+	*x = MarkAllInboxMessagesReadRequest{}
+	mi := &file_message_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkAllInboxMessagesReadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkAllInboxMessagesReadRequest) ProtoMessage() {}
+
+func (x *MarkAllInboxMessagesReadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkAllInboxMessagesReadRequest.ProtoReflect.Descriptor instead.
+func (*MarkAllInboxMessagesReadRequest) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{9}
+}
+
 type MarkAllInboxMessagesReadResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UpdatedCount  int32                  `protobuf:"varint,1,opt,name=updated_count,json=updatedCount,proto3" json:"updated_count,omitempty"`
@@ -569,7 +640,7 @@ type MarkAllInboxMessagesReadResponse struct {
 
 func (x *MarkAllInboxMessagesReadResponse) Reset() {
 	*x = MarkAllInboxMessagesReadResponse{}
-	mi := &file_message_proto_msgTypes[8]
+	mi := &file_message_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -581,7 +652,7 @@ func (x *MarkAllInboxMessagesReadResponse) String() string {
 func (*MarkAllInboxMessagesReadResponse) ProtoMessage() {}
 
 func (x *MarkAllInboxMessagesReadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_message_proto_msgTypes[8]
+	mi := &file_message_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -594,7 +665,7 @@ func (x *MarkAllInboxMessagesReadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkAllInboxMessagesReadResponse.ProtoReflect.Descriptor instead.
 func (*MarkAllInboxMessagesReadResponse) Descriptor() ([]byte, []int) {
-	return file_message_proto_rawDescGZIP(), []int{8}
+	return file_message_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *MarkAllInboxMessagesReadResponse) GetUpdatedCount() int32 {
@@ -602,6 +673,42 @@ func (x *MarkAllInboxMessagesReadResponse) GetUpdatedCount() int32 {
 		return x.UpdatedCount
 	}
 	return 0
+}
+
+type CountUnreadInboxMessagesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CountUnreadInboxMessagesRequest) Reset() {
+	*x = CountUnreadInboxMessagesRequest{}
+	mi := &file_message_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CountUnreadInboxMessagesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CountUnreadInboxMessagesRequest) ProtoMessage() {}
+
+func (x *CountUnreadInboxMessagesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_message_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CountUnreadInboxMessagesRequest.ProtoReflect.Descriptor instead.
+func (*CountUnreadInboxMessagesRequest) Descriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{11}
 }
 
 type CountUnreadInboxMessagesResponse struct {
@@ -615,7 +722,7 @@ type CountUnreadInboxMessagesResponse struct {
 
 func (x *CountUnreadInboxMessagesResponse) Reset() {
 	*x = CountUnreadInboxMessagesResponse{}
-	mi := &file_message_proto_msgTypes[9]
+	mi := &file_message_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -627,7 +734,7 @@ func (x *CountUnreadInboxMessagesResponse) String() string {
 func (*CountUnreadInboxMessagesResponse) ProtoMessage() {}
 
 func (x *CountUnreadInboxMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_message_proto_msgTypes[9]
+	mi := &file_message_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -640,7 +747,7 @@ func (x *CountUnreadInboxMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CountUnreadInboxMessagesResponse.ProtoReflect.Descriptor instead.
 func (*CountUnreadInboxMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_message_proto_rawDescGZIP(), []int{9}
+	return file_message_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CountUnreadInboxMessagesResponse) GetUnreadCount() int32 {
@@ -668,7 +775,7 @@ var File_message_proto protoreflect.FileDescriptor
 
 const file_message_proto_rawDesc = "" +
 	"\n" +
-	"\rmessage.proto\x12\amessage\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/protobuf/empty.proto\"o\n" +
+	"\rmessage.proto\x12\amessage\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\"o\n" +
 	"\x11InboxMessageActor\x12\x15\n" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\x12\x1f\n" +
 	"\bnickname\x18\x02 \x01(\tB\x03\xe0A\x02R\bnickname\x12\"\n" +
@@ -710,9 +817,12 @@ const file_message_proto_rawDesc = "" +
 	"\bmessages\x18\x01 \x03(\v2\x1b.message.FollowInboxMessageB\x03\xe0A\x02R\bmessages\x12+\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tB\x03\xe0A\x02R\rnextPageToken\"2\n" +
 	"\x19DeleteInboxMessageRequest\x12\x15\n" +
-	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\"L\n" +
+	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\"\x1c\n" +
+	"\x1aDeleteInboxMessageResponse\"!\n" +
+	"\x1fMarkAllInboxMessagesReadRequest\"L\n" +
 	" MarkAllInboxMessagesReadResponse\x12(\n" +
-	"\rupdated_count\x18\x01 \x01(\x05B\x03\xe0A\x02R\fupdatedCount\"\xb6\x01\n" +
+	"\rupdated_count\x18\x01 \x01(\x05B\x03\xe0A\x02R\fupdatedCount\"!\n" +
+	"\x1fCountUnreadInboxMessagesRequest\"\xb6\x01\n" +
 	" CountUnreadInboxMessagesResponse\x12&\n" +
 	"\funread_count\x18\x01 \x01(\x05B\x03\xe0A\x02R\vunreadCount\x123\n" +
 	"\x13follow_unread_count\x18\x02 \x01(\x05B\x03\xe0A\x02R\x11followUnreadCount\x125\n" +
@@ -720,13 +830,13 @@ const file_message_proto_rawDesc = "" +
 	"\x16InboxMessageReadFilter\x12)\n" +
 	"%INBOX_MESSAGE_READ_FILTER_UNSPECIFIED\x10\x00\x12$\n" +
 	" INBOX_MESSAGE_READ_FILTER_UNREAD\x10\x01\x12\"\n" +
-	"\x1eINBOX_MESSAGE_READ_FILTER_READ\x10\x022\xdb\x05\n" +
+	"\x1eINBOX_MESSAGE_READ_FILTER_READ\x10\x022\x8d\x06\n" +
 	"\x0eMessageService\x12\x9b\x01\n" +
 	"\x18ListCommentInboxMessages\x12(.message.ListCommentInboxMessagesRequest\x1a).message.ListCommentInboxMessagesResponse\"*\x82\xd3\xe4\x93\x02$\x12\"/api/v1/me/inbox/messages/comments\x12\x97\x01\n" +
-	"\x17ListFollowInboxMessages\x12'.message.ListFollowInboxMessagesRequest\x1a(.message.ListFollowInboxMessagesResponse\")\x82\xd3\xe4\x93\x02#\x12!/api/v1/me/inbox/messages/follows\x12y\n" +
-	"\x12DeleteInboxMessage\x12\".message.DeleteInboxMessageRequest\x1a\x16.google.protobuf.Empty\"'\x82\xd3\xe4\x93\x02!*\x1f/api/v1/me/inbox/messages/{uid}\x12\x85\x01\n" +
-	"\x18MarkAllInboxMessagesRead\x12\x16.google.protobuf.Empty\x1a).message.MarkAllInboxMessagesReadResponse\"&\x82\xd3\xe4\x93\x02 2\x1e/api/v1/me/inbox/messages/read\x12\x8d\x01\n" +
-	"\x18CountUnreadInboxMessages\x12\x16.google.protobuf.Empty\x1a).message.CountUnreadInboxMessagesResponse\".\x82\xd3\xe4\x93\x02(\x12&/api/v1/me/inbox/messages/unread/countB\x0fZ\raeibi/api;apib\x06proto3"
+	"\x17ListFollowInboxMessages\x12'.message.ListFollowInboxMessagesRequest\x1a(.message.ListFollowInboxMessagesResponse\")\x82\xd3\xe4\x93\x02#\x12!/api/v1/me/inbox/messages/follows\x12\x86\x01\n" +
+	"\x12DeleteInboxMessage\x12\".message.DeleteInboxMessageRequest\x1a#.message.DeleteInboxMessageResponse\"'\x82\xd3\xe4\x93\x02!*\x1f/api/v1/me/inbox/messages/{uid}\x12\x97\x01\n" +
+	"\x18MarkAllInboxMessagesRead\x12(.message.MarkAllInboxMessagesReadRequest\x1a).message.MarkAllInboxMessagesReadResponse\"&\x82\xd3\xe4\x93\x02 2\x1e/api/v1/me/inbox/messages/read\x12\x9f\x01\n" +
+	"\x18CountUnreadInboxMessages\x12(.message.CountUnreadInboxMessagesRequest\x1a).message.CountUnreadInboxMessagesResponse\".\x82\xd3\xe4\x93\x02(\x12&/api/v1/me/inbox/messages/unread/countB\x0fZ\raeibi/api;apib\x06proto3"
 
 var (
 	file_message_proto_rawDescOnce sync.Once
@@ -741,7 +851,7 @@ func file_message_proto_rawDescGZIP() []byte {
 }
 
 var file_message_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_message_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_message_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_message_proto_goTypes = []any{
 	(InboxMessageReadFilter)(0),              // 0: message.InboxMessageReadFilter
 	(*InboxMessageActor)(nil),                // 1: message.InboxMessageActor
@@ -752,9 +862,11 @@ var file_message_proto_goTypes = []any{
 	(*ListFollowInboxMessagesRequest)(nil),   // 6: message.ListFollowInboxMessagesRequest
 	(*ListFollowInboxMessagesResponse)(nil),  // 7: message.ListFollowInboxMessagesResponse
 	(*DeleteInboxMessageRequest)(nil),        // 8: message.DeleteInboxMessageRequest
-	(*MarkAllInboxMessagesReadResponse)(nil), // 9: message.MarkAllInboxMessagesReadResponse
-	(*CountUnreadInboxMessagesResponse)(nil), // 10: message.CountUnreadInboxMessagesResponse
-	(*emptypb.Empty)(nil),                    // 11: google.protobuf.Empty
+	(*DeleteInboxMessageResponse)(nil),       // 9: message.DeleteInboxMessageResponse
+	(*MarkAllInboxMessagesReadRequest)(nil),  // 10: message.MarkAllInboxMessagesReadRequest
+	(*MarkAllInboxMessagesReadResponse)(nil), // 11: message.MarkAllInboxMessagesReadResponse
+	(*CountUnreadInboxMessagesRequest)(nil),  // 12: message.CountUnreadInboxMessagesRequest
+	(*CountUnreadInboxMessagesResponse)(nil), // 13: message.CountUnreadInboxMessagesResponse
 }
 var file_message_proto_depIdxs = []int32{
 	1,  // 0: message.CommentInboxMessage.actor:type_name -> message.InboxMessageActor
@@ -766,13 +878,13 @@ var file_message_proto_depIdxs = []int32{
 	4,  // 6: message.MessageService.ListCommentInboxMessages:input_type -> message.ListCommentInboxMessagesRequest
 	6,  // 7: message.MessageService.ListFollowInboxMessages:input_type -> message.ListFollowInboxMessagesRequest
 	8,  // 8: message.MessageService.DeleteInboxMessage:input_type -> message.DeleteInboxMessageRequest
-	11, // 9: message.MessageService.MarkAllInboxMessagesRead:input_type -> google.protobuf.Empty
-	11, // 10: message.MessageService.CountUnreadInboxMessages:input_type -> google.protobuf.Empty
+	10, // 9: message.MessageService.MarkAllInboxMessagesRead:input_type -> message.MarkAllInboxMessagesReadRequest
+	12, // 10: message.MessageService.CountUnreadInboxMessages:input_type -> message.CountUnreadInboxMessagesRequest
 	5,  // 11: message.MessageService.ListCommentInboxMessages:output_type -> message.ListCommentInboxMessagesResponse
 	7,  // 12: message.MessageService.ListFollowInboxMessages:output_type -> message.ListFollowInboxMessagesResponse
-	11, // 13: message.MessageService.DeleteInboxMessage:output_type -> google.protobuf.Empty
-	9,  // 14: message.MessageService.MarkAllInboxMessagesRead:output_type -> message.MarkAllInboxMessagesReadResponse
-	10, // 15: message.MessageService.CountUnreadInboxMessages:output_type -> message.CountUnreadInboxMessagesResponse
+	9,  // 13: message.MessageService.DeleteInboxMessage:output_type -> message.DeleteInboxMessageResponse
+	11, // 14: message.MessageService.MarkAllInboxMessagesRead:output_type -> message.MarkAllInboxMessagesReadResponse
+	13, // 15: message.MessageService.CountUnreadInboxMessages:output_type -> message.CountUnreadInboxMessagesResponse
 	11, // [11:16] is the sub-list for method output_type
 	6,  // [6:11] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
@@ -791,7 +903,7 @@ func file_message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_message_proto_rawDesc), len(file_message_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   10,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -11,7 +11,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -46,7 +45,7 @@ type CommentServiceClient interface {
 	// GET /api/v1/comments/{uid} 评论详情
 	GetComment(ctx context.Context, in *GetCommentRequest, opts ...grpc.CallOption) (*GetCommentResponse, error)
 	// DELETE /api/v1/comments/{uid} 软删评论
-	DeleteComment(ctx context.Context, in *DeleteCommentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteComment(ctx context.Context, in *DeleteCommentRequest, opts ...grpc.CallOption) (*DeleteCommentResponse, error)
 	// POST /api/v1/comments/{uid}/like 点赞或取消赞
 	LikeComment(ctx context.Context, in *LikeCommentRequest, opts ...grpc.CallOption) (*LikeCommentResponse, error)
 }
@@ -109,9 +108,9 @@ func (c *commentServiceClient) GetComment(ctx context.Context, in *GetCommentReq
 	return out, nil
 }
 
-func (c *commentServiceClient) DeleteComment(ctx context.Context, in *DeleteCommentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *commentServiceClient) DeleteComment(ctx context.Context, in *DeleteCommentRequest, opts ...grpc.CallOption) (*DeleteCommentResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
+	out := new(DeleteCommentResponse)
 	err := c.cc.Invoke(ctx, CommentService_DeleteComment_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -146,7 +145,7 @@ type CommentServiceServer interface {
 	// GET /api/v1/comments/{uid} 评论详情
 	GetComment(context.Context, *GetCommentRequest) (*GetCommentResponse, error)
 	// DELETE /api/v1/comments/{uid} 软删评论
-	DeleteComment(context.Context, *DeleteCommentRequest) (*emptypb.Empty, error)
+	DeleteComment(context.Context, *DeleteCommentRequest) (*DeleteCommentResponse, error)
 	// POST /api/v1/comments/{uid}/like 点赞或取消赞
 	LikeComment(context.Context, *LikeCommentRequest) (*LikeCommentResponse, error)
 	mustEmbedUnimplementedCommentServiceServer()
@@ -174,7 +173,7 @@ func (UnimplementedCommentServiceServer) ListReplies(context.Context, *ListRepli
 func (UnimplementedCommentServiceServer) GetComment(context.Context, *GetCommentRequest) (*GetCommentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetComment not implemented")
 }
-func (UnimplementedCommentServiceServer) DeleteComment(context.Context, *DeleteCommentRequest) (*emptypb.Empty, error) {
+func (UnimplementedCommentServiceServer) DeleteComment(context.Context, *DeleteCommentRequest) (*DeleteCommentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteComment not implemented")
 }
 func (UnimplementedCommentServiceServer) LikeComment(context.Context, *LikeCommentRequest) (*LikeCommentResponse, error) {

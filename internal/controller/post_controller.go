@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type PostHandler struct {
@@ -103,7 +102,8 @@ func (h *PostHandler) SearchTags(ctx context.Context, req *api.SearchTagsRequest
 	if req.Query == "" {
 		return nil, status.Error(codes.InvalidArgument, "query is required")
 	}
-	return h.svc.SearchTags(ctx, req)
+	viewerUid, _ := auth.SubjectFromContext(ctx)
+	return h.svc.SearchTags(ctx, viewerUid, req)
 }
 
 func (h *PostHandler) SuggestTagsByPrefix(ctx context.Context, req *api.SuggestTagsByPrefixRequest) (*api.SuggestTagsByPrefixResponse, error) {
@@ -113,10 +113,11 @@ func (h *PostHandler) SuggestTagsByPrefix(ctx context.Context, req *api.SuggestT
 	if req.Prefix == "" {
 		return nil, status.Error(codes.InvalidArgument, "prefix is required")
 	}
-	return h.svc.SuggestTagsByPrefix(ctx, req)
+	viewerUid, _ := auth.SubjectFromContext(ctx)
+	return h.svc.SuggestTagsByPrefix(ctx, viewerUid, req)
 }
 
-func (h *PostHandler) UpdatePost(ctx context.Context, req *api.UpdatePostRequest) (*emptypb.Empty, error) {
+func (h *PostHandler) UpdatePost(ctx context.Context, req *api.UpdatePostRequest) (*api.UpdatePostResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
@@ -133,13 +134,14 @@ func (h *PostHandler) UpdatePost(ctx context.Context, req *api.UpdatePostRequest
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 	}
-	if err := h.svc.UpdatePost(ctx, uid, req); err != nil {
+	resp, err := h.svc.UpdatePost(ctx, uid, req)
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &emptypb.Empty{}, nil
+	return resp, nil
 }
 
-func (h *PostHandler) DeletePost(ctx context.Context, req *api.DeletePostRequest) (*emptypb.Empty, error) {
+func (h *PostHandler) DeletePost(ctx context.Context, req *api.DeletePostRequest) (*api.DeletePostResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
@@ -150,10 +152,11 @@ func (h *PostHandler) DeletePost(ctx context.Context, req *api.DeletePostRequest
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 	}
-	if err := h.svc.DeletePost(ctx, uid, req); err != nil {
+	resp, err := h.svc.DeletePost(ctx, uid, req)
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &emptypb.Empty{}, nil
+	return resp, nil
 }
 
 func (h *PostHandler) LikePost(ctx context.Context, req *api.LikePostRequest) (*api.LikePostResponse, error) {

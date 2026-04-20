@@ -8,7 +8,6 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type CommentHandler struct {
@@ -90,7 +89,7 @@ func (h *CommentHandler) GetComment(ctx context.Context, req *api.GetCommentRequ
 	return h.svc.GetComment(ctx, viewerUid, req)
 }
 
-func (h *CommentHandler) DeleteComment(ctx context.Context, req *api.DeleteCommentRequest) (*emptypb.Empty, error) {
+func (h *CommentHandler) DeleteComment(ctx context.Context, req *api.DeleteCommentRequest) (*api.DeleteCommentResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
@@ -101,10 +100,11 @@ func (h *CommentHandler) DeleteComment(ctx context.Context, req *api.DeleteComme
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 	}
-	if err := h.svc.DeleteComment(ctx, uid, req); err != nil {
+	resp, err := h.svc.DeleteComment(ctx, uid, req)
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &emptypb.Empty{}, nil
+	return resp, nil
 }
 
 func (h *CommentHandler) LikeComment(ctx context.Context, req *api.LikeCommentRequest) (*api.LikeCommentResponse, error) {

@@ -31,6 +31,7 @@ func StartGRPCServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Po
 	commentSvc := service.NewCommentService(dbPool, riverClient)
 	messageSvc := service.NewMessageService(dbPool)
 	reportSvc := service.NewReportService(dbPool)
+	configSvc := service.NewConfigService(cfg)
 
 	userHandler := controller.NewUserHandler(userSvc)
 	followHandler := controller.NewFollowHandler(followSvc)
@@ -39,6 +40,7 @@ func StartGRPCServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Po
 	commentHandler := controller.NewCommentHandler(commentSvc)
 	messageHandler := controller.NewMessageHandler(messageSvc)
 	reportHandler := controller.NewReportHandler(reportSvc)
+	configHandler := controller.NewConfigHandler(configSvc)
 
 	api.RegisterUserServiceServer(grpcServer, userHandler)
 	api.RegisterFollowServiceServer(grpcServer, followHandler)
@@ -47,6 +49,7 @@ func StartGRPCServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Po
 	api.RegisterCommentServiceServer(grpcServer, commentHandler)
 	api.RegisterMessageServiceServer(grpcServer, messageHandler)
 	api.RegisterReportServiceServer(grpcServer, reportHandler)
+	api.RegisterConfigServiceServer(grpcServer, configHandler)
 
 	lis, err := net.Listen("tcp", cfg.Server.GRPCAddr)
 	if err != nil {

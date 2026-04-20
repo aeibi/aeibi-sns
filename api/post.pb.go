@@ -10,7 +10,6 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	reflect "reflect"
 	sync "sync"
@@ -1109,6 +1108,42 @@ func (x *UpdatePostRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 	return nil
 }
 
+type UpdatePostResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdatePostResponse) Reset() {
+	*x = UpdatePostResponse{}
+	mi := &file_post_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePostResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePostResponse) ProtoMessage() {}
+
+func (x *UpdatePostResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_post_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePostResponse.ProtoReflect.Descriptor instead.
+func (*UpdatePostResponse) Descriptor() ([]byte, []int) {
+	return file_post_proto_rawDescGZIP(), []int{17}
+}
+
 type DeletePostRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Uid           string                 `protobuf:"bytes,1,opt,name=uid,proto3" json:"uid,omitempty"`
@@ -1118,7 +1153,7 @@ type DeletePostRequest struct {
 
 func (x *DeletePostRequest) Reset() {
 	*x = DeletePostRequest{}
-	mi := &file_post_proto_msgTypes[17]
+	mi := &file_post_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1130,7 +1165,7 @@ func (x *DeletePostRequest) String() string {
 func (*DeletePostRequest) ProtoMessage() {}
 
 func (x *DeletePostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[17]
+	mi := &file_post_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1143,7 +1178,7 @@ func (x *DeletePostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePostRequest.ProtoReflect.Descriptor instead.
 func (*DeletePostRequest) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{17}
+	return file_post_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DeletePostRequest) GetUid() string {
@@ -1151,6 +1186,42 @@ func (x *DeletePostRequest) GetUid() string {
 		return x.Uid
 	}
 	return ""
+}
+
+type DeletePostResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePostResponse) Reset() {
+	*x = DeletePostResponse{}
+	mi := &file_post_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePostResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePostResponse) ProtoMessage() {}
+
+func (x *DeletePostResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_post_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePostResponse.ProtoReflect.Descriptor instead.
+func (*DeletePostResponse) Descriptor() ([]byte, []int) {
+	return file_post_proto_rawDescGZIP(), []int{19}
 }
 
 type LikePostRequest struct {
@@ -1163,7 +1234,7 @@ type LikePostRequest struct {
 
 func (x *LikePostRequest) Reset() {
 	*x = LikePostRequest{}
-	mi := &file_post_proto_msgTypes[18]
+	mi := &file_post_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1175,7 +1246,7 @@ func (x *LikePostRequest) String() string {
 func (*LikePostRequest) ProtoMessage() {}
 
 func (x *LikePostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[18]
+	mi := &file_post_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1188,7 +1259,7 @@ func (x *LikePostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LikePostRequest.ProtoReflect.Descriptor instead.
 func (*LikePostRequest) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{18}
+	return file_post_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *LikePostRequest) GetUid() string {
@@ -1213,7 +1284,7 @@ type LikePostResponse struct {
 
 func (x *LikePostResponse) Reset() {
 	*x = LikePostResponse{}
-	mi := &file_post_proto_msgTypes[19]
+	mi := &file_post_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1225,7 +1296,7 @@ func (x *LikePostResponse) String() string {
 func (*LikePostResponse) ProtoMessage() {}
 
 func (x *LikePostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[19]
+	mi := &file_post_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1238,7 +1309,7 @@ func (x *LikePostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LikePostResponse.ProtoReflect.Descriptor instead.
 func (*LikePostResponse) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{19}
+	return file_post_proto_rawDescGZIP(), []int{21}
 }
 
 type CollectPostRequest struct {
@@ -1251,7 +1322,7 @@ type CollectPostRequest struct {
 
 func (x *CollectPostRequest) Reset() {
 	*x = CollectPostRequest{}
-	mi := &file_post_proto_msgTypes[20]
+	mi := &file_post_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1263,7 +1334,7 @@ func (x *CollectPostRequest) String() string {
 func (*CollectPostRequest) ProtoMessage() {}
 
 func (x *CollectPostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[20]
+	mi := &file_post_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1276,7 +1347,7 @@ func (x *CollectPostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollectPostRequest.ProtoReflect.Descriptor instead.
 func (*CollectPostRequest) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{20}
+	return file_post_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *CollectPostRequest) GetUid() string {
@@ -1301,7 +1372,7 @@ type CollectPostResponse struct {
 
 func (x *CollectPostResponse) Reset() {
 	*x = CollectPostResponse{}
-	mi := &file_post_proto_msgTypes[21]
+	mi := &file_post_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1313,7 +1384,7 @@ func (x *CollectPostResponse) String() string {
 func (*CollectPostResponse) ProtoMessage() {}
 
 func (x *CollectPostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_post_proto_msgTypes[21]
+	mi := &file_post_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1326,7 +1397,7 @@ func (x *CollectPostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollectPostResponse.ProtoReflect.Descriptor instead.
 func (*CollectPostResponse) Descriptor() ([]byte, []int) {
-	return file_post_proto_rawDescGZIP(), []int{21}
+	return file_post_proto_rawDescGZIP(), []int{23}
 }
 
 var File_post_proto protoreflect.FileDescriptor
@@ -1334,7 +1405,7 @@ var File_post_proto protoreflect.FileDescriptor
 const file_post_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"post.proto\x12\x04post\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\fcommon.proto\"\x90\x01\n" +
+	"post.proto\x12\x04post\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\fcommon.proto\"\x90\x01\n" +
 	"\n" +
 	"PostAuthor\x12\x15\n" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\x12\x1f\n" +
@@ -1430,9 +1501,11 @@ const file_post_proto_rawDesc = "" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\x12-\n" +
 	"\x04post\x18\x02 \x01(\v2\x14.post.UpdatePostBodyB\x03\xe0A\x02R\x04post\x12@\n" +
 	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\x03\xe0A\x02R\n" +
-	"updateMask\"*\n" +
+	"updateMask\"\x14\n" +
+	"\x12UpdatePostResponse\"*\n" +
 	"\x11DeletePostRequest\x12\x15\n" +
-	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\"V\n" +
+	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\"\x14\n" +
+	"\x12DeletePostResponse\"V\n" +
 	"\x0fLikePostRequest\x12\x15\n" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\x12,\n" +
 	"\x06action\x18\x02 \x01(\x0e2\x14.common.ToggleActionR\x06action\"\x12\n" +
@@ -1440,7 +1513,7 @@ const file_post_proto_rawDesc = "" +
 	"\x12CollectPostRequest\x12\x15\n" +
 	"\x03uid\x18\x01 \x01(\tB\x03\xe0A\x02R\x03uid\x12,\n" +
 	"\x06action\x18\x02 \x01(\x0e2\x14.common.ToggleActionR\x06action\"\x15\n" +
-	"\x13CollectPostResponse2\xbe\b\n" +
+	"\x13CollectPostResponse2\xc2\b\n" +
 	"\vPostService\x12Y\n" +
 	"\n" +
 	"CreatePost\x12\x17.post.CreatePostRequest\x1a\x18.post.CreatePostResponse\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/api/v1/posts\x12S\n" +
@@ -1450,11 +1523,11 @@ const file_post_proto_rawDesc = "" +
 	"\n" +
 	"SearchTags\x12\x17.post.SearchTagsRequest\x1a\x18.post.SearchTagsResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/search/tags\x12|\n" +
 	"\x13SuggestTagsByPrefix\x12 .post.SuggestTagsByPrefixRequest\x1a!.post.SuggestTagsByPrefixResponse\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/api/v1/suggestions/tags\x12S\n" +
-	"\aGetPost\x12\x14.post.GetPostRequest\x1a\x15.post.GetPostResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/posts/{uid}\x12`\n" +
+	"\aGetPost\x12\x14.post.GetPostRequest\x1a\x15.post.GetPostResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/posts/{uid}\x12b\n" +
 	"\n" +
-	"UpdatePost\x12\x17.post.UpdatePostRequest\x1a\x16.google.protobuf.Empty\"!\x82\xd3\xe4\x93\x02\x1b:\x04post2\x13/api/v1/posts/{uid}\x12Z\n" +
+	"UpdatePost\x12\x17.post.UpdatePostRequest\x1a\x18.post.UpdatePostResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x04post2\x13/api/v1/posts/{uid}\x12\\\n" +
 	"\n" +
-	"DeletePost\x12\x17.post.DeletePostRequest\x1a\x16.google.protobuf.Empty\"\x1b\x82\xd3\xe4\x93\x02\x15*\x13/api/v1/posts/{uid}\x12^\n" +
+	"DeletePost\x12\x17.post.DeletePostRequest\x1a\x18.post.DeletePostResponse\"\x1b\x82\xd3\xe4\x93\x02\x15*\x13/api/v1/posts/{uid}\x12^\n" +
 	"\bLikePost\x12\x15.post.LikePostRequest\x1a\x16.post.LikePostResponse\"#\x82\xd3\xe4\x93\x02\x1d:\x01*\"\x18/api/v1/posts/{uid}/like\x12j\n" +
 	"\vCollectPost\x12\x18.post.CollectPostRequest\x1a\x19.post.CollectPostResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/api/v1/posts/{uid}/collectB\x0fZ\raeibi/api;apib\x06proto3"
 
@@ -1470,7 +1543,7 @@ func file_post_proto_rawDescGZIP() []byte {
 	return file_post_proto_rawDescData
 }
 
-var file_post_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_post_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_post_proto_goTypes = []any{
 	(*PostAuthor)(nil),                  // 0: post.PostAuthor
 	(*Attachment)(nil),                  // 1: post.Attachment
@@ -1489,14 +1562,15 @@ var file_post_proto_goTypes = []any{
 	(*GetPostResponse)(nil),             // 14: post.GetPostResponse
 	(*UpdatePostBody)(nil),              // 15: post.UpdatePostBody
 	(*UpdatePostRequest)(nil),           // 16: post.UpdatePostRequest
-	(*DeletePostRequest)(nil),           // 17: post.DeletePostRequest
-	(*LikePostRequest)(nil),             // 18: post.LikePostRequest
-	(*LikePostResponse)(nil),            // 19: post.LikePostResponse
-	(*CollectPostRequest)(nil),          // 20: post.CollectPostRequest
-	(*CollectPostResponse)(nil),         // 21: post.CollectPostResponse
-	(*fieldmaskpb.FieldMask)(nil),       // 22: google.protobuf.FieldMask
-	(ToggleAction)(0),                   // 23: common.ToggleAction
-	(*emptypb.Empty)(nil),               // 24: google.protobuf.Empty
+	(*UpdatePostResponse)(nil),          // 17: post.UpdatePostResponse
+	(*DeletePostRequest)(nil),           // 18: post.DeletePostRequest
+	(*DeletePostResponse)(nil),          // 19: post.DeletePostResponse
+	(*LikePostRequest)(nil),             // 20: post.LikePostRequest
+	(*LikePostResponse)(nil),            // 21: post.LikePostResponse
+	(*CollectPostRequest)(nil),          // 22: post.CollectPostRequest
+	(*CollectPostResponse)(nil),         // 23: post.CollectPostResponse
+	(*fieldmaskpb.FieldMask)(nil),       // 24: google.protobuf.FieldMask
+	(ToggleAction)(0),                   // 25: common.ToggleAction
 }
 var file_post_proto_depIdxs = []int32{
 	0,  // 0: post.Post.author:type_name -> post.PostAuthor
@@ -1506,9 +1580,9 @@ var file_post_proto_depIdxs = []int32{
 	8,  // 4: post.SuggestTagsByPrefixResponse.tags:type_name -> post.SearchTag
 	2,  // 5: post.GetPostResponse.post:type_name -> post.Post
 	15, // 6: post.UpdatePostRequest.post:type_name -> post.UpdatePostBody
-	22, // 7: post.UpdatePostRequest.update_mask:type_name -> google.protobuf.FieldMask
-	23, // 8: post.LikePostRequest.action:type_name -> common.ToggleAction
-	23, // 9: post.CollectPostRequest.action:type_name -> common.ToggleAction
+	24, // 7: post.UpdatePostRequest.update_mask:type_name -> google.protobuf.FieldMask
+	25, // 8: post.LikePostRequest.action:type_name -> common.ToggleAction
+	25, // 9: post.CollectPostRequest.action:type_name -> common.ToggleAction
 	3,  // 10: post.PostService.CreatePost:input_type -> post.CreatePostRequest
 	5,  // 11: post.PostService.ListPosts:input_type -> post.ListPostsRequest
 	6,  // 12: post.PostService.SearchPosts:input_type -> post.SearchPostsRequest
@@ -1517,9 +1591,9 @@ var file_post_proto_depIdxs = []int32{
 	11, // 15: post.PostService.SuggestTagsByPrefix:input_type -> post.SuggestTagsByPrefixRequest
 	13, // 16: post.PostService.GetPost:input_type -> post.GetPostRequest
 	16, // 17: post.PostService.UpdatePost:input_type -> post.UpdatePostRequest
-	17, // 18: post.PostService.DeletePost:input_type -> post.DeletePostRequest
-	18, // 19: post.PostService.LikePost:input_type -> post.LikePostRequest
-	20, // 20: post.PostService.CollectPost:input_type -> post.CollectPostRequest
+	18, // 18: post.PostService.DeletePost:input_type -> post.DeletePostRequest
+	20, // 19: post.PostService.LikePost:input_type -> post.LikePostRequest
+	22, // 20: post.PostService.CollectPost:input_type -> post.CollectPostRequest
 	4,  // 21: post.PostService.CreatePost:output_type -> post.CreatePostResponse
 	7,  // 22: post.PostService.ListPosts:output_type -> post.ListPostsResponse
 	7,  // 23: post.PostService.SearchPosts:output_type -> post.ListPostsResponse
@@ -1527,10 +1601,10 @@ var file_post_proto_depIdxs = []int32{
 	10, // 25: post.PostService.SearchTags:output_type -> post.SearchTagsResponse
 	12, // 26: post.PostService.SuggestTagsByPrefix:output_type -> post.SuggestTagsByPrefixResponse
 	14, // 27: post.PostService.GetPost:output_type -> post.GetPostResponse
-	24, // 28: post.PostService.UpdatePost:output_type -> google.protobuf.Empty
-	24, // 29: post.PostService.DeletePost:output_type -> google.protobuf.Empty
-	19, // 30: post.PostService.LikePost:output_type -> post.LikePostResponse
-	21, // 31: post.PostService.CollectPost:output_type -> post.CollectPostResponse
+	17, // 28: post.PostService.UpdatePost:output_type -> post.UpdatePostResponse
+	19, // 29: post.PostService.DeletePost:output_type -> post.DeletePostResponse
+	21, // 30: post.PostService.LikePost:output_type -> post.LikePostResponse
+	23, // 31: post.PostService.CollectPost:output_type -> post.CollectPostResponse
 	21, // [21:32] is the sub-list for method output_type
 	10, // [10:21] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
@@ -1550,7 +1624,7 @@ func file_post_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_post_proto_rawDesc), len(file_post_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

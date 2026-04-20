@@ -490,19 +490,19 @@ func (s *CommentService) GetComment(ctx context.Context, viewerUid string, req *
 	}, nil
 }
 
-func (s *CommentService) DeleteComment(ctx context.Context, uid string, req *api.DeleteCommentRequest) error {
+func (s *CommentService) DeleteComment(ctx context.Context, uid string, req *api.DeleteCommentRequest) (*api.DeleteCommentResponse, error) {
 	commentUid := util.UUID(req.Uid)
 	authorUid := util.UUID(uid)
 
 	commentRow, err := s.db.GetCommentByUid(ctx, commentUid)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("comment not found")
+			return nil, fmt.Errorf("comment not found")
 		}
-		return fmt.Errorf("get comment: %w", err)
+		return nil, fmt.Errorf("get comment: %w", err)
 	}
 
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 
 		affected, err := qtx.ArchiveCommentByUidAndAuthor(ctx, db.ArchiveCommentByUidAndAuthorParams{
@@ -532,7 +532,10 @@ func (s *CommentService) DeleteComment(ctx context.Context, uid string, req *api
 			return fmt.Errorf("decrement comment reply count: %w", err)
 		}
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
+	return &api.DeleteCommentResponse{}, nil
 }
 
 func (s *CommentService) LikeComment(ctx context.Context, uid string, req *api.LikeCommentRequest) (*api.LikeCommentResponse, error) {

@@ -42,19 +42,19 @@ func NewUserService(pool *pgxpool.Pool, ossClient *oss.OSS, search *searchrepo.S
 	}
 }
 
-func (s *UserService) CreateUser(ctx context.Context, req *api.CreateUserRequest) error {
+func (s *UserService) CreateUser(ctx context.Context, req *api.CreateUserRequest) (*api.CreateUserResponse, error) {
 	uid := uuid.New()
 
 	avatar, err := util.GenerateDefaultAvatar(uid.String())
 	if err != nil {
-		return fmt.Errorf("generate default avatar: %w", err)
+		return nil, fmt.Errorf("generate default avatar: %w", err)
 	}
 	avatarURL := fmt.Sprintf("/file/avatars/%s.png", uid)
 	avatarObjectKey := strings.TrimPrefix(avatarURL, "/")
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return fmt.Errorf("hash password: %w", err)
+		return nil, fmt.Errorf("hash password: %w", err)
 	}
 
 	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -82,9 +82,9 @@ func (s *UserService) CreateUser(ctx context.Context, req *api.CreateUserRequest
 		}
 		return nil
 	}); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return &api.CreateUserResponse{}, nil
 }
 
 func (s *UserService) GetUser(ctx context.Context, viewerUid string, req *api.GetUserRequest) (*api.GetUserResponse, error) {
@@ -125,7 +125,7 @@ func (s *UserService) GetUser(ctx context.Context, viewerUid string, req *api.Ge
 	}, nil
 }
 
-func (s *UserService) SearchUsers(_ context.Context, req *api.SearchUsersRequest) (*api.SearchUsersResponse, error) {
+func (s *UserService) SearchUsers(_ context.Context, viewerUID string, req *api.SearchUsersRequest) (*api.SearchUsersResponse, error) {
 	result, err := s.search.SearchUsers(searchrepo.SearchUsersParams{
 		Query: req.Query,
 		Limit: 20,
@@ -149,7 +149,7 @@ func (s *UserService) SearchUsers(_ context.Context, req *api.SearchUsersRequest
 	}, nil
 }
 
-func (s *UserService) SuggestUsersByPrefix(_ context.Context, req *api.SuggestUsersByPrefixRequest) (*api.SuggestUsersByPrefixResponse, error) {
+func (s *UserService) SuggestUsersByPrefix(_ context.Context, viewerUID string, req *api.SuggestUsersByPrefixRequest) (*api.SuggestUsersByPrefixResponse, error) {
 	result, err := s.search.SuggestUsersByNickname(req.Prefix, 10)
 	if err != nil {
 		return nil, fmt.Errorf("suggest users by prefix: %w", err)
@@ -196,7 +196,7 @@ func (s *UserService) GetMe(ctx context.Context, uid string) (*api.GetMeResponse
 	}, nil
 }
 
-func (s *UserService) UpdateMe(ctx context.Context, uid string, req *api.UpdateMeRequest) error {
+func (s *UserService) UpdateMe(ctx context.Context, uid string, req *api.UpdateMeRequest) (*api.UpdateMeResponse, error) {
 	vuid := util.UUID(uid)
 
 	params := db.UpdateUserParams{Uid: vuid}
@@ -217,7 +217,7 @@ func (s *UserService) UpdateMe(ctx context.Context, uid string, req *api.UpdateM
 		params.AvatarUrl = pgtype.Text{String: req.User.AvatarUrl, Valid: true}
 	}
 
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 
 		_, err := qtx.UpdateUser(ctx, params)
@@ -236,13 +236,16 @@ func (s *UserService) UpdateMe(ctx context.Context, uid string, req *api.UpdateM
 		}
 
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
+	return &api.UpdateMeResponse{}, nil
 }
 
-func (s *UserService) ChangePassword(ctx context.Context, uid string, req *api.ChangePasswordRequest) error {
+func (s *UserService) ChangePassword(ctx context.Context, uid string, req *api.ChangePasswordRequest) (*api.ChangePasswordResponse, error) {
 	vuid := util.UUID(uid)
 
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.db.WithTx(tx)
 
 		passwordHash, err := qtx.GetUserPasswordHashByUid(ctx, vuid)
@@ -278,7 +281,10 @@ func (s *UserService) ChangePassword(ctx context.Context, uid string, req *api.C
 		}
 
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
+	return &api.ChangePasswordResponse{}, nil
 }
 
 func (s *UserService) Login(ctx context.Context, req *api.LoginRequest) (*api.LoginResponse, error) {
@@ -367,11 +373,11 @@ func (s *UserService) RefreshToken(ctx context.Context, req *api.RefreshTokenReq
 	return resp, nil
 }
 
-func (s *UserService) Logout(ctx context.Context, uid string) error {
+func (s *UserService) Logout(ctx context.Context, uid string) (*api.LogoutResponse, error) {
 	if _, err := s.db.DeleteRefreshTokenByUid(ctx, util.UUID(uid)); err != nil {
-		return fmt.Errorf("clear refresh token: %w", err)
+		return nil, fmt.Errorf("clear refresh token: %w", err)
 	}
-	return nil
+	return &api.LogoutResponse{}, nil
 }
 
 func (s *UserService) genToken(uid string) (string, string, error) {

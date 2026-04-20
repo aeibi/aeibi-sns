@@ -6,7 +6,6 @@ option go_package = "aeibi/api;api";
 
 import "google/api/annotations.proto";
 import "google/api/field_behavior.proto";
-import "google/protobuf/empty.proto";
 
 // MessageService
 service MessageService {
@@ -25,21 +24,21 @@ service MessageService {
   }
 
   // DELETE /api/v1/me/inbox/messages/{uid} 归档一条消息
-  rpc DeleteInboxMessage(DeleteInboxMessageRequest) returns (google.protobuf.Empty) {
+  rpc DeleteInboxMessage(DeleteInboxMessageRequest) returns (DeleteInboxMessageResponse) {
     option (google.api.http) = {
       delete: "/api/v1/me/inbox/messages/{uid}"
     };
   }
 
   // PATCH /api/v1/me/inbox/messages/read 全部标记为已读
-  rpc MarkAllInboxMessagesRead(google.protobuf.Empty) returns (MarkAllInboxMessagesReadResponse) {
+  rpc MarkAllInboxMessagesRead(MarkAllInboxMessagesReadRequest) returns (MarkAllInboxMessagesReadResponse) {
     option (google.api.http) = {
       patch: "/api/v1/me/inbox/messages/read"
     };
   }
 
   // GET /api/v1/me/inbox/messages/unread/count 未读计数
-  rpc CountUnreadInboxMessages(google.protobuf.Empty) returns (CountUnreadInboxMessagesResponse) {
+  rpc CountUnreadInboxMessages(CountUnreadInboxMessagesRequest) returns (CountUnreadInboxMessagesResponse) {
     option (google.api.http) = {
       get: "/api/v1/me/inbox/messages/unread/count"
     };
@@ -103,8 +102,17 @@ message DeleteInboxMessageRequest {
   string uid = 1 [(google.api.field_behavior) = REQUIRED];
 }
 
+message DeleteInboxMessageResponse {
+}
+
+message MarkAllInboxMessagesReadRequest {
+}
+
 message MarkAllInboxMessagesReadResponse {
   int32 updated_count = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message CountUnreadInboxMessagesRequest {
 }
 
 message CountUnreadInboxMessagesResponse {

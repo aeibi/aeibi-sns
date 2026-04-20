@@ -22,7 +22,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // Suppress "imported and not used" errors
@@ -147,7 +146,7 @@ func local_request_MessageService_DeleteInboxMessage_0(ctx context.Context, mars
 
 func request_MessageService_MarkAllInboxMessagesRead_0(ctx context.Context, marshaler runtime.Marshaler, client MessageServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq emptypb.Empty
+		protoReq MarkAllInboxMessagesReadRequest
 		metadata runtime.ServerMetadata
 	)
 	if req.Body != nil {
@@ -159,7 +158,7 @@ func request_MessageService_MarkAllInboxMessagesRead_0(ctx context.Context, mars
 
 func local_request_MessageService_MarkAllInboxMessagesRead_0(ctx context.Context, marshaler runtime.Marshaler, server MessageServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq emptypb.Empty
+		protoReq MarkAllInboxMessagesReadRequest
 		metadata runtime.ServerMetadata
 	)
 	msg, err := server.MarkAllInboxMessagesRead(ctx, &protoReq)
@@ -168,7 +167,7 @@ func local_request_MessageService_MarkAllInboxMessagesRead_0(ctx context.Context
 
 func request_MessageService_CountUnreadInboxMessages_0(ctx context.Context, marshaler runtime.Marshaler, client MessageServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq emptypb.Empty
+		protoReq CountUnreadInboxMessagesRequest
 		metadata runtime.ServerMetadata
 	)
 	if req.Body != nil {
@@ -180,7 +179,7 @@ func request_MessageService_CountUnreadInboxMessages_0(ctx context.Context, mars
 
 func local_request_MessageService_CountUnreadInboxMessages_0(ctx context.Context, marshaler runtime.Marshaler, server MessageServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq emptypb.Empty
+		protoReq CountUnreadInboxMessagesRequest
 		metadata runtime.ServerMetadata
 	)
 	msg, err := server.CountUnreadInboxMessages(ctx, &protoReq)

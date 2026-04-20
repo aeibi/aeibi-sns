@@ -6,7 +6,6 @@ option go_package = "aeibi/api;api";
 
 import "google/api/annotations.proto";
 import "google/api/field_behavior.proto";
-import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
 import "common.proto";
 
@@ -63,7 +62,7 @@ service PostService {
   }
 
   // PATCH /api/v1/posts/{uid} 更新正文/媒体/标签/可见性
-  rpc UpdatePost(UpdatePostRequest) returns (google.protobuf.Empty) {
+  rpc UpdatePost(UpdatePostRequest) returns (UpdatePostResponse) {
     option (google.api.http) = {
       patch: "/api/v1/posts/{uid}"
       body : "post"
@@ -71,7 +70,7 @@ service PostService {
   }
 
   // DELETE /api/v1/posts/{uid} 软删
-  rpc DeletePost(DeletePostRequest) returns (google.protobuf.Empty) {
+  rpc DeletePost(DeletePostRequest) returns (DeletePostResponse) {
     option (google.api.http) = {
       delete: "/api/v1/posts/{uid}"
     };
@@ -215,10 +214,16 @@ message UpdatePostRequest {
   google.protobuf.FieldMask update_mask = 3 [(google.api.field_behavior) = REQUIRED];
 }
 
+message UpdatePostResponse {
+}
+
 // Delete
 
 message DeletePostRequest {
   string uid = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message DeletePostResponse {
 }
 
 // Like / Collect

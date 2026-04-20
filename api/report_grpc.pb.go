@@ -11,7 +11,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -30,7 +29,7 @@ const (
 // ReportService
 type ReportServiceClient interface {
 	// POST /api/v1/reports 创建举报
-	CreateReport(ctx context.Context, in *CreateReportRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	CreateReport(ctx context.Context, in *CreateReportRequest, opts ...grpc.CallOption) (*CreateReportResponse, error)
 }
 
 type reportServiceClient struct {
@@ -41,9 +40,9 @@ func NewReportServiceClient(cc grpc.ClientConnInterface) ReportServiceClient {
 	return &reportServiceClient{cc}
 }
 
-func (c *reportServiceClient) CreateReport(ctx context.Context, in *CreateReportRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *reportServiceClient) CreateReport(ctx context.Context, in *CreateReportRequest, opts ...grpc.CallOption) (*CreateReportResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
+	out := new(CreateReportResponse)
 	err := c.cc.Invoke(ctx, ReportService_CreateReport_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -58,7 +57,7 @@ func (c *reportServiceClient) CreateReport(ctx context.Context, in *CreateReport
 // ReportService
 type ReportServiceServer interface {
 	// POST /api/v1/reports 创建举报
-	CreateReport(context.Context, *CreateReportRequest) (*emptypb.Empty, error)
+	CreateReport(context.Context, *CreateReportRequest) (*CreateReportResponse, error)
 	mustEmbedUnimplementedReportServiceServer()
 }
 
@@ -69,7 +68,7 @@ type ReportServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedReportServiceServer struct{}
 
-func (UnimplementedReportServiceServer) CreateReport(context.Context, *CreateReportRequest) (*emptypb.Empty, error) {
+func (UnimplementedReportServiceServer) CreateReport(context.Context, *CreateReportRequest) (*CreateReportResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateReport not implemented")
 }
 func (UnimplementedReportServiceServer) mustEmbedUnimplementedReportServiceServer() {}

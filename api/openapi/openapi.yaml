@@ -34,7 +34,10 @@ paths:
             responses:
                 "200":
                     description: OK
-                    content: {}
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/user.LogoutResponse'
     /api/v1/auth/refresh:
         post:
             tags:
@@ -112,7 +115,10 @@ paths:
             responses:
                 "200":
                     description: OK
-                    content: {}
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/comment.DeleteCommentResponse'
     /api/v1/comments/{uid}/like:
         post:
             tags:
@@ -162,6 +168,32 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/comment.ListRepliesResponse'
+    /api/v1/configs/frontend:
+        get:
+            tags:
+                - ConfigService
+            description: GET /api/v1/configs/frontend 获取前端公开配置
+            operationId: ConfigService_GetFrontendConfig
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/config.GetFrontendConfigResponse'
+    /api/v1/configs/upload:
+        get:
+            tags:
+                - ConfigService
+            description: GET /api/v1/configs/upload 获取上传配置
+            operationId: ConfigService_GetUploadConfig
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/config.GetUploadConfigResponse'
     /api/v1/files:
         post:
             tags:
@@ -227,7 +259,10 @@ paths:
             responses:
                 "200":
                     description: OK
-                    content: {}
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/user.UpdateMeResponse'
     /api/v1/me/collections:
         get:
             tags:
@@ -389,7 +424,10 @@ paths:
             responses:
                 "200":
                     description: OK
-                    content: {}
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/message.DeleteInboxMessageResponse'
     /api/v1/me/password:
         patch:
             tags:
@@ -405,7 +443,10 @@ paths:
             responses:
                 "200":
                     description: OK
-                    content: {}
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/user.ChangePasswordResponse'
     /api/v1/posts:
         get:
             tags:
@@ -534,7 +575,10 @@ paths:
             responses:
                 "200":
                     description: OK
-                    content: {}
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/post.DeletePostResponse'
         patch:
             tags:
                 - PostService
@@ -560,7 +604,10 @@ paths:
             responses:
                 "200":
                     description: OK
-                    content: {}
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/post.UpdatePostResponse'
     /api/v1/posts/{uid}/collect:
         post:
             tags:
@@ -626,7 +673,10 @@ paths:
             responses:
                 "200":
                     description: OK
-                    content: {}
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/report.CreateReportResponse'
     /api/v1/search/posts:
         get:
             tags:
@@ -744,7 +794,10 @@ paths:
             responses:
                 "200":
                     description: OK
-                    content: {}
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/user.CreateUserResponse'
     /api/v1/users/{uid}:
         get:
             tags:
@@ -914,6 +967,9 @@ components:
                 commentCount:
                     type: integer
                     format: int32
+        comment.DeleteCommentResponse:
+            type: object
+            properties: {}
         comment.GetCommentResponse:
             required:
                 - comment
@@ -996,6 +1052,40 @@ components:
                 description:
                     type: string
             description: User
+        config.FrontendConfig:
+            required:
+                - siteName
+                - siteIconUrl
+            type: object
+            properties:
+                siteName:
+                    type: string
+                siteIconUrl:
+                    type: string
+                siteLogoUrl:
+                    type: string
+        config.GetFrontendConfigResponse:
+            required:
+                - config
+            type: object
+            properties:
+                config:
+                    $ref: '#/components/schemas/config.FrontendConfig'
+        config.GetUploadConfigResponse:
+            required:
+                - config
+            type: object
+            properties:
+                config:
+                    $ref: '#/components/schemas/config.UploadConfig'
+        config.UploadConfig:
+            required:
+                - maxUploadSizeKb
+            type: object
+            properties:
+                maxUploadSizeKb:
+                    type: integer
+                    format: int32
         file.File:
             required:
                 - name
@@ -1134,6 +1224,9 @@ components:
                 commentUnreadCount:
                     type: integer
                     format: int32
+        message.DeleteInboxMessageResponse:
+            type: object
+            properties: {}
         message.FollowInboxMessage:
             required:
                 - uid
@@ -1257,6 +1350,9 @@ components:
             properties:
                 uid:
                     type: string
+        post.DeletePostResponse:
+            type: object
+            properties: {}
         post.GetPostResponse:
             required:
                 - post
@@ -1416,6 +1512,9 @@ components:
                     type: string
                 pinned:
                     type: boolean
+        post.UpdatePostResponse:
+            type: object
+            properties: {}
         report.CreateReportRequest:
             required:
                 - reportTargetType
@@ -1430,6 +1529,9 @@ components:
                     type: string
                 content:
                     type: string
+        report.CreateReportResponse:
+            type: object
+            properties: {}
         user.ChangePasswordRequest:
             required:
                 - oldPassword
@@ -1440,6 +1542,9 @@ components:
                     type: string
                 newPassword:
                     type: string
+        user.ChangePasswordResponse:
+            type: object
+            properties: {}
         user.CreateUserRequest:
             required:
                 - username
@@ -1454,6 +1559,9 @@ components:
                     type: string
                 nickname:
                     type: string
+        user.CreateUserResponse:
+            type: object
+            properties: {}
         user.GetMeResponse:
             required:
                 - user
@@ -1489,6 +1597,9 @@ components:
             properties:
                 tokens:
                     $ref: '#/components/schemas/user.TokenPair'
+        user.LogoutResponse:
+            type: object
+            properties: {}
         user.RefreshTokenRequest:
             required:
                 - refreshToken
@@ -1532,6 +1643,9 @@ components:
                 refreshToken:
                     type: string
             description: Tokens
+        user.UpdateMeResponse:
+            type: object
+            properties: {}
         user.UpdateMeUser:
             type: object
             properties:
@@ -1546,6 +1660,8 @@ components:
 tags:
     - name: CommentService
       description: CommentService
+    - name: ConfigService
+      description: ConfigService
     - name: FileService
       description: FileService
     - name: FollowService

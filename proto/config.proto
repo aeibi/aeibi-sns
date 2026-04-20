@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package config;
+
+option go_package = "aeibi/api;api";
+
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+
+// ConfigService
+service ConfigService {
+  // GET /api/v1/configs/frontend 获取前端公开配置
+  rpc GetFrontendConfig(GetFrontendConfigRequest) returns (GetFrontendConfigResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/configs/frontend"
+    };
+  }
+
+  // GET /api/v1/configs/upload 获取上传配置
+  rpc GetUploadConfig(GetUploadConfigRequest) returns (GetUploadConfigResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/configs/upload"
+    };
+  }
+}
+
+// -------------------- Messages --------------------
+
+message FrontendConfig {
+  string site_name     = 1 [(google.api.field_behavior) = REQUIRED];
+  string site_icon_url = 2 [(google.api.field_behavior) = REQUIRED];
+  string site_logo_url = 3;
+}
+
+message GetFrontendConfigRequest {
+}
+
+message GetFrontendConfigResponse {
+  FrontendConfig config = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message UploadConfig {
+  int32 max_upload_size_kb = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message GetUploadConfigRequest {
+}
+
+message GetUploadConfigResponse {
+  UploadConfig config = 1 [(google.api.field_behavior) = REQUIRED];
+}

@@ -23,3 +23,8 @@ auth:
   jwt_issuer: "aeibi"
   jwt_ttl: "2h"
   refresh_ttl: "720h"
+
+frontend:
+  site_name: "Aeibi"
+  site_icon_url: "/aeibi.svg"
+  site_logo_url: "/aeibi.svg"

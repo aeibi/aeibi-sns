@@ -16,6 +16,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/genproto/googleapis/api/httpbody"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type FileService struct {
@@ -34,13 +36,9 @@ func NewFileService(pool *pgxpool.Pool, ossClient *oss.OSS, maxUploadSizeKB int)
 	}
 }
 
-func (s *FileService) MaxUploadSizeBytes() int {
-	return s.maxUploadSizeBytes
-}
-
 func (s *FileService) UploadFile(ctx context.Context, uploader string, req *api.UploadFileRequest) (*api.UploadFileResponse, error) {
 	if s.maxUploadSizeBytes > 0 && len(req.Data) > s.maxUploadSizeBytes {
-		return nil, fmt.Errorf("file size exceeds %dKB", s.maxUploadSizeBytes/1024)
+		return nil, status.Errorf(codes.InvalidArgument, "file size exceeds %dKB", s.maxUploadSizeBytes/1024)
 	}
 
 	contentType := strings.TrimSpace(req.ContentType)
@@ -76,7 +74,7 @@ func (s *FileService) UploadFile(ctx context.Context, uploader string, req *api.
 	}, nil
 }
 
-func (s *FileService) GetFileMeta(ctx context.Context, req *api.GetFileMetaRequest) (*api.GetFileMetaResponse, error) {
+func (s *FileService) GetFileMeta(ctx context.Context, viewerUID string, req *api.GetFileMetaRequest) (*api.GetFileMetaResponse, error) {
 	row, err := s.db.GetFileByURL(ctx, req.Url)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -98,7 +96,7 @@ func (s *FileService) GetFileMeta(ctx context.Context, req *api.GetFileMetaReque
 	}, nil
 }
 
-func (s *FileService) GetFile(ctx context.Context, req *api.GetFileRequest) (*httpbody.HttpBody, error) {
+func (s *FileService) GetFile(ctx context.Context, viewerUID string, req *api.GetFileRequest) (*httpbody.HttpBody, error) {
 	reader, _, err := s.oss.GetObject(ctx, strings.TrimPrefix(req.Url, "/"))
 	if err != nil {
 		if errors.Is(err, oss.ErrObjectNotFound) {

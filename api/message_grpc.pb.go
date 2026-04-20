@@ -11,7 +11,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -38,11 +37,11 @@ type MessageServiceClient interface {
 	// GET /api/v1/me/inbox/messages/follows 当前用户关注消息列表
 	ListFollowInboxMessages(ctx context.Context, in *ListFollowInboxMessagesRequest, opts ...grpc.CallOption) (*ListFollowInboxMessagesResponse, error)
 	// DELETE /api/v1/me/inbox/messages/{uid} 归档一条消息
-	DeleteInboxMessage(ctx context.Context, in *DeleteInboxMessageRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteInboxMessage(ctx context.Context, in *DeleteInboxMessageRequest, opts ...grpc.CallOption) (*DeleteInboxMessageResponse, error)
 	// PATCH /api/v1/me/inbox/messages/read 全部标记为已读
-	MarkAllInboxMessagesRead(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*MarkAllInboxMessagesReadResponse, error)
+	MarkAllInboxMessagesRead(ctx context.Context, in *MarkAllInboxMessagesReadRequest, opts ...grpc.CallOption) (*MarkAllInboxMessagesReadResponse, error)
 	// GET /api/v1/me/inbox/messages/unread/count 未读计数
-	CountUnreadInboxMessages(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CountUnreadInboxMessagesResponse, error)
+	CountUnreadInboxMessages(ctx context.Context, in *CountUnreadInboxMessagesRequest, opts ...grpc.CallOption) (*CountUnreadInboxMessagesResponse, error)
 }
 
 type messageServiceClient struct {
@@ -73,9 +72,9 @@ func (c *messageServiceClient) ListFollowInboxMessages(ctx context.Context, in *
 	return out, nil
 }
 
-func (c *messageServiceClient) DeleteInboxMessage(ctx context.Context, in *DeleteInboxMessageRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *messageServiceClient) DeleteInboxMessage(ctx context.Context, in *DeleteInboxMessageRequest, opts ...grpc.CallOption) (*DeleteInboxMessageResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
+	out := new(DeleteInboxMessageResponse)
 	err := c.cc.Invoke(ctx, MessageService_DeleteInboxMessage_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -83,7 +82,7 @@ func (c *messageServiceClient) DeleteInboxMessage(ctx context.Context, in *Delet
 	return out, nil
 }
 
-func (c *messageServiceClient) MarkAllInboxMessagesRead(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*MarkAllInboxMessagesReadResponse, error) {
+func (c *messageServiceClient) MarkAllInboxMessagesRead(ctx context.Context, in *MarkAllInboxMessagesReadRequest, opts ...grpc.CallOption) (*MarkAllInboxMessagesReadResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(MarkAllInboxMessagesReadResponse)
 	err := c.cc.Invoke(ctx, MessageService_MarkAllInboxMessagesRead_FullMethodName, in, out, cOpts...)
@@ -93,7 +92,7 @@ func (c *messageServiceClient) MarkAllInboxMessagesRead(ctx context.Context, in 
 	return out, nil
 }
 
-func (c *messageServiceClient) CountUnreadInboxMessages(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CountUnreadInboxMessagesResponse, error) {
+func (c *messageServiceClient) CountUnreadInboxMessages(ctx context.Context, in *CountUnreadInboxMessagesRequest, opts ...grpc.CallOption) (*CountUnreadInboxMessagesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CountUnreadInboxMessagesResponse)
 	err := c.cc.Invoke(ctx, MessageService_CountUnreadInboxMessages_FullMethodName, in, out, cOpts...)
@@ -114,11 +113,11 @@ type MessageServiceServer interface {
 	// GET /api/v1/me/inbox/messages/follows 当前用户关注消息列表
 	ListFollowInboxMessages(context.Context, *ListFollowInboxMessagesRequest) (*ListFollowInboxMessagesResponse, error)
 	// DELETE /api/v1/me/inbox/messages/{uid} 归档一条消息
-	DeleteInboxMessage(context.Context, *DeleteInboxMessageRequest) (*emptypb.Empty, error)
+	DeleteInboxMessage(context.Context, *DeleteInboxMessageRequest) (*DeleteInboxMessageResponse, error)
 	// PATCH /api/v1/me/inbox/messages/read 全部标记为已读
-	MarkAllInboxMessagesRead(context.Context, *emptypb.Empty) (*MarkAllInboxMessagesReadResponse, error)
+	MarkAllInboxMessagesRead(context.Context, *MarkAllInboxMessagesReadRequest) (*MarkAllInboxMessagesReadResponse, error)
 	// GET /api/v1/me/inbox/messages/unread/count 未读计数
-	CountUnreadInboxMessages(context.Context, *emptypb.Empty) (*CountUnreadInboxMessagesResponse, error)
+	CountUnreadInboxMessages(context.Context, *CountUnreadInboxMessagesRequest) (*CountUnreadInboxMessagesResponse, error)
 	mustEmbedUnimplementedMessageServiceServer()
 }
 
@@ -135,13 +134,13 @@ func (UnimplementedMessageServiceServer) ListCommentInboxMessages(context.Contex
 func (UnimplementedMessageServiceServer) ListFollowInboxMessages(context.Context, *ListFollowInboxMessagesRequest) (*ListFollowInboxMessagesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListFollowInboxMessages not implemented")
 }
-func (UnimplementedMessageServiceServer) DeleteInboxMessage(context.Context, *DeleteInboxMessageRequest) (*emptypb.Empty, error) {
+func (UnimplementedMessageServiceServer) DeleteInboxMessage(context.Context, *DeleteInboxMessageRequest) (*DeleteInboxMessageResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteInboxMessage not implemented")
 }
-func (UnimplementedMessageServiceServer) MarkAllInboxMessagesRead(context.Context, *emptypb.Empty) (*MarkAllInboxMessagesReadResponse, error) {
+func (UnimplementedMessageServiceServer) MarkAllInboxMessagesRead(context.Context, *MarkAllInboxMessagesReadRequest) (*MarkAllInboxMessagesReadResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MarkAllInboxMessagesRead not implemented")
 }
-func (UnimplementedMessageServiceServer) CountUnreadInboxMessages(context.Context, *emptypb.Empty) (*CountUnreadInboxMessagesResponse, error) {
+func (UnimplementedMessageServiceServer) CountUnreadInboxMessages(context.Context, *CountUnreadInboxMessagesRequest) (*CountUnreadInboxMessagesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CountUnreadInboxMessages not implemented")
 }
 func (UnimplementedMessageServiceServer) mustEmbedUnimplementedMessageServiceServer() {}
@@ -220,7 +219,7 @@ func _MessageService_DeleteInboxMessage_Handler(srv interface{}, ctx context.Con
 }
 
 func _MessageService_MarkAllInboxMessagesRead_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+	in := new(MarkAllInboxMessagesReadRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -232,13 +231,13 @@ func _MessageService_MarkAllInboxMessagesRead_Handler(srv interface{}, ctx conte
 		FullMethod: MessageService_MarkAllInboxMessagesRead_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MessageServiceServer).MarkAllInboxMessagesRead(ctx, req.(*emptypb.Empty))
+		return srv.(MessageServiceServer).MarkAllInboxMessagesRead(ctx, req.(*MarkAllInboxMessagesReadRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _MessageService_CountUnreadInboxMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+	in := new(CountUnreadInboxMessagesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -250,7 +249,7 @@ func _MessageService_CountUnreadInboxMessages_Handler(srv interface{}, ctx conte
 		FullMethod: MessageService_CountUnreadInboxMessages_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MessageServiceServer).CountUnreadInboxMessages(ctx, req.(*emptypb.Empty))
+		return srv.(MessageServiceServer).CountUnreadInboxMessages(ctx, req.(*CountUnreadInboxMessagesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

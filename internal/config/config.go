@@ -14,6 +14,7 @@ type Config struct {
 	OSS      OSSConfig      `mapstructure:"oss"`
 	Search   SearchConfig   `mapstructure:"search"`
 	Auth     AuthConfig     `mapstructure:"auth"`
+	Frontend FrontendConfig `mapstructure:"frontend"`
 }
 
 type ServerConfig struct {
@@ -45,6 +46,12 @@ type AuthConfig struct {
 	JWTIssuer  string        `mapstructure:"jwt_issuer"`
 	JWTTTL     time.Duration `mapstructure:"jwt_ttl"`
 	RefreshTTL time.Duration `mapstructure:"refresh_ttl"`
+}
+
+type FrontendConfig struct {
+	SiteName    string `mapstructure:"site_name"`
+	SiteIconURL string `mapstructure:"site_icon_url"`
+	SiteLogoURL string `mapstructure:"site_logo_url"`
 }
 
 func Load(path string) (*Config, error) {

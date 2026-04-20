@@ -8,7 +8,6 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type UserHandler struct {
@@ -20,7 +19,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 	return &UserHandler{svc: svc}
 }
 
-func (h *UserHandler) CreateUser(ctx context.Context, req *api.CreateUserRequest) (*emptypb.Empty, error) {
+func (h *UserHandler) CreateUser(ctx context.Context, req *api.CreateUserRequest) (*api.CreateUserResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
@@ -30,10 +29,11 @@ func (h *UserHandler) CreateUser(ctx context.Context, req *api.CreateUserRequest
 	if req.Password == "" {
 		return nil, status.Error(codes.InvalidArgument, "password is required")
 	}
-	if err := h.svc.CreateUser(ctx, req); err != nil {
+	resp, err := h.svc.CreateUser(ctx, req)
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &emptypb.Empty{}, nil
+	return resp, nil
 }
 
 func (h *UserHandler) GetUser(ctx context.Context, req *api.GetUserRequest) (*api.GetUserResponse, error) {
@@ -54,7 +54,8 @@ func (h *UserHandler) SearchUsers(ctx context.Context, req *api.SearchUsersReque
 	if req.Query == "" {
 		return nil, status.Error(codes.InvalidArgument, "query is required")
 	}
-	return h.svc.SearchUsers(ctx, req)
+	viewerUid, _ := auth.SubjectFromContext(ctx)
+	return h.svc.SearchUsers(ctx, viewerUid, req)
 }
 
 func (h *UserHandler) SuggestUsersByPrefix(ctx context.Context, req *api.SuggestUsersByPrefixRequest) (*api.SuggestUsersByPrefixResponse, error) {
@@ -64,10 +65,11 @@ func (h *UserHandler) SuggestUsersByPrefix(ctx context.Context, req *api.Suggest
 	if req.Prefix == "" {
 		return nil, status.Error(codes.InvalidArgument, "prefix is required")
 	}
-	return h.svc.SuggestUsersByPrefix(ctx, req)
+	viewerUid, _ := auth.SubjectFromContext(ctx)
+	return h.svc.SuggestUsersByPrefix(ctx, viewerUid, req)
 }
 
-func (h *UserHandler) GetMe(ctx context.Context, _ *emptypb.Empty) (*api.GetMeResponse, error) {
+func (h *UserHandler) GetMe(ctx context.Context, _ *api.GetMeRequest) (*api.GetMeResponse, error) {
 	uid, ok := auth.SubjectFromContext(ctx)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
@@ -78,7 +80,7 @@ func (h *UserHandler) GetMe(ctx context.Context, _ *emptypb.Empty) (*api.GetMeRe
 	return h.svc.GetMe(ctx, uid)
 }
 
-func (h *UserHandler) UpdateMe(ctx context.Context, req *api.UpdateMeRequest) (*emptypb.Empty, error) {
+func (h *UserHandler) UpdateMe(ctx context.Context, req *api.UpdateMeRequest) (*api.UpdateMeResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
@@ -92,13 +94,14 @@ func (h *UserHandler) UpdateMe(ctx context.Context, req *api.UpdateMeRequest) (*
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 	}
-	if err := h.svc.UpdateMe(ctx, uid, req); err != nil {
+	resp, err := h.svc.UpdateMe(ctx, uid, req)
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &emptypb.Empty{}, nil
+	return resp, nil
 }
 
-func (h *UserHandler) ChangePassword(ctx context.Context, req *api.ChangePasswordRequest) (*emptypb.Empty, error) {
+func (h *UserHandler) ChangePassword(ctx context.Context, req *api.ChangePasswordRequest) (*api.ChangePasswordResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is nil")
 	}
@@ -112,10 +115,11 @@ func (h *UserHandler) ChangePassword(ctx context.Context, req *api.ChangePasswor
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 	}
-	if err := h.svc.ChangePassword(ctx, uid, req); err != nil {
+	resp, err := h.svc.ChangePassword(ctx, uid, req)
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &emptypb.Empty{}, nil
+	return resp, nil
 }
 
 func (h *UserHandler) Login(ctx context.Context, req *api.LoginRequest) (*api.LoginResponse, error) {
@@ -141,13 +145,14 @@ func (h *UserHandler) RefreshToken(ctx context.Context, req *api.RefreshTokenReq
 	return h.svc.RefreshToken(ctx, req)
 }
 
-func (h *UserHandler) Logout(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
+func (h *UserHandler) Logout(ctx context.Context, _ *api.LogoutRequest) (*api.LogoutResponse, error) {
 	uid, ok := auth.SubjectFromContext(ctx)
 	if !ok || uid == "" {
 		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
 	}
-	if err := h.svc.Logout(ctx, uid); err != nil {
+	resp, err := h.svc.Logout(ctx, uid)
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &emptypb.Empty{}, nil
+	return resp, nil
 }

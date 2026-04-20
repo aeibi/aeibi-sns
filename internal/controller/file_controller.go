@@ -27,9 +27,6 @@ func (h *FileHandler) UploadFile(ctx context.Context, req *api.UploadFileRequest
 	if len(req.Data) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "file data is empty")
 	}
-	if max := h.svc.MaxUploadSizeBytes(); max > 0 && len(req.Data) > max {
-		return nil, status.Errorf(codes.InvalidArgument, "file size exceeds %dKB", max/1024)
-	}
 
 	uid, ok := auth.SubjectFromContext(ctx)
 	if !ok || uid == "" {
@@ -47,7 +44,8 @@ func (h *FileHandler) GetFileMeta(ctx context.Context, req *api.GetFileMetaReque
 		return nil, status.Error(codes.InvalidArgument, "url is required")
 	}
 
-	return h.svc.GetFileMeta(ctx, req)
+	viewerUid, _ := auth.SubjectFromContext(ctx)
+	return h.svc.GetFileMeta(ctx, viewerUid, req)
 }
 
 func (h *FileHandler) GetFile(ctx context.Context, req *api.GetFileRequest) (*httpbody.HttpBody, error) {
@@ -58,5 +56,6 @@ func (h *FileHandler) GetFile(ctx context.Context, req *api.GetFileRequest) (*ht
 		return nil, status.Error(codes.InvalidArgument, "url is required")
 	}
 
-	return h.svc.GetFile(ctx, req)
+	viewerUid, _ := auth.SubjectFromContext(ctx)
+	return h.svc.GetFile(ctx, viewerUid, req)
 }

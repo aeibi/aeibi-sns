@@ -19,7 +19,7 @@ func NewReportService(pool *pgxpool.Pool) *ReportService {
 	return &ReportService{db: db.New(pool)}
 }
 
-func (s *ReportService) CreateReport(ctx context.Context, uid string, req *api.CreateReportRequest) error {
+func (s *ReportService) CreateReport(ctx context.Context, uid string, req *api.CreateReportRequest) (*api.CreateReportResponse, error) {
 	var targetType db.ReportTargetType
 	switch req.ReportTargetType {
 	case api.ReportTargetType_REPORT_TARGET_TYPE_POST:
@@ -29,7 +29,7 @@ func (s *ReportService) CreateReport(ctx context.Context, uid string, req *api.C
 	case api.ReportTargetType_REPORT_TARGET_TYPE_USER:
 		targetType = db.ReportTargetTypeUSER
 	default:
-		return fmt.Errorf("report_target_type is invalid")
+		return nil, fmt.Errorf("report_target_type is invalid")
 	}
 
 	if _, err := s.db.CreateReport(ctx, db.CreateReportParams{
@@ -39,8 +39,8 @@ func (s *ReportService) CreateReport(ctx context.Context, uid string, req *api.C
 		TargetUid:        util.UUID(req.TargetUid),
 		Content:          req.Content,
 	}); err != nil {
-		return fmt.Errorf("create report: %w", err)
+		return nil, fmt.Errorf("create report: %w", err)
 	}
 
-	return nil
+	return &api.CreateReportResponse{}, nil
 }

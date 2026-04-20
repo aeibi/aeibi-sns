@@ -10,7 +10,6 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -135,23 +134,60 @@ func (x *CreateReportRequest) GetContent() string {
 	return ""
 }
 
+type CreateReportResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateReportResponse) Reset() {
+	*x = CreateReportResponse{}
+	mi := &file_report_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateReportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateReportResponse) ProtoMessage() {}
+
+func (x *CreateReportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_report_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateReportResponse.ProtoReflect.Descriptor instead.
+func (*CreateReportResponse) Descriptor() ([]byte, []int) {
+	return file_report_proto_rawDescGZIP(), []int{1}
+}
+
 var File_report_proto protoreflect.FileDescriptor
 
 const file_report_proto_rawDesc = "" +
 	"\n" +
-	"\freport.proto\x12\x06report\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bgoogle/protobuf/empty.proto\"\xa5\x01\n" +
+	"\freport.proto\x12\x06report\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\"\xa5\x01\n" +
 	"\x13CreateReportRequest\x12K\n" +
 	"\x12report_target_type\x18\x01 \x01(\x0e2\x18.report.ReportTargetTypeB\x03\xe0A\x02R\x10reportTargetType\x12\"\n" +
 	"\n" +
 	"target_uid\x18\x02 \x01(\tB\x03\xe0A\x02R\ttargetUid\x12\x1d\n" +
-	"\acontent\x18\x03 \x01(\tB\x03\xe0A\x02R\acontent*\x90\x01\n" +
+	"\acontent\x18\x03 \x01(\tB\x03\xe0A\x02R\acontent\"\x16\n" +
+	"\x14CreateReportResponse*\x90\x01\n" +
 	"\x10ReportTargetType\x12\"\n" +
 	"\x1eREPORT_TARGET_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17REPORT_TARGET_TYPE_POST\x10\x01\x12\x1e\n" +
 	"\x1aREPORT_TARGET_TYPE_COMMENT\x10\x02\x12\x1b\n" +
-	"\x17REPORT_TARGET_TYPE_USER\x10\x032p\n" +
-	"\rReportService\x12_\n" +
-	"\fCreateReport\x12\x1b.report.CreateReportRequest\x1a\x16.google.protobuf.Empty\"\x1a\x82\xd3\xe4\x93\x02\x14:\x01*\"\x0f/api/v1/reportsB\x0fZ\raeibi/api;apib\x06proto3"
+	"\x17REPORT_TARGET_TYPE_USER\x10\x032v\n" +
+	"\rReportService\x12e\n" +
+	"\fCreateReport\x12\x1b.report.CreateReportRequest\x1a\x1c.report.CreateReportResponse\"\x1a\x82\xd3\xe4\x93\x02\x14:\x01*\"\x0f/api/v1/reportsB\x0fZ\raeibi/api;apib\x06proto3"
 
 var (
 	file_report_proto_rawDescOnce sync.Once
@@ -166,16 +202,16 @@ func file_report_proto_rawDescGZIP() []byte {
 }
 
 var file_report_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_report_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_report_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_report_proto_goTypes = []any{
-	(ReportTargetType)(0),       // 0: report.ReportTargetType
-	(*CreateReportRequest)(nil), // 1: report.CreateReportRequest
-	(*emptypb.Empty)(nil),       // 2: google.protobuf.Empty
+	(ReportTargetType)(0),        // 0: report.ReportTargetType
+	(*CreateReportRequest)(nil),  // 1: report.CreateReportRequest
+	(*CreateReportResponse)(nil), // 2: report.CreateReportResponse
 }
 var file_report_proto_depIdxs = []int32{
 	0, // 0: report.CreateReportRequest.report_target_type:type_name -> report.ReportTargetType
 	1, // 1: report.ReportService.CreateReport:input_type -> report.CreateReportRequest
-	2, // 2: report.ReportService.CreateReport:output_type -> google.protobuf.Empty
+	2, // 2: report.ReportService.CreateReport:output_type -> report.CreateReportResponse
 	2, // [2:3] is the sub-list for method output_type
 	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -194,7 +230,7 @@ func file_report_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_report_proto_rawDesc), len(file_report_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -262,7 +262,7 @@ func (s *MessageService) ListFollowInboxMessages(ctx context.Context, uid string
 	}, nil
 }
 
-func (s *MessageService) DeleteInboxMessage(ctx context.Context, uid string, req *api.DeleteInboxMessageRequest) error {
+func (s *MessageService) DeleteInboxMessage(ctx context.Context, uid string, req *api.DeleteInboxMessageRequest) (*api.DeleteInboxMessageResponse, error) {
 	messageUID := util.UUID(req.Uid)
 	receiverUID := util.UUID(uid)
 
@@ -271,7 +271,7 @@ func (s *MessageService) DeleteInboxMessage(ctx context.Context, uid string, req
 		ReceiverUid: receiverUID,
 	})
 	if err != nil {
-		return fmt.Errorf("delete comment inbox message: %w", err)
+		return nil, fmt.Errorf("delete comment inbox message: %w", err)
 	}
 
 	followAffected, err := s.db.ArchiveFollowInboxMessageByUIDAndReceiver(ctx, db.ArchiveFollowInboxMessageByUIDAndReceiverParams{
@@ -279,13 +279,13 @@ func (s *MessageService) DeleteInboxMessage(ctx context.Context, uid string, req
 		ReceiverUid: receiverUID,
 	})
 	if err != nil {
-		return fmt.Errorf("delete follow inbox message: %w", err)
+		return nil, fmt.Errorf("delete follow inbox message: %w", err)
 	}
 
 	if commentAffected+followAffected == 0 {
-		return fmt.Errorf("message not found or no permission")
+		return nil, fmt.Errorf("message not found or no permission")
 	}
-	return nil
+	return &api.DeleteInboxMessageResponse{}, nil
 }
 
 func (s *MessageService) MarkAllInboxMessagesRead(ctx context.Context, uid string) (*api.MarkAllInboxMessagesReadResponse, error) {
